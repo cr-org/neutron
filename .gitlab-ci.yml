@@ -1,0 +1,41 @@
+variables:
+  COURSIER_CACHE: $CI_PROJECT_DIR/.cache/coursier
+
+cache: &global_cache
+  key: $CI_BUILD_REF_NAME
+  untracked: false
+
+before_script:
+  - echo $BUILD_VERSION
+
+stages:
+  - pre
+  - build
+
+build_runner:
+  stage: build
+  only:
+    refs:
+      - master
+    changes:
+      - build/runner/*
+  script:
+    - cd build/runner
+    - ./build.sh
+
+build_neutron:
+  stage: build
+  cache:
+    <<: *global_cache
+    key: neutron
+    paths:
+      - $CI_PROJECT_DIR/.cache
+      - $CI_PROJECT_DIR/.ivy2
+  only:
+    refs:
+      - master
+      - merge_requests
+    changes:
+      - **/*
+  script:
+    - sbt -mem 2048 test
