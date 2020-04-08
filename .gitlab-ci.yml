@@ -2,7 +2,6 @@ image: java:8
 
 stages:
   - test
-  - deploy
 
 before_script:
   - echo $BUILD_VERSION
@@ -15,7 +14,7 @@ before_script:
   - sbt sbtVersion
 
 build_neutron:
-  stage: build
+  stage: test
   only:
     refs:
       - master
