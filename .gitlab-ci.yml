@@ -1,41 +1,24 @@
-variables:
-  COURSIER_CACHE: $CI_PROJECT_DIR/.cache/coursier
+image: java:8
 
-cache: &global_cache
-  key: $CI_BUILD_REF_NAME
-  untracked: false
+stages:
+  - test
+  - deploy
 
 before_script:
   - echo $BUILD_VERSION
-
-stages:
-  - pre
-  - build
-
-build_runner:
-  stage: build
-  only:
-    refs:
-      - master
-    changes:
-      - build/runner/*
-  script:
-    - cd build/runner
-    - ./build.sh
+  - apt-get update -y
+  - apt-get install apt-transport-https -y
+  - echo "deb http://dl.bintray.com/sbt/debian /" | tee -a /etc/apt/sources.list.d/sbt.list
+  - apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 642AC823
+  - apt-get update -y
+  - apt-get install sbt -y
+  - sbt sbtVersion
 
 build_neutron:
   stage: build
-  cache:
-    <<: *global_cache
-    key: neutron
-    paths:
-      - $CI_PROJECT_DIR/.cache
-      - $CI_PROJECT_DIR/.ivy2
   only:
     refs:
       - master
       - merge_requests
-    changes:
-      - **/*
   script:
     - sbt -mem 2048 test
