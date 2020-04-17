@@ -5,10 +5,9 @@ stages:
 
 cache:
   paths:
-    - "sbt-cache/ivy/cache"
-    - "sbt-cache/boot"
-    - "sbt-cache/sbtboot"
-    - "sbt-cache/coursier"
+    - "$HOME/.ivy/cache"
+    - "$HOME/.cache/coursier"
+    - "$HOME/.sbt/boot"
 
 build_neutron:
   stage: test
