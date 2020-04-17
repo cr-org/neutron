@@ -5,7 +5,7 @@ import cats.effect._
 import cats.implicits._
 import cr.pulsar.internal.FutureLift._
 import fs2._
-import org.apache.pulsar.client.api.{Message, MessageId}
+import org.apache.pulsar.client.api.{Message, MessageId, SubscriptionInitialPosition}
 
 trait Consumer[F[_]] {
   def subscribe: Stream[F, Message[Array[Byte]]]
@@ -17,18 +17,25 @@ object Consumer {
   def create[F[_]: Concurrent: ContextShift](
       client: PulsarClient.T,
       topic: Topic,
-      subs: Subscription
+      subs: Subscription,
+      initial: SubscriptionInitialPosition
   ): Resource[F, Consumer[F]] = {
     Resource
       .make {
         F.delay(
-          client.newConsumer
-            .topic(topic.url)
-            .subscriptionType(subs.sType)
-            .subscriptionName(subs.name)
-            .subscribe
-        )
-      }(c => F.delay(c.closeAsync()).futureLift.void)
+            client.newConsumer
+              .topic(topic.url)
+              .subscriptionType(subs.sType)
+              .subscriptionName(subs.name)
+              .subscriptionInitialPosition(initial)
+              .subscribeAsync
+          )
+          .futureLift
+      }(
+        c =>
+          F.delay(c.unsubscribeAsync())
+            .futureLift >> F.delay(c.closeAsync()).futureLift.void
+      )
       .map { c =>
         new Consumer[F] {
           override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))

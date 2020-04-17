@@ -1,7 +1,7 @@
 package cr.pulsar
 
 import cats.Show.show
-import io.estatico.newtype.macros._
+import io.estatico.newtype.macros.newtype
 
 sealed abstract case class Topic(url: String)
 
@@ -21,6 +21,5 @@ object Topic {
   }
 
   def apply(cfg: Config, topic: TopicName, typ: Type): Topic =
-    new Topic(s"${typ.show}://${cfg.tenant.value}}/${cfg.namespace.value}/${topic.value}") {}
-
+    new Topic(s"${typ.show}://${cfg.tenant.value}/${cfg.namespace.value}/${topic.value}") {}
 }
