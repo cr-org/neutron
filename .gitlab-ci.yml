@@ -1,10 +1,8 @@
 image: docker-registry:5000/sbt-docker:latest
 
 variables:
-
-SBT_OPTS: "-Dsbt.global.base=sbt-cache/sbtboot -Dsbt.boot.directory=sbt-cache/boot -Dsbt.ivy.home=sbt-cache/ivy Dsbt.coursier.home=sbt-cache/coursier -Dsbt.io.jdktimestamps=true"
-
-COURSIER_CACHE: sbt-cache/coursier
+ SBT_OPTS: "-Dsbt.global.base=sbt-cache/sbtboot -Dsbt.boot.directory=sbt-cache/boot -Dsbt.ivy.home=sbt-cache/ivy Dsbt.coursier.home=sbt-cache/coursier -Dsbt.io.jdktimestamps=true"
+ COURSIER_CACHE: sbt-cache/coursier
 
 stages:
  - test
