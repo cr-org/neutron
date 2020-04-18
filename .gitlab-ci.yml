@@ -1,19 +1,31 @@
-image: hseeberger/scala-sbt:8u222_1.3.5_2.13.1
+image: 035187777769.dkr.ecr.us-east-1.amazonaws.com/build-runner:dd0fb6cc
+
+variables:
+  COURSIER_CACHE: $CI_PROJECT_DIR/.cache/coursier
+
+cache: &global_cache
+  key: $CI_BUILD_REF_NAME
+  untracked: false
 
 stages:
- - test
-
-cache:
-  paths:
-    - "$HOME/.ivy/cache"
-    - "$HOME/.cache/coursier"
-    - "$HOME/.sbt/boot"
+  - build
 
 build_neutron:
-  stage: test
+  stage: build
+  cache:
+    <<: *global_cache
+    key: core
+    paths:
+      - $CI_PROJECT_DIR/.cache
+      - $CI_PROJECT_DIR/out/core
+  image:
+    name: $ECR_URL/builder-kaniko-mill:latest
+    entrypoint: [""]
   only:
     refs:
       - master
       - merge_requests
+    changes:
+      - **/*
   script:
-    - sbt -mem 2048 test
+    - ./mill -i -h . core.compile
