@@ -5,5 +5,11 @@ A *pulsar* is a celestial object, thought to be a rapidly rotating neutron star,
 ### Build
 
 ```
-nix-shell --run 'mill core.compile'
+nix-shell --run 'mill core.test'
+```
+
+Using Lorri + Direnv:
+
+```
+mill core.test
 ```
