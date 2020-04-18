@@ -11,7 +11,7 @@ stages:
   - test
 
 build_neutron:
-  stage: build
+  stage: test
   cache:
     <<: *global_cache
     key: core
