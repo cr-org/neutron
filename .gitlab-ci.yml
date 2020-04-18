@@ -1,4 +1,4 @@
-image: 035187777769.dkr.ecr.us-east-1.amazonaws.com/build-runner:dd0fb6cc
+image: nightscape/scala-mill
 
 variables:
   COURSIER_CACHE: $CI_PROJECT_DIR/.cache/coursier
@@ -8,7 +8,7 @@ cache: &global_cache
   untracked: false
 
 stages:
-  - build
+  - test
 
 build_neutron:
   stage: build
@@ -18,14 +18,12 @@ build_neutron:
     paths:
       - $CI_PROJECT_DIR/.cache
       - $CI_PROJECT_DIR/out/core
-  image:
-    name: $ECR_URL/builder-kaniko-mill:latest
-    entrypoint: [""]
   only:
     refs:
       - master
       - merge_requests
     changes:
-      - **/*
+      - /**/*.scala
+      - /**/*.sc
   script:
-    - ./mill -i -h . core.compile
+    - mill -i core.test
