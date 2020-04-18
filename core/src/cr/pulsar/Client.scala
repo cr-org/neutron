@@ -10,6 +10,6 @@ object PulsarClient {
 
   def create[F[_]: Sync](url: PulsarURL): Resource[F, T] =
     Resource.fromAutoCloseable(
-      Sync[F].delay(Underlying.builder.serviceUrl(url.value).build)
+      F.delay(Underlying.builder.serviceUrl(url.value).build)
     )
 }
