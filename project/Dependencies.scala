@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
 
-  object Versions {
+  object V {
     val cats       = "2.1.0"
     val catsEffect = "2.1.2"
     val fs2        = "2.3.0"
@@ -15,22 +15,22 @@ object Dependencies {
   }
 
   object Libraries {
-    val cats       = "org.typelevel"     %% "cats-core"    % Versions.cats
-    val catsEffect = "org.typelevel"     %% "cats-effect"  % Versions.catsEffect
-    val fs2        = "co.fs2"            %% "fs2-core"     % Versions.fs2
-    val pulsar     = "org.apache.pulsar" % "pulsar-client" % Versions.pulsar
-    val newtype    = "io.estatico"       %% "newtype"      % Versions.newtype
+    val cats       = "org.typelevel"     %% "cats-core"    % V.cats
+    val catsEffect = "org.typelevel"     %% "cats-effect"  % V.catsEffect
+    val fs2        = "co.fs2"            %% "fs2-core"     % V.fs2
+    val pulsar     = "org.apache.pulsar" % "pulsar-client" % V.pulsar
+    val newtype    = "io.estatico"       %% "newtype"      % V.newtype
   }
 
   object CompilerPlugins {
     val betterMonadicFor = compilerPlugin(
-      "com.olegpy" %% "better-monadic-for" % Versions.betterMonadicFor
+      "com.olegpy" %% "better-monadic-for" % V.betterMonadicFor
     )
     val contextApplied = compilerPlugin(
-      "org.augustjune" %% "context-applied" % Versions.contextApplied
+      "org.augustjune" %% "context-applied" % V.contextApplied
     )
     val kindProjector = compilerPlugin(
-      "org.typelevel" %% "kind-projector" % Versions.kindProjector cross CrossVersion.full
+      "org.typelevel" %% "kind-projector" % V.kindProjector cross CrossVersion.full
     )
   }
 
