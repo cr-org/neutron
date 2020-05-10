@@ -5,6 +5,6 @@ let
 in stdenv.mkDerivation rec {
   name = "neutron";
   buildInputs = [
-    pkgs.mill
+    pkgs.sbt
   ];
 }

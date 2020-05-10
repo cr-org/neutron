@@ -3,3 +3,5 @@ project/target/
 target/
 cache/
 out/
+.metals
+.bloop
