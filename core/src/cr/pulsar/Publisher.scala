@@ -10,9 +10,9 @@ trait Publisher[F[_], E] {
   def publish(msg: E): F[Unit]
 }
 
-// AK - It would be preferable to use server side schema validation
+// TODO: It would be preferable to use server side schema validation
 // Pulsar supports this. However, the below would have to change
-// quite a bit. I will leave this as a TODO right now.
+// quite a bit.
 object Publisher {
 
   sealed trait Batching
@@ -57,7 +57,7 @@ object Publisher {
           client.newProducer.topic(topic.url)
         ).create
       )
-    }(p => F.delay(println("closing publisher")) >> blocker.delay(p.close()))
+    }(p => blocker.delay(p.close()))
 
     resource.map { prod =>
       new Publisher[F, E] {

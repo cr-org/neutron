@@ -5,6 +5,7 @@ let
 in stdenv.mkDerivation rec {
   name = "neutron";
   buildInputs = [
-    pkgs.sbt
+    pkgs.openjdk # v1.8.0_222
+    pkgs.sbt  # v1.3.8
   ];
 }

@@ -40,7 +40,6 @@ object Consumer {
         new Consumer[F] {
           override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
           override def nack(id: MessageId): F[Unit] = F.delay(c.negativeAcknowledge(id))
-          // AK How do we deal with server side schemata? This returns the raw bytes only...
           override def subscribe: Stream[F, Message[Array[Byte]]] =
             Stream.repeatEval(
               F.delay(c.receiveAsync()).futureLift
