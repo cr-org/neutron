@@ -12,7 +12,7 @@ object Topic {
 
   sealed trait Type
   object Type {
-    case object Persistent    extends Type
+    case object Persistent extends Type
     case object NonPersistent extends Type
     implicit val showInstance = show[Type] {
       case Persistent    => "persistent"
