@@ -5,7 +5,7 @@ import cats.effect._
 import cats.implicits._
 import cr.pulsar.internal.FutureLift._
 import fs2._
-import org.apache.pulsar.client.api.{Message, MessageId, SubscriptionInitialPosition}
+import org.apache.pulsar.client.api.{ Message, MessageId, SubscriptionInitialPosition }
 
 trait Consumer[F[_]] {
   def subscribe: Stream[F, Message[Array[Byte]]]
@@ -19,7 +19,7 @@ object Consumer {
       topic: Topic,
       subs: Subscription,
       initial: SubscriptionInitialPosition
-  ): Resource[F, Consumer[F]] = {
+  ): Resource[F, Consumer[F]] =
     Resource
       .make {
         F.delay(
@@ -46,7 +46,6 @@ object Consumer {
             )
         }
       }
-  }
 
   // TODO: Maybe this belongs somewhere else
   def messageDecoder[F[_]: MonadError[*[_], Throwable], E](

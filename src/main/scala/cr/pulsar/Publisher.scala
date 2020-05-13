@@ -2,7 +2,7 @@ package cr.pulsar
 
 import cats.effect._
 import cats.implicits._
-import fs2.concurrent.{Topic => _}
+import fs2.concurrent.{ Topic => _ }
 import java.util.concurrent.TimeUnit
 import org.apache.pulsar.client.api.ProducerBuilder
 
@@ -18,7 +18,7 @@ object Publisher {
   sealed trait Batching
   object Batching {
     case class Enabled(maxDelayMs: Long, maxMessages: Int) extends Batching
-    case object Disabled                                   extends Batching
+    case object Disabled extends Batching
   }
 
   def apply[F[_], E](implicit ev: Publisher[F, E]): Publisher[F, E] = ev

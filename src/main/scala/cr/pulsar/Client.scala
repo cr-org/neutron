@@ -1,7 +1,7 @@
 package cr.pulsar
 
-import cats.effect.{Resource, Sync}
-import org.apache.pulsar.client.api.{PulsarClient => Underlying}
+import cats.effect.{ Resource, Sync }
+import org.apache.pulsar.client.api.{ PulsarClient => Underlying }
 
 object PulsarClient {
   import Config._
