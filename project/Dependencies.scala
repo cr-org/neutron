@@ -12,6 +12,7 @@ object Dependencies {
     val betterMonadicFor = "0.3.1"
     val contextApplied   = "0.1.2"
     val kindProjector    = "0.11.0"
+    val macroParadise    = "2.1.1"
   }
 
   object Libraries {
@@ -31,6 +32,9 @@ object Dependencies {
     )
     val kindProjector = compilerPlugin(
       "org.typelevel" %% "kind-projector" % V.kindProjector cross CrossVersion.full
+    )
+    val macroParadise = compilerPlugin(
+      "org.scalamacros" % "paradise" % V.macroParadise cross CrossVersion.full
     )
   }
 
