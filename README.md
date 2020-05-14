@@ -6,6 +6,17 @@ A *pulsar* is a celestial object, thought to be a rapidly rotating neutron star,
 
 ### Build
 
+If you use [Nix Direnv](https://github.com/nix-community/nix-direnv) then you will be able to run the commands straight away. Otherwise, make sure you always enter a Nix Shell by running `nix-shell` at the project's root.
+
 ```
-nix-shell --run 'sbt test'
+sbt +test
+```
+
+### Update CI build YAML
+
+Using [Github Actions Dhall](https://github.com/regadas/github-actions-dhall).
+
+```
+cd .github/workflows
+dhall-to-yaml --file scala.dhall > scala.yml
 ```
