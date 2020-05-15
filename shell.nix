@@ -1,11 +1,13 @@
 let
-  pkgs = import (fetchTarball "https://github.com/NixOS/nixpkgs-channels/archive/nixos-20.03.tar.gz") {};
+  # unstable packages on May 13th
+  pkgs = import (fetchTarball "https://github.com/NixOS/nixpkgs-channels/archive/6bcb1dec8ea.tar.gz") {};
   stdenv = pkgs.stdenv;
 
 in stdenv.mkDerivation rec {
   name = "neutron";
   buildInputs = [
-    pkgs.openjdk # v1.8.0_222
-    pkgs.sbt  # v1.3.8
+    pkgs.haskellPackages.dhall-json
+    pkgs.openjdk # 1.8.0_242
+    pkgs.sbt # 1.3.10
   ];
 }
