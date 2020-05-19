@@ -1,5 +1,6 @@
 package cr.pulsar
 
+import cats._
 import cats.effect._
 import cats.implicits._
 import fs2.concurrent.{ Topic => _ }
@@ -23,15 +24,15 @@ object Publisher {
 
   def apply[F[_], E](implicit ev: Publisher[F, E]): Publisher[F, E] = ev
 
-  def create[F[_], E](
+  def withLogger[
+      F[_]: ContextShift: Parallel: Sync,
+      E: Inject[*, Array[Byte]]
+  ](
       client: PulsarClient.T,
       topic: Topic,
       batching: Batching,
       blocker: Blocker,
-      serialise: E => Array[Byte]
-  )(
-      implicit F: ConcurrentEffect[F],
-      cs: ContextShift[F]
+      logAction: Array[Byte] => F[Unit]
   ): Resource[F, Publisher[F, E]] = {
     def configureBatching(
         batching: Batching,
@@ -61,9 +62,27 @@ object Publisher {
 
     resource.map { prod =>
       new Publisher[F, E] {
-        def publish(msg: E): F[Unit] =
-          blocker.delay(prod.send(serialise(msg))).void
+        def serialise = E
+
+        def publish(msg: E): F[Unit] = {
+          val event = serialise(msg)
+
+          logAction(event) &>
+            blocker.delay(prod.send(serialise(msg))).void
+        }
       }
     }
   }
+
+  def create[
+      F[_]: ContextShift: Parallel: Sync,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: PulsarClient.T,
+      topic: Topic,
+      batching: Batching,
+      blocker: Blocker
+  ): Resource[F, Publisher[F, E]] =
+    withLogger[F, E](client, topic, batching, blocker, _ => F.unit)
+
 }

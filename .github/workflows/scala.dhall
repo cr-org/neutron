@@ -36,7 +36,7 @@ in  GithubActions.Workflow::{
           , name = "Build"
           , needs = None (List Text)
           , strategy = Some GithubActions.Strategy::{ matrix = matrix }
-          , runs-on = GithubActions.types.RunsOn.ubuntu-latest
+          , runs-on = GithubActions.types.RunsOn.`ubuntu-18.04`
           , steps =
                 setup
               # [ GithubActions.steps.java-setup
