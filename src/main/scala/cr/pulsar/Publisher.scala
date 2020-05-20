@@ -3,6 +3,7 @@ package cr.pulsar
 import cats._
 import cats.effect._
 import cats.implicits._
+import cr.pulsar.Topic.TopicName
 import fs2.concurrent.{ Topic => _ }
 import java.util.concurrent.TimeUnit
 import org.apache.pulsar.client.api.ProducerBuilder
@@ -32,7 +33,7 @@ object Publisher {
       topic: Topic,
       batching: Batching,
       blocker: Blocker,
-      logAction: Array[Byte] => F[Unit]
+      logAction: Array[Byte] => TopicName => F[Unit]
   ): Resource[F, Publisher[F, E]] = {
     def configureBatching(
         batching: Batching,
@@ -67,7 +68,7 @@ object Publisher {
         def publish(msg: E): F[Unit] = {
           val event = serialise(msg)
 
-          logAction(event) &>
+          logAction(event)(TopicName(topic.url)) &>
             blocker.delay(prod.send(serialise(msg))).void
         }
       }
@@ -83,6 +84,6 @@ object Publisher {
       batching: Batching,
       blocker: Blocker
   ): Resource[F, Publisher[F, E]] =
-    withLogger[F, E](client, topic, batching, blocker, _ => F.unit)
+    withLogger[F, E](client, topic, batching, blocker, _ => _ => F.unit)
 
 }
