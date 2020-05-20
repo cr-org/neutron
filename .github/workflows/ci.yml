@@ -27,15 +27,12 @@ jobs:
           architecture: x64
           java-package: jdk
           java-version: "${{ matrix.java}}"
-      - run: "sbt \"++${{ matrix.scala}} test\""
+      - run: "sbt \"++ test\""
     strategy:
       matrix:
         java:
           - '8.0.242'
           - '11.0.5'
-        scala:
-          - '2.12.10'
-          - '2.13.2'
 name: Scala
 on:
   pull_request: {}
