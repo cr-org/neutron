@@ -1,8 +1,9 @@
 package cr.pulsar
 
-import cats.MonadError
+import cats._
 import cats.effect._
 import cats.implicits._
+import cr.pulsar.Topic.TopicName
 import cr.pulsar.internal.FutureLift._
 import fs2._
 import org.apache.pulsar.client.api.{ Message, MessageId, SubscriptionInitialPosition }
@@ -47,18 +48,33 @@ object Consumer {
         }
       }
 
-  // TODO: Maybe this belongs somewhere else
-  def messageDecoder[F[_]: MonadError[*[_], Throwable], E](
-      f: Array[Byte] => Option[E],
-      c: Consumer[F]
+  def loggingMessageDecoder[
+      F[_]: MonadError[*[_], Throwable]: Parallel,
+      E: Inject[*, Array[Byte]]
+  ](
+      c: Consumer[F],
+      logAction: Array[Byte] => TopicName => F[Unit]
   ): Pipe[F, Message[Array[Byte]], E] =
     _.evalMap { m =>
-      val id = m.getMessageId()
-      f(m.getData) match {
-        case Some(e) => c.ack(id).as(e)
-        case _ =>
-          c.nack(id) *> F.raiseError[E](new IllegalArgumentException("Decoding error"))
+      val id   = m.getMessageId
+      val data = m.getData()
+
+      val acking = E.prj(data) match {
+        case Some(e) =>
+          c.ack(id).as(e)
+        case None =>
+          c.nack(id) *> (new IllegalArgumentException("Decoding error")).raiseError[F, E]
       }
+
+      logAction(data)(TopicName(m.getTopicName())) &> acking
     }
+
+  def messageDecoder[
+      F[_]: MonadError[*[_], Throwable]: Parallel,
+      E: Inject[*, Array[Byte]]
+  ](
+      c: Consumer[F]
+  ): Pipe[F, Message[Array[Byte]], E] =
+    loggingMessageDecoder[F, E](c, _ => _ => F.unit)
 
 }
