@@ -1,30 +1,19 @@
 let GithubActions =
-      https://raw.githubusercontent.com/regadas/github-actions-dhall/master/package.dhall sha256:b42b062af139587666185c6fb72cc2994aa85a30065324174760b7d29a9d81c9
-
--- TODO: These 3 should eventually be defined upstream
-let GpgSetup   = ./gpg-setup.dhall
-let ScalaSetup = ./scala-setup.dhall
-let CiRelease  = ./sbt-ci-release.dhall
+      https://raw.githubusercontent.com/regadas/github-actions-dhall/master/package.dhall sha256:40602cb9f4e3d1964e87bc88385c7946d9796b0fb1358249fce439ac9f30c726
 
 let setup =
       [ GithubActions.steps.checkout
-      , ScalaSetup
-      , GpgSetup
-      , CiRelease
-          { ref = "\${{ github.ref }}"
-          , pgpPassphrase = "\${{ secrets.PGP_PASSPHRASE }}"
-          , pgpSecret = "\${{ secrets.PGP_SECRET }}"
-          , sonatypePassword = "\${{ secrets.SONATYPE_PASSWORD }}"
-          , sonatypeUsername = "\${{ secrets.SONATYPE_USERNAME }}"
-          }
+      , GithubActions.steps.olafurpg/java-setup { java-version = "11" }
+      , GithubActions.steps.olafurpg/gpg-setup
+      , GithubActions.steps.olafurpg/sbt-ci-release
       ]
 
 in  GithubActions.Workflow::{
     , name = "Release"
     , on = GithubActions.On::{
       , push = Some GithubActions.Push::{
-          , branches = Some [ "master" ]
-          , tags = Some ["*"]
+        , branches = Some [ "master" ]
+        , tags = Some [ "*" ]
         }
       }
     , jobs = toMap
