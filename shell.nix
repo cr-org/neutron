@@ -6,7 +6,7 @@ let
 in stdenv.mkDerivation rec {
   name = "neutron";
   buildInputs = [
-    pkgs.haskellPackages.dhall-json
+    pkgs.haskellPackages.dhall-json # 1.6.2
     pkgs.openjdk # 1.8.0_242
     pkgs.sbt # 1.3.10
   ];

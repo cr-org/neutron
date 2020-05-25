@@ -22,10 +22,8 @@ jobs:
           path: "~/.cache/coursier"
           restore-keys: coursier
       - name: "java ${{ matrix.java}} setup"
-        uses: "actions/setup-java@v1"
+        uses: "olafurpg/setup-java@v6"
         with:
-          architecture: x64
-          java-package: jdk
           java-version: "${{ matrix.java}}"
       - run: "sbt \"++ test\""
     strategy:
