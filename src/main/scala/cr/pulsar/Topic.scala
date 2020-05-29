@@ -9,7 +9,7 @@ object Topic {
   import cats.implicits._
 
   @newtype case class Name(value: String)
-  sealed abstract class URL(val value: String)
+  @newtype class URL(val value: String)
 
   sealed trait Type
   object Type {
@@ -24,6 +24,6 @@ object Topic {
   def apply(cfg: Config, name: Topic.Name, typ: Type): Topic =
     new Topic(
       name,
-      new URL(s"${typ.show}://${cfg.tenant.value}/${cfg.namespace.value}/${name.value}") {}
+      new URL(s"${typ.show}://${cfg.tenant.value}/${cfg.namespace.value}/${name.value}")
     ) {}
 }
