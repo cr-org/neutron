@@ -3,6 +3,10 @@ package cr.pulsar
 import Config._
 import io.estatico.newtype.macros._
 
+/**
+  * Basic Pulsar configuration to establish
+  * a connection.
+  */
 case class Config(
     tenant: PulsarTenant,
     namespace: PulsarNamespace,

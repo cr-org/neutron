@@ -3,21 +3,19 @@ package cr.pulsar
 import cats._
 import cats.effect._
 import cats.implicits._
+import cr.pulsar.internal.FutureLift._
 import fs2.concurrent.{ Topic => _ }
 import java.util.concurrent.TimeUnit
-import cr.pulsar.internal.FutureLift._
 import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder }
-
 import scala.concurrent.duration.FiniteDuration
 
 trait Publisher[F[_], E] {
   def publish(msg: E): F[MessageId]
+  def publish_(msg: E): F[Unit]
   def publishAsync(msg: E): F[MessageId]
+  def publishAsync_(msg: E): F[Unit]
 }
 
-// TODO: It would be preferable to use server side schema validation
-// Pulsar supports this. However, the below would have to change
-// quite a bit.
 object Publisher {
 
   sealed trait Batching
@@ -26,8 +24,11 @@ object Publisher {
     case object Disabled extends Batching
   }
 
-  def apply[F[_], E](implicit ev: Publisher[F, E]): Publisher[F, E] = ev
-
+  /**
+   * It creates a simple [[Publisher]].
+   *
+   * Published messages will be logged using the given `logAction`.
+   */
   def withLogger[
       F[_]: ContextShift: Parallel: Concurrent,
       E: Inject[*, Array[Byte]]
@@ -68,23 +69,45 @@ object Publisher {
       new Publisher[F, E] {
         val serialise: E => Array[Byte] = Inject[E, Array[Byte]].inj
 
+        /**
+          * It publishes a message in a synchronous fashion by using
+          * the given [[cats.effect.Blocker]].
+          */
         override def publish(msg: E): F[MessageId] = {
           val event = serialise(msg)
 
-          logAction(event)(topic.url) &>
-            blocker.delay(prod.send(serialise(msg)))
+          logAction(event)(topic.url) &> blocker.delay(prod.send(event))
         }
 
+        /**
+          * Same as [[publish]] but it discard its output.
+          */
+        override def publish_(msg: E): F[Unit] =
+          publish(msg).void
+
+        /**
+          * It publishes a message in an asynchronous fashion.
+          */
         override def publishAsync(msg: E): F[MessageId] = {
           val event = serialise(msg)
 
-          logAction(event)(topic.url) &>
-            F.delay(prod.sendAsync(serialise(msg))).futureLift
+          logAction(event)(topic.url) &> F.delay(prod.sendAsync(event)).futureLift
         }
+
+        /**
+          * Same as [[publishAsync]] but it discard its output.
+          */
+        override def publishAsync_(msg: E): F[Unit] =
+          publishAsync(msg).void
       }
     }
   }
 
+  /**
+   * It creates a simple [[Publisher]] with a no-op logger.
+   *
+   * Published messages will not be logged.
+   */
   def create[
       F[_]: ContextShift: Parallel: Concurrent,
       E: Inject[*, Array[Byte]]
