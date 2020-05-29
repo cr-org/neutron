@@ -3,12 +3,13 @@ package cr.pulsar
 import cats.Show.show
 import io.estatico.newtype.macros.newtype
 
-sealed abstract case class Topic(url: String)
+sealed abstract case class Topic(name: Topic.Name, url: Topic.URL)
 
 object Topic {
   import cats.implicits._
 
-  @newtype case class TopicName(value: String)
+  @newtype case class Name(value: String)
+  sealed abstract class URL(val value: String)
 
   sealed trait Type
   object Type {
@@ -20,6 +21,9 @@ object Topic {
     }
   }
 
-  def apply(cfg: Config, topic: TopicName, typ: Type): Topic =
-    new Topic(s"${typ.show}://${cfg.tenant.value}/${cfg.namespace.value}/${topic.value}") {}
+  def apply(cfg: Config, name: Topic.Name, typ: Type): Topic =
+    new Topic(
+      name,
+      new URL(s"${typ.show}://${cfg.tenant.value}/${cfg.namespace.value}/${name.value}") {}
+    ) {}
 }

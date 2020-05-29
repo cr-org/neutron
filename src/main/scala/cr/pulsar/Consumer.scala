@@ -3,7 +3,6 @@ package cr.pulsar
 import cats._
 import cats.effect._
 import cats.implicits._
-import cr.pulsar.Topic.TopicName
 import cr.pulsar.internal.FutureLift._
 import fs2._
 import org.apache.pulsar.client.api.{ Message, MessageId, SubscriptionInitialPosition }
@@ -25,7 +24,7 @@ object Consumer {
       .make {
         F.delay(
             client.newConsumer
-              .topic(topic.url)
+              .topic(topic.url.value)
               .subscriptionType(subs.sType)
               .subscriptionName(subs.name)
               .subscriptionInitialPosition(initial)
@@ -53,11 +52,11 @@ object Consumer {
       E: Inject[*, Array[Byte]]
   ](
       c: Consumer[F],
-      logAction: Array[Byte] => TopicName => F[Unit]
+      logAction: Array[Byte] => Topic.Name => F[Unit]
   ): Pipe[F, Message[Array[Byte]], E] =
     _.evalMap { m =>
       val id   = m.getMessageId
-      val data = m.getData()
+      val data = m.getData
 
       val acking = E.prj(data) match {
         case Some(e) =>
@@ -66,7 +65,7 @@ object Consumer {
           c.nack(id) *> (new IllegalArgumentException("Decoding error")).raiseError[F, E]
       }
 
-      logAction(data)(TopicName(m.getTopicName())) &> acking
+      logAction(data)(Topic.Name(m.getTopicName)) &> acking
     }
 
   def messageDecoder[
