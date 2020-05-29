@@ -8,7 +8,7 @@ A *pulsar* is a celestial object, thought to be a rapidly rotating neutron star,
 
 DISCLAIMER: It is currently a WIP so **there is no release and we do not recommend its wide usage yet**. However, if you would like to give it a try you can find the latest snapshots published here: [https://oss.sonatype.org/#nexus-search;quick~com.chatroulette](https://oss.sonatype.org/#nexus-search;quick~com.chatroulette).
 
-Sooner rather than later we plan to make a first official release and write documentation so it can also be useful outside of our company.Stay tuned!
+Sooner rather than later we plan to make a first official release and write documentation so it can also be useful outside of our company. Stay tuned!
 
 ### Build
 

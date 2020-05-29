@@ -4,6 +4,16 @@ import org.apache.pulsar.client.api.SubscriptionType
 
 sealed abstract case class Subscription(name: String, sType: SubscriptionType)
 
+/**
+  * A [[Subscription]] can be one of the following types:
+  *
+  * - [[Subscription.Type.Exclusive]]
+  * - [[Subscription.Type.Failover]]
+  * - [[Subscription.Type.KeyShared]]
+  * - [[Subscription.Type.Shared]]
+  *
+  * Find out more at [[https://pulsar.apache.org/docs/en/concepts-messaging/#subscriptions]]
+  */
 object Subscription {
 
   sealed trait Type {

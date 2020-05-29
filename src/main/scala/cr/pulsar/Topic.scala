@@ -5,6 +5,15 @@ import io.estatico.newtype.macros.newtype
 
 sealed abstract case class Topic(name: Topic.Name, url: Topic.URL)
 
+/**
+  * Topic names are URLs that have a well-defined structure:
+  *
+  * {{{
+  * {persistent|non-persistent}://tenant/namespace/topic
+  * }}}
+  *
+  * Find out more at [[https://pulsar.apache.org/docs/en/concepts-messaging/#topics]]
+  */
 object Topic {
   import cats.implicits._
 

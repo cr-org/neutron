@@ -14,6 +14,13 @@ trait Consumer[F[_]] {
 }
 
 object Consumer {
+
+  /**
+    * It creates a simple [[Consumer]].
+    *
+    * Note that this does not create a subscription to any Topic,
+    * you can use [[Consumer#subscribe]] for this purpose.
+    */
   def create[F[_]: Concurrent: ContextShift](
       client: PulsarClient.T,
       topic: Topic,
@@ -47,6 +54,12 @@ object Consumer {
         }
       }
 
+  /**
+    * A simple message decoder that uses a [[cats.Inject]] instance
+    * to deserialise consumed messages.
+    *
+    * Consumed messages will be logged using the given `logAction`.
+    */
   def loggingMessageDecoder[
       F[_]: MonadError[*[_], Throwable]: Parallel,
       E: Inject[*, Array[Byte]]
@@ -68,6 +81,12 @@ object Consumer {
       logAction(data)(Topic.Name(m.getTopicName)) &> acking
     }
 
+  /**
+    * A simple message decoder that uses a [[cats.Inject]] instance
+    * to deserialise consumed messages.
+    *
+    * Messages will not be logged by default.
+    */
   def messageDecoder[
       F[_]: MonadError[*[_], Throwable]: Parallel,
       E: Inject[*, Array[Byte]]
