@@ -30,6 +30,7 @@ lazy val root = (project in file("."))
     name := "neutron",
     scalacOptions ++= compilerFlags(scalaVersion.value),
     scalafmtOnCompile := true,
+    autoAPIMappings := true,
     libraryDependencies ++= List(
           CompilerPlugins.betterMonadicFor,
           CompilerPlugins.contextApplied,

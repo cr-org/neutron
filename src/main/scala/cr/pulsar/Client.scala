@@ -9,7 +9,7 @@ object PulsarClient {
   type T = Underlying
 
   /**
-    * It creates an underlying PulsarClient as a [[cats.effect.Resource]]
+    * It creates an underlying PulsarClient as a `cats.effect.Resource`.
     *
     * It will be closed once the client is no longer in use or in case of
     * shutdown of the application that makes use of it.
