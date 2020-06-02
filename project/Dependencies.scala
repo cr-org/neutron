@@ -6,7 +6,7 @@ object Dependencies {
     val cats       = "2.1.1"
     val catsEffect = "2.1.3"
     val fs2        = "2.3.0"
-    val newtype    = "0.4.3"
+    val newtype    = "0.4.4"
     val pulsar     = "2.5.0"
 
     val betterMonadicFor = "0.3.1"
