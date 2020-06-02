@@ -3,14 +3,14 @@ import sbt._
 object Dependencies {
 
   object V {
-    val cats       = "2.1.0"
-    val catsEffect = "2.1.2"
+    val cats       = "2.1.1"
+    val catsEffect = "2.1.3"
     val fs2        = "2.3.0"
-    val newtype    = "0.4.3"
-    val pulsar     = "2.5.2"
+    val newtype    = "0.4.4"
+    val pulsar     = "2.5.0"
 
     val betterMonadicFor = "0.3.1"
-    val contextApplied   = "0.1.2"
+    val contextApplied   = "0.1.4"
     val kindProjector    = "0.11.0"
     val macroParadise    = "2.1.1"
   }
