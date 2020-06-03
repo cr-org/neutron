@@ -25,10 +25,10 @@ object Publisher {
   }
 
   /**
-   * It creates a simple [[Publisher]].
-   *
-   * Published messages will be logged using the given `logAction`.
-   */
+    * It creates a simple [[Publisher]].
+    *
+    * Published messages will be logged using the given `logAction`.
+    */
   def withLogger[
       F[_]: ContextShift: Parallel: Concurrent,
       E: Inject[*, Array[Byte]]
@@ -104,10 +104,10 @@ object Publisher {
   }
 
   /**
-   * It creates a simple [[Publisher]] with a no-op logger.
-   *
-   * Published messages will not be logged.
-   */
+    * It creates a simple [[Publisher]] with a no-op logger.
+    *
+    * Published messages will not be logged.
+    */
   def create[
       F[_]: ContextShift: Parallel: Concurrent,
       E: Inject[*, Array[Byte]]
