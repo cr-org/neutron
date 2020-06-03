@@ -15,29 +15,26 @@ trait Consumer[F[_]] {
 
 object Consumer {
 
-  /**
-    * It creates a simple [[Consumer]].
-    *
-    * Note that this does not create a subscription to any Topic,
-    * you can use [[Consumer#subscribe]] for this purpose.
-    */
-  def create[F[_]: Concurrent: ContextShift](
+  private def mkConsumer[F[_]: Concurrent: ContextShift](
       client: PulsarClient.T,
-      topic: Topic,
       subs: Subscription,
-      initial: SubscriptionInitialPosition
+      initial: SubscriptionInitialPosition,
+      topicType: Either[Topic.Pattern, Topic]
   ): Resource[F, Consumer[F]] =
     Resource
       .make {
-        F.delay(
-            client.newConsumer
-              .topic(topic.url.value)
-              .subscriptionType(subs.sType)
-              .subscriptionName(subs.name)
-              .subscriptionInitialPosition(initial)
-              .subscribeAsync
-          )
-          .futureLift
+        F.delay {
+          val c = client.newConsumer
+          topicType
+            .fold(
+              p => c.topicsPattern(p.url.value.r.pattern),
+              t => c.topic(t.url.value)
+            )
+            .subscriptionType(subs.sType)
+            .subscriptionName(subs.name)
+            .subscriptionInitialPosition(initial)
+            .subscribeAsync
+        }.futureLift
       }(
         c =>
           F.delay(c.unsubscribeAsync())
@@ -53,6 +50,36 @@ object Consumer {
             )
         }
       }
+
+  /**
+    * It creates a simple [[Consumer]] for a multi-topic subscription.
+    *
+    * Find out more at [[https://pulsar.apache.org/docs/en/concepts-messaging/#multi-topic-subscriptions]]
+    *
+    * Note that this does not create a subscription to any Topic,
+    * you can use [[Consumer#subscribe]] for this purpose.
+    */
+  def multiTopic[F[_]: Concurrent: ContextShift](
+      client: PulsarClient.T,
+      topicPattern: Topic.Pattern,
+      subs: Subscription,
+      initial: SubscriptionInitialPosition
+  ): Resource[F, Consumer[F]] =
+    mkConsumer[F](client, subs, initial, topicPattern.asLeft)
+
+  /**
+    * It creates a simple [[Consumer]].
+    *
+    * Note that this does not create a subscription to any Topic,
+    * you can use [[Consumer#subscribe]] for this purpose.
+    */
+  def create[F[_]: Concurrent: ContextShift](
+      client: PulsarClient.T,
+      topic: Topic,
+      subs: Subscription,
+      initial: SubscriptionInitialPosition
+  ): Resource[F, Consumer[F]] =
+    mkConsumer[F](client, subs, initial, topic.asRight)
 
   /**
     * A simple message decoder that uses a [[cats.Inject]] instance
