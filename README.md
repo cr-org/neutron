@@ -7,6 +7,8 @@
 
 A *pulsar* is a celestial object, thought to be a rapidly rotating neutron star, that emits regular pulses of radio waves and other electromagnetic radiation at rates of up to one thousand pulses per second.
 
+![pulsar](https://www.jpl.nasa.gov/spaceimages/images/largesize/PIA18845_hires.jpg "An accreting pulsar. Credit NASA/JPL-Caltech")
+
 ### How to use it
 
 DISCLAIMER: It is currently a WIP so **there is no release and we do not recommend its wide usage yet**. However, if you would like to give it a try you can find the latest snapshots published here: [https://oss.sonatype.org/#nexus-search;quick~com.chatroulette](https://oss.sonatype.org/#nexus-search;quick~com.chatroulette).
