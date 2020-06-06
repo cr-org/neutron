@@ -4,6 +4,8 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - uses: "actions/checkout@v2.1.0"
+      - name: "Starting up Pulsar 🐳"
+        run: docker-compose up -d
       - run: |
           shasum build.sbt \
             project/plugins.sbt \
@@ -26,6 +28,8 @@ jobs:
         with:
           java-version: "${{ matrix.java}}"
       - run: "sbt \"++ test\""
+      - name: "Shutting down Pulsar 🐳"
+        run: docker-compose down
     strategy:
       matrix:
         java:

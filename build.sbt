@@ -31,6 +31,7 @@ lazy val root = (project in file("."))
     scalacOptions ++= compilerFlags(scalaVersion.value),
     scalafmtOnCompile := true,
     autoAPIMappings := true,
+    testFrameworks += new TestFramework("munit.Framework"),
     libraryDependencies ++= List(
           CompilerPlugins.betterMonadicFor,
           CompilerPlugins.contextApplied,
@@ -39,7 +40,9 @@ lazy val root = (project in file("."))
           Libraries.catsEffect,
           Libraries.fs2,
           Libraries.newtype,
-          Libraries.pulsar
+          Libraries.pulsar,
+          Libraries.munitCore       % Test,
+          Libraries.munitScalacheck % Test
         ),
     libraryDependencies ++= macroParadisePlugin(scalaVersion.value)
   )

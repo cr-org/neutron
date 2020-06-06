@@ -56,7 +56,7 @@ object Publisher {
           producerBuilder.enableBatching(false)
       }
 
-    lazy val resource = Resource.make {
+    val resource = Resource.make {
       blocker.delay(
         configureBatching(
           batching,

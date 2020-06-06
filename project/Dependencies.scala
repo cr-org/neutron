@@ -6,6 +6,7 @@ object Dependencies {
     val cats       = "2.1.1"
     val catsEffect = "2.1.3"
     val fs2        = "2.3.0"
+    val munit      = "0.7.8"
     val newtype    = "0.4.4"
     val pulsar     = "2.5.2"
 
@@ -19,8 +20,12 @@ object Dependencies {
     val cats       = "org.typelevel"     %% "cats-core"    % V.cats
     val catsEffect = "org.typelevel"     %% "cats-effect"  % V.catsEffect
     val fs2        = "co.fs2"            %% "fs2-core"     % V.fs2
-    val pulsar     = "org.apache.pulsar" % "pulsar-client" % V.pulsar
     val newtype    = "io.estatico"       %% "newtype"      % V.newtype
+    val pulsar     = "org.apache.pulsar" % "pulsar-client" % V.pulsar
+
+    // Testing
+    val munitCore       = "org.scalameta" %% "munit"            % V.munit
+    val munitScalacheck = "org.scalameta" %% "munit-scalacheck" % V.munit
   }
 
   object CompilerPlugins {

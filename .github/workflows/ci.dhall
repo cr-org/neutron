@@ -5,6 +5,8 @@ let matrix = toMap { java = [ "8.0.242", "11.0.5" ] }
 
 let setup =
       [ GithubActions.steps.checkout
+      ,   GithubActions.steps.run { run = "docker-compose up -d" }
+        // { name = Some "Starting up Pulsar 🐳" }
       , GithubActions.steps.run
           { run =
               ''
@@ -24,6 +26,8 @@ let setup =
       , GithubActions.steps.olafurpg/java-setup
           { java-version = "\${{ matrix.java}}" }
       , GithubActions.steps.run { run = "sbt \"++ test\"" }
+      ,   GithubActions.steps.run { run = "docker-compose down" }
+        // { name = Some "Shutting down Pulsar 🐳" }
       ]
 
 in  GithubActions.Workflow::{
