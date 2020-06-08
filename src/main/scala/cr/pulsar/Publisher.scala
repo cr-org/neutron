@@ -118,17 +118,21 @@ object Publisher {
         new DefaultPublisher[F, E] {
           val serialise: E => Array[Byte] = Inject[E, Array[Byte]].inj
 
+          private def buildMessage(msg: Array[Byte], key: MessageKey) = {
+            val event = prod.newMessage().value(msg)
+            key match {
+              case MessageKey.Of(k) =>
+                event.key(k)
+              case MessageKey.Default =>
+                event
+            }
+          }
+
           override def publish(msg: E): F[MessageId] = {
             val event = serialise(msg)
 
             logAction(event)(topic.url) &> blocker.delay {
-              val message = prod.newMessage().value(event)
-              sharding(msg) match {
-                case MessageKey.Of(k) =>
-                  message.key(k).send()
-                case MessageKey.Default =>
-                  message.send()
-              }
+              buildMessage(event, sharding(msg)).send()
             }
           }
 
@@ -136,13 +140,7 @@ object Publisher {
             val event = serialise(msg)
 
             logAction(event)(topic.url) &> F.delay {
-              val message = prod.newMessage().value(event)
-              sharding(msg) match {
-                case MessageKey.Of(k) =>
-                  message.key(k).sendAsync()
-                case MessageKey.Default =>
-                  message.sendAsync()
-              }
+              buildMessage(event, sharding(msg)).sendAsync()
             }.futureLift
           }
 
