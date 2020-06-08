@@ -53,10 +53,11 @@ class PulsarSpec extends FunSuite {
     PulsarNamespace("default"),
     PulsarURL("pulsar://localhost:6650")
   )
-  val subs  = Subscription(Subscription.Name("test"), Subscription.Type.Failover)
-  val spos  = SubscriptionInitialPosition.Latest
-  val topic = Topic(cfg, Topic.Name("test"), Topic.Type.Persistent)
-  val batch = Publisher.Batching.Disabled
+  val subs   = Subscription(Subscription.Name("test"), Subscription.Type.Failover)
+  val spos   = SubscriptionInitialPosition.Latest
+  val topic  = Topic(cfg, Topic.Name("test"), Topic.Type.Persistent)
+  val batch  = Publisher.Batching.Disabled
+  val msgKey = Publisher.MessageKey.Default
 
   test("A message is published and consumed successfully") {
     val res: Resource[IO, (Consumer[IO], Publisher[IO, Event])] =
@@ -64,7 +65,7 @@ class PulsarSpec extends FunSuite {
         client <- PulsarClient.create[IO](cfg.serviceUrl)
         consumer <- Consumer.create[IO](client, topic, subs, spos)
         blocker <- Blocker[IO]
-        publisher <- Publisher.create[IO, Event](client, topic, batch, blocker)
+        publisher <- Publisher.create[IO, Event](client, topic, msgKey, batch, blocker)
       } yield consumer -> publisher
 
     Deferred[IO, Event].flatMap { latch =>
