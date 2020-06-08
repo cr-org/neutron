@@ -36,8 +36,14 @@ object Publisher {
 
   sealed trait Batching
   object Batching {
-    case class Enabled(maxDelay: FiniteDuration, maxMessages: Int) extends Batching
-    case object Disabled extends Batching
+    final case class Enabled(maxDelay: FiniteDuration, maxMessages: Int) extends Batching
+    final case object Disabled extends Batching
+  }
+
+  sealed trait MessageKey
+  object MessageKey {
+    final case class Value(value: String) extends MessageKey
+    final case object Default extends MessageKey
   }
 
   /**
@@ -51,6 +57,7 @@ object Publisher {
   ](
       client: PulsarClient.T,
       topic: Topic,
+      messageKey: MessageKey, // specify for key_shared topics
       batching: Batching,
       blocker: Blocker,
       logAction: Array[Byte] => Topic.URL => F[Unit]
@@ -92,7 +99,15 @@ object Publisher {
         override def publish(msg: E): F[MessageId] = {
           val event = serialise(msg)
 
-          logAction(event)(topic.url) &> blocker.delay(prod.send(event))
+          logAction(event)(topic.url) &> blocker.delay {
+            val msg = prod.newMessage().value(event)
+            messageKey match {
+              case MessageKey.Value(k) =>
+                msg.key(k).send()
+              case MessageKey.Default =>
+                msg.send()
+            }
+          }
         }
 
         /**
@@ -107,7 +122,15 @@ object Publisher {
         override def publishAsync(msg: E): F[MessageId] = {
           val event = serialise(msg)
 
-          logAction(event)(topic.url) &> F.delay(prod.sendAsync(event)).futureLift
+          logAction(event)(topic.url) &> F.delay {
+            val msg = prod.newMessage().value(event)
+            messageKey match {
+              case MessageKey.Value(k) =>
+                msg.key(k).sendAsync()
+              case MessageKey.Default =>
+                msg.sendAsync()
+            }
+          }.futureLift
         }
 
         /**
@@ -130,9 +153,10 @@ object Publisher {
   ](
       client: PulsarClient.T,
       topic: Topic,
+      messageKey: MessageKey, // specify for key_shared topics
       batching: Batching,
       blocker: Blocker
   ): Resource[F, Publisher[F, E]] =
-    withLogger[F, E](client, topic, batching, blocker, _ => _ => F.unit)
+    withLogger[F, E](client, topic, messageKey, batching, blocker, _ => _ => F.unit)
 
 }
