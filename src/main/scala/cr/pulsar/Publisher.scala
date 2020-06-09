@@ -28,13 +28,12 @@ import scala.concurrent.duration.FiniteDuration
 trait Publisher[F[_], E] {
 
   /**
-    * It publishes a message in a synchronous fashion by using
-    * the given [[cats.effect.Blocker]].
+    * It publishes a message in a synchronous fashion.
     */
   def publish(msg: E): F[MessageId]
 
   /**
-    * Same as [[publish]] but it discard its output.
+    * Same as [[publish]] but it discards its output.
     */
   def publish_(msg: E): F[Unit]
 
@@ -44,7 +43,7 @@ trait Publisher[F[_], E] {
   def publishAsync(msg: E): F[MessageId]
 
   /**
-    * Same as [[publishAsync]] but it discard its output.
+    * Same as [[publishAsync]] but it discards its output.
     */
   def publishAsync_(msg: E): F[Unit]
 }
@@ -83,7 +82,7 @@ object Publisher {
   ](
       client: PulsarClient.T,
       topic: Topic,
-      sharding: E => MessageKey, // only needed for key-shared topics
+      shardKey: E => MessageKey, // only needed for key-shared topics
       batching: Batching,
       blocker: Blocker,
       logAction: Array[Byte] => Topic.URL => F[Unit]
@@ -132,7 +131,7 @@ object Publisher {
             val event = serialise(msg)
 
             logAction(event)(topic.url) &> blocker.delay {
-              buildMessage(event, sharding(msg)).send()
+              buildMessage(event, shardKey(msg)).send()
             }
           }
 
@@ -140,7 +139,7 @@ object Publisher {
             val event = serialise(msg)
 
             logAction(event)(topic.url) &> F.delay {
-              buildMessage(event, sharding(msg)).sendAsync()
+              buildMessage(event, shardKey(msg)).sendAsync()
             }.futureLift
           }
 
@@ -159,10 +158,10 @@ object Publisher {
   ](
       client: PulsarClient.T,
       topic: Topic,
-      sharding: E => MessageKey,
+      shardKey: E => MessageKey,
       batching: Batching,
       blocker: Blocker
   ): Resource[F, Publisher[F, E]] =
-    withLogger[F, E](client, topic, sharding, batching, blocker, _ => _ => F.unit)
+    withLogger[F, E](client, topic, shardKey, batching, blocker, _ => _ => F.unit)
 
 }

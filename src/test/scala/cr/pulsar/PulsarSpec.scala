@@ -31,95 +31,100 @@ class PulsarSpec extends PulsarSuite {
   val batch = Publisher.Batching.Disabled
   val shard = (_: Event) => Publisher.MessageKey.Default
 
-  test("A message is published and consumed successfully") {
-    val res: Resource[IO, (Consumer[IO], Publisher[IO, Event])] =
-      for {
-        client <- PulsarClient.create[IO](cfg.serviceUrl)
-        consumer <- Consumer.create[IO](client, topic, subs, spos)
-        blocker <- Blocker[IO]
-        publisher <- Publisher.create[IO, Event](client, topic, shard, batch, blocker)
-      } yield consumer -> publisher
+  withPulsarClient { client =>
+    test("A message is published and consumed successfully") {
+      val res: Resource[IO, (Consumer[IO], Publisher[IO, Event])] =
+        for {
+          consumer <- Consumer.create[IO](client, topic, subs, spos)
+          blocker <- Blocker[IO]
+          publisher <- Publisher
+                        .create[IO, Event](client, topic, shard, batch, blocker)
+        } yield consumer -> publisher
 
-    Deferred[IO, Event].flatMap { latch =>
-      Stream
-        .resource(res)
-        .flatMap {
-          case (consumer, publisher) =>
-            val consume =
-              consumer.subscribe
-                .through(Consumer.messageDecoder[IO, Event](consumer))
-                .evalMap(latch.complete(_))
+      Deferred[IO, Event].flatMap { latch =>
+        Stream
+          .resource(res)
+          .flatMap {
+            case (consumer, publisher) =>
+              val consume =
+                consumer.subscribe
+                  .through(Consumer.messageDecoder[IO, Event](consumer))
+                  .evalMap(latch.complete(_))
 
-            val testEvent = Event(1, "test")
+              val testEvent = Event(1, "test")
 
-            val produce =
-              Stream(testEvent)
-                .covary[IO]
-                .evalMap(publisher.publish)
-                .evalMap(_ => latch.get)
+              val produce =
+                Stream(testEvent)
+                  .covary[IO]
+                  .evalMap(publisher.publish)
+                  .evalMap(_ => latch.get)
 
-            produce.concurrently(consume).evalMap { e =>
-              IO(assert(e === testEvent))
-            }
-        }
-        .compile
-        .drain
-    }
-  }
-
-  test("A message with key is published and consumed successfully by the right consumer") {
-    val res: Resource[IO, (Consumer[IO], Consumer[IO], Publisher[IO, Event])] =
-      for {
-        client <- PulsarClient.create[IO](cfg.serviceUrl)
-        makeSub = (n: String) =>
-          Subscription(Subscription.Name(n), Subscription.Type.KeyShared)
-        c1 <- Consumer.create[IO](client, topic, makeSub("s1"), spos)
-        c2 <- Consumer.create[IO](client, topic, makeSub("s2"), spos)
-        blocker <- Blocker[IO]
-        publisher <- Publisher.create[IO, Event](client, topic, _.key(2), batch, blocker)
-      } yield (c1, c2, publisher)
-
-    (Ref.of[IO, List[Event]](List.empty), Ref.of[IO, List[Event]](List.empty)).tupled
-      .flatMap {
-        case (events1, events2) =>
-          Stream
-            .resource(res)
-            .flatMap {
-              case (c1, c2, publisher) =>
-                val consume1 =
-                  c1.subscribe
-                    .through(Consumer.messageDecoder[IO, Event](c1))
-                    .evalMap(e => events1.update(_ :+ e))
-
-                val consume2 =
-                  c2.subscribe
-                    .through(Consumer.messageDecoder[IO, Event](c2))
-                    .evalMap(e => events2.update(_ :+ e))
-
-                val events =
-                  List.range(1, 6).map(x => Event(x.toLong, "test"))
-
-                val produce =
-                  Stream
-                    .emits(events)
-                    .covary[IO]
-                    .evalMap(publisher.publish_)
-
-                val interrupter = {
-                  val pred1: IO[Boolean] =
-                    events1.get.map(_.forall(_.key(2) === MessageKey.Of("shard-0")))
-                  val pred2: IO[Boolean] =
-                    events2.get.map(_.forall(_.key(2) === MessageKey.Of("shard-1")))
-                  Stream.eval((pred1, pred2).mapN { case (p1, p2) => p1 && p2 })
-                }
-
-                Stream(produce, consume1, consume2)
-                  .parJoin(3)
-                  .interruptWhen(interrupter)
-            }
-            .compile
-            .drain
+              produce.concurrently(consume).evalMap { e =>
+                IO(assert(e === testEvent))
+              }
+          }
+          .compile
+          .drain
       }
+    }
+
+    test(
+      "A message with key is published and consumed successfully by the right consumer"
+    ) {
+      val makeSub =
+        (n: String) => Subscription(Subscription.Name(n), Subscription.Type.KeyShared)
+
+      val res: Resource[IO, (Consumer[IO], Consumer[IO], Publisher[IO, Event])] =
+        for {
+          c1 <- Consumer.create[IO](client, topic, makeSub("s1"), spos)
+          c2 <- Consumer.create[IO](client, topic, makeSub("s2"), spos)
+          blocker <- Blocker[IO]
+          publisher <- Publisher
+                        .create[IO, Event](client, topic, _.key(2), batch, blocker)
+        } yield (c1, c2, publisher)
+
+      (Ref.of[IO, List[Event]](List.empty), Ref.of[IO, List[Event]](List.empty)).tupled
+        .flatMap {
+          case (events1, events2) =>
+            Stream
+              .resource(res)
+              .flatMap {
+                case (c1, c2, publisher) =>
+                  val consume1 =
+                    c1.subscribe
+                      .through(Consumer.messageDecoder[IO, Event](c1))
+                      .evalMap(e => events1.update(_ :+ e))
+
+                  val consume2 =
+                    c2.subscribe
+                      .through(Consumer.messageDecoder[IO, Event](c2))
+                      .evalMap(e => events2.update(_ :+ e))
+
+                  val events =
+                    List.range(1, 6).map(x => Event(x.toLong, "test"))
+
+                  val produce =
+                    Stream
+                      .emits(events)
+                      .covary[IO]
+                      .evalMap(publisher.publish_)
+
+                  val interrupter = {
+                    val pred1: IO[Boolean] =
+                      events1.get.map(_.forall(_.key(2) === MessageKey.Of("shard-0")))
+                    val pred2: IO[Boolean] =
+                      events2.get.map(_.forall(_.key(2) === MessageKey.Of("shard-1")))
+                    Stream.eval((pred1, pred2).mapN { case (p1, p2) => p1 && p2 })
+                  }
+
+                  Stream(produce, consume1, consume2)
+                    .parJoin(3)
+                    .interruptWhen(interrupter)
+              }
+              .compile
+              .drain
+        }
+    }
   }
 
 }

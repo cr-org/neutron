@@ -18,6 +18,7 @@ package cr.pulsar
 
 import cats._
 import cats.effect._
+import cats.effect.concurrent.Deferred
 import cats.implicits._
 import cr.pulsar.Config._
 import munit.FunSuite
@@ -29,10 +30,35 @@ abstract class PulsarSuite extends FunSuite {
   implicit val `⏳` = IO.contextShift(ExecutionContext.global)
   implicit val `⏰` = IO.timer(ExecutionContext.global)
 
+  private[this] var client: PulsarClient.T = null
+  private[this] var close: IO[Unit]        = null
+  private[this] val latch                  = Deferred[IO, Unit].unsafeRunSync()
+
   override def munitValueTransforms: List[ValueTransform] =
     super.munitValueTransforms :+ new ValueTransform("IO", {
           case ioa: IO[_] => IO.suspend(ioa).unsafeToFuture
         })
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    val (cli, release) =
+      PulsarClient.create[IO](cfg.serviceUrl).allocated.unsafeRunSync()
+    this.client = cli
+    this.close = release
+    latch.complete(()).unsafeRunSync()
+  }
+
+  override def afterAll(): Unit = {
+    close.unsafeRunSync()
+    super.afterAll()
+  }
+
+  def withPulsarClient(f: (=> PulsarClient.T) => Unit): Unit =
+    f {
+      //to ensure the resource has been allocated before any test(...) call
+      latch.get.unsafeRunSync
+      client
+    }
 
   case class Event(id: Long, value: String) {
     def key(nrOfConsumers: Int): Publisher.MessageKey =
@@ -57,7 +83,7 @@ abstract class PulsarSuite extends FunSuite {
       }
   }
 
-  val cfg = Config(
+  lazy val cfg = Config(
     PulsarTenant("public"),
     PulsarNamespace("default"),
     PulsarURL("pulsar://localhost:6650")
