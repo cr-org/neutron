@@ -26,10 +26,33 @@ import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder }
 import scala.concurrent.duration.FiniteDuration
 
 trait Publisher[F[_], E] {
+
+  /**
+    * It publishes a message in a synchronous fashion.
+    */
   def publish(msg: E): F[MessageId]
+
+  /**
+    * Same as [[publish]] but it discards its output.
+    */
   def publish_(msg: E): F[Unit]
+
+  /**
+    * It publishes a message in an asynchronous fashion.
+    */
   def publishAsync(msg: E): F[MessageId]
+
+  /**
+    * Same as [[publishAsync]] but it discards its output.
+    */
   def publishAsync_(msg: E): F[Unit]
+}
+
+abstract class DefaultPublisher[F[_]: Functor, E] extends Publisher[F, E] {
+  def publish_(msg: E): F[Unit] =
+    publish(msg).void
+  def publishAsync_(msg: E): F[Unit] =
+    publishAsync(msg).void
 }
 
 object Publisher {
@@ -42,8 +65,10 @@ object Publisher {
 
   sealed trait MessageKey
   object MessageKey {
-    final case class Value(value: String) extends MessageKey
+    final case class Of(value: String) extends MessageKey
     final case object Default extends MessageKey
+
+    implicit val eq: Eq[MessageKey] = Eq.fromUniversalEquals
   }
 
   /**
@@ -57,7 +82,7 @@ object Publisher {
   ](
       client: PulsarClient.T,
       topic: Topic,
-      messageKey: MessageKey, // specify for key_shared topics
+      shardKey: E => MessageKey, // only needed for key-shared topics
       batching: Batching,
       blocker: Blocker,
       logAction: Array[Byte] => Topic.URL => F[Unit]
@@ -79,67 +104,47 @@ object Publisher {
           producerBuilder.enableBatching(false)
       }
 
-    val resource = Resource.make {
-      blocker.delay(
-        configureBatching(
-          batching,
-          client.newProducer.topic(topic.url.value)
-        ).create
-      )
-    }(p => blocker.delay(p.close()))
+    Resource
+      .make {
+        blocker.delay(
+          configureBatching(
+            batching,
+            client.newProducer.topic(topic.url.value)
+          ).create
+        )
+      }(p => blocker.delay(p.close()))
+      .map { prod =>
+        new DefaultPublisher[F, E] {
+          val serialise: E => Array[Byte] = Inject[E, Array[Byte]].inj
 
-    resource.map { prod =>
-      new Publisher[F, E] {
-        val serialise: E => Array[Byte] = Inject[E, Array[Byte]].inj
-
-        /**
-          * It publishes a message in a synchronous fashion by using
-          * the given [[cats.effect.Blocker]].
-          */
-        override def publish(msg: E): F[MessageId] = {
-          val event = serialise(msg)
-
-          logAction(event)(topic.url) &> blocker.delay {
-            val msg = prod.newMessage().value(event)
-            messageKey match {
-              case MessageKey.Value(k) =>
-                msg.key(k).send()
+          private def buildMessage(msg: Array[Byte], key: MessageKey) = {
+            val event = prod.newMessage().value(msg)
+            key match {
+              case MessageKey.Of(k) =>
+                event.key(k)
               case MessageKey.Default =>
-                msg.send()
+                event
             }
           }
-        }
 
-        /**
-          * Same as [[publish]] but it discard its output.
-          */
-        override def publish_(msg: E): F[Unit] =
-          publish(msg).void
+          override def publish(msg: E): F[MessageId] = {
+            val event = serialise(msg)
 
-        /**
-          * It publishes a message in an asynchronous fashion.
-          */
-        override def publishAsync(msg: E): F[MessageId] = {
-          val event = serialise(msg)
-
-          logAction(event)(topic.url) &> F.delay {
-            val msg = prod.newMessage().value(event)
-            messageKey match {
-              case MessageKey.Value(k) =>
-                msg.key(k).sendAsync()
-              case MessageKey.Default =>
-                msg.sendAsync()
+            logAction(event)(topic.url) &> blocker.delay {
+              buildMessage(event, shardKey(msg)).send()
             }
-          }.futureLift
-        }
+          }
 
-        /**
-          * Same as [[publishAsync]] but it discard its output.
-          */
-        override def publishAsync_(msg: E): F[Unit] =
-          publishAsync(msg).void
+          def publishAsync(msg: E): F[MessageId] = {
+            val event = serialise(msg)
+
+            logAction(event)(topic.url) &> F.delay {
+              buildMessage(event, shardKey(msg)).sendAsync()
+            }.futureLift
+          }
+
+        }
       }
-    }
   }
 
   /**
@@ -153,10 +158,10 @@ object Publisher {
   ](
       client: PulsarClient.T,
       topic: Topic,
-      messageKey: MessageKey, // specify for key_shared topics
+      shardKey: E => MessageKey,
       batching: Batching,
       blocker: Blocker
   ): Resource[F, Publisher[F, E]] =
-    withLogger[F, E](client, topic, messageKey, batching, blocker, _ => _ => F.unit)
+    withLogger[F, E](client, topic, shardKey, batching, blocker, _ => _ => F.unit)
 
 }
