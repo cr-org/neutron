@@ -21,6 +21,7 @@ import cats.effect.concurrent.{ Deferred, Ref }
 import cats.implicits._
 import cr.pulsar.Publisher.MessageKey
 import fs2.Stream
+import java.util.UUID
 import org.apache.pulsar.client.api.SubscriptionInitialPosition
 
 class PulsarSpec extends PulsarSuite {
@@ -51,7 +52,7 @@ class PulsarSpec extends PulsarSuite {
                   .through(Consumer.messageDecoder[IO, Event](consumer))
                   .evalMap(latch.complete(_))
 
-              val testEvent = Event(1, "test")
+              val testEvent = Event(UUID.randomUUID(), "test")
 
               val produce =
                 Stream(testEvent)
@@ -80,7 +81,7 @@ class PulsarSpec extends PulsarSuite {
           c2 <- Consumer.create[IO](client, topic, makeSub("s2"), spos)
           blocker <- Blocker[IO]
           publisher <- Publisher
-                        .create[IO, Event](client, topic, _.key(2), batch, blocker)
+                        .create[IO, Event](client, topic, _.shardKey, batch, blocker)
         } yield (c1, c2, publisher)
 
       (Ref.of[IO, List[Event]](List.empty), Ref.of[IO, List[Event]](List.empty)).tupled
@@ -100,8 +101,10 @@ class PulsarSpec extends PulsarSuite {
                       .through(Consumer.messageDecoder[IO, Event](c2))
                       .evalMap(e => events2.update(_ :+ e))
 
+                  val uuids = List(UUID.randomUUID(), UUID.randomUUID())
+
                   val events =
-                    List.range(1, 6).map(x => Event(x.toLong, "test"))
+                    List.range(1, 6).map(x => Event(uuids(x % 2), "test"))
 
                   val produce =
                     Stream
@@ -111,9 +114,13 @@ class PulsarSpec extends PulsarSuite {
 
                   val interrupter = {
                     val pred1: IO[Boolean] =
-                      events1.get.map(_.forall(_.key(2) === MessageKey.Of("shard-0")))
+                      events1.get.map(
+                        _.forall(_.shardKey === MessageKey.Of(uuids(0).toString))
+                      )
                     val pred2: IO[Boolean] =
-                      events2.get.map(_.forall(_.key(2) === MessageKey.Of("shard-1")))
+                      events2.get.map(
+                        _.forall(_.shardKey === MessageKey.Of(uuids(1).toString))
+                      )
                     Stream.eval((pred1, pred2).mapN { case (p1, p2) => p1 && p2 })
                   }
 
