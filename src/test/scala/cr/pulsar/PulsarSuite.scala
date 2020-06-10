@@ -21,6 +21,7 @@ import cats.effect._
 import cats.effect.concurrent.Deferred
 import cats.implicits._
 import cr.pulsar.Config._
+import java.util.UUID
 import munit.FunSuite
 import scala.concurrent.ExecutionContext
 import scala.util.Try
@@ -60,25 +61,22 @@ abstract class PulsarSuite extends FunSuite {
       client
     }
 
-  case class Event(id: Long, value: String) {
-    def key(nrOfConsumers: Int): Publisher.MessageKey =
-      Publisher.MessageKey.Of(s"shard-${id % nrOfConsumers}")
+  case class Event(uuid: UUID, value: String) {
+    def shardKey: Publisher.MessageKey =
+      Publisher.MessageKey.Of(uuid.toString)
   }
 
   object Event {
-    implicit val eq: Eq[Event] = Eq.fromUniversalEquals
+    implicit val eq: Eq[Event] = Eq.by(_.uuid)
 
     implicit val inject: Inject[Event, Array[Byte]] =
       new Inject[Event, Array[Byte]] {
-        def inj: Event => Array[Byte] = e => s"${e.value}-${e.id}".getBytes("UTF-8")
+        def inj: Event => Array[Byte] =
+          e => s"${e.uuid.toString}".getBytes("UTF-8")
         def prj: Array[Byte] => Option[Event] =
           bs =>
-            new String(bs, "UTF-8").split("-").toList match {
-              case (v :: id :: Nil) =>
-                Try(id.toLong).toOption.map { i =>
-                  Event(i, v)
-                }
-              case _ => None
+            Try(UUID.fromString(new String(bs, "UTF-8"))).toOption.map { i =>
+              Event(i, "foo")
             }
       }
   }
