@@ -19,7 +19,7 @@ package cr.pulsar
 import cats.effect._
 import cats.effect.concurrent.{ Deferred, Ref }
 import cats.implicits._
-import cr.pulsar.Publisher.MessageKey
+import cr.pulsar.Producer.MessageKey
 import fs2.Stream
 import java.util.UUID
 import org.apache.pulsar.client.api.SubscriptionInitialPosition
@@ -29,24 +29,24 @@ class PulsarSpec extends PulsarSuite {
   val subs  = Subscription(Subscription.Name("test"), Subscription.Type.Failover)
   val spos  = SubscriptionInitialPosition.Latest
   val topic = Topic(cfg, Topic.Name("test"), Topic.Type.Persistent)
-  val batch = Publisher.Batching.Disabled
-  val shard = (_: Event) => Publisher.MessageKey.Default
+  val batch = Producer.Batching.Disabled
+  val shard = (_: Event) => Producer.MessageKey.Default
 
   withPulsarClient { client =>
     test("A message is published and consumed successfully") {
-      val res: Resource[IO, (Consumer[IO], Publisher[IO, Event])] =
+      val res: Resource[IO, (Consumer[IO], Producer[IO, Event])] =
         for {
           consumer <- Consumer.create[IO](client, topic, subs, spos)
           blocker <- Blocker[IO]
-          publisher <- Publisher
-                        .create[IO, Event](client, topic, shard, batch, blocker)
-        } yield consumer -> publisher
+          producer <- Producer
+                       .create[IO, Event](client, topic, shard, batch, blocker)
+        } yield consumer -> producer
 
       Deferred[IO, Event].flatMap { latch =>
         Stream
           .resource(res)
           .flatMap {
-            case (consumer, publisher) =>
+            case (consumer, producer) =>
               val consume =
                 consumer.subscribe
                   .through(Consumer.messageDecoder[IO, Event](consumer))
@@ -57,7 +57,7 @@ class PulsarSpec extends PulsarSuite {
               val produce =
                 Stream(testEvent)
                   .covary[IO]
-                  .evalMap(publisher.publish)
+                  .evalMap(producer.send)
                   .evalMap(_ => latch.get)
 
               produce.concurrently(consume).evalMap { e =>
@@ -75,14 +75,14 @@ class PulsarSpec extends PulsarSuite {
       val makeSub =
         (n: String) => Subscription(Subscription.Name(n), Subscription.Type.KeyShared)
 
-      val res: Resource[IO, (Consumer[IO], Consumer[IO], Publisher[IO, Event])] =
+      val res: Resource[IO, (Consumer[IO], Consumer[IO], Producer[IO, Event])] =
         for {
           c1 <- Consumer.create[IO](client, topic, makeSub("s1"), spos)
           c2 <- Consumer.create[IO](client, topic, makeSub("s2"), spos)
           blocker <- Blocker[IO]
-          publisher <- Publisher
-                        .create[IO, Event](client, topic, _.shardKey, batch, blocker)
-        } yield (c1, c2, publisher)
+          producer <- Producer
+                       .create[IO, Event](client, topic, _.shardKey, batch, blocker)
+        } yield (c1, c2, producer)
 
       (Ref.of[IO, List[Event]](List.empty), Ref.of[IO, List[Event]](List.empty)).tupled
         .flatMap {
@@ -90,7 +90,7 @@ class PulsarSpec extends PulsarSuite {
             Stream
               .resource(res)
               .flatMap {
-                case (c1, c2, publisher) =>
+                case (c1, c2, producer) =>
                   val consume1 =
                     c1.subscribe
                       .through(Consumer.messageDecoder[IO, Event](c1))
@@ -110,7 +110,7 @@ class PulsarSpec extends PulsarSuite {
                     Stream
                       .emits(events)
                       .covary[IO]
-                      .evalMap(publisher.publish_)
+                      .evalMap(producer.send_)
 
                   val interrupter = {
                     val pred1: IO[Boolean] =

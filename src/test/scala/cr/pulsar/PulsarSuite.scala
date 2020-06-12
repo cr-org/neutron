@@ -62,8 +62,8 @@ abstract class PulsarSuite extends FunSuite {
     }
 
   case class Event(uuid: UUID, value: String) {
-    def shardKey: Publisher.MessageKey =
-      Publisher.MessageKey.Of(uuid.toString)
+    def shardKey: Producer.MessageKey =
+      Producer.MessageKey.Of(uuid.toString)
   }
 
   object Event {

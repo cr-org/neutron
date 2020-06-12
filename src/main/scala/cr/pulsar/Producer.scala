@@ -25,37 +25,37 @@ import java.util.concurrent.TimeUnit
 import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder }
 import scala.concurrent.duration.FiniteDuration
 
-trait Publisher[F[_], E] {
+trait Producer[F[_], E] {
 
   /**
     * It publishes a message in a synchronous fashion.
     */
-  def publish(msg: E): F[MessageId]
+  def send(msg: E): F[MessageId]
 
   /**
-    * Same as [[publish]] but it discards its output.
+    * Same as [[send]] but it discards its output.
     */
-  def publish_(msg: E): F[Unit]
+  def send_(msg: E): F[Unit]
 
   /**
     * It publishes a message in an asynchronous fashion.
     */
-  def publishAsync(msg: E): F[MessageId]
+  def sendAsync(msg: E): F[MessageId]
 
   /**
-    * Same as [[publishAsync]] but it discards its output.
+    * Same as [[sendAsync]] but it discards its output.
     */
-  def publishAsync_(msg: E): F[Unit]
+  def sendAsync_(msg: E): F[Unit]
 }
 
-abstract class DefaultPublisher[F[_]: Functor, E] extends Publisher[F, E] {
-  def publish_(msg: E): F[Unit] =
-    publish(msg).void
-  def publishAsync_(msg: E): F[Unit] =
-    publishAsync(msg).void
+abstract class DefaultProducer[F[_]: Functor, E] extends Producer[F, E] {
+  def send_(msg: E): F[Unit] =
+    send(msg).void
+  def sendAsync_(msg: E): F[Unit] =
+    sendAsync(msg).void
 }
 
-object Publisher {
+object Producer {
 
   sealed trait Batching
   object Batching {
@@ -72,7 +72,7 @@ object Publisher {
   }
 
   /**
-    * It creates a simple [[Publisher]].
+    * It creates a simple [[Producer]].
     *
     * Published messages will be logged using the given `logAction`.
     */
@@ -86,7 +86,7 @@ object Publisher {
       batching: Batching,
       blocker: Blocker,
       logAction: Array[Byte] => Topic.URL => F[Unit]
-  ): Resource[F, Publisher[F, E]] = {
+  ): Resource[F, Producer[F, E]] = {
     def configureBatching(
         batching: Batching,
         producerBuilder: ProducerBuilder[Array[Byte]]
@@ -114,7 +114,7 @@ object Publisher {
         )
       }(p => blocker.delay(p.close()))
       .map { prod =>
-        new DefaultPublisher[F, E] {
+        new DefaultProducer[F, E] {
           val serialise: E => Array[Byte] = Inject[E, Array[Byte]].inj
 
           private def buildMessage(msg: Array[Byte], key: MessageKey) = {
@@ -127,7 +127,7 @@ object Publisher {
             }
           }
 
-          override def publish(msg: E): F[MessageId] = {
+          override def send(msg: E): F[MessageId] = {
             val event = serialise(msg)
 
             logAction(event)(topic.url) &> blocker.delay {
@@ -135,7 +135,7 @@ object Publisher {
             }
           }
 
-          def publishAsync(msg: E): F[MessageId] = {
+          def sendAsync(msg: E): F[MessageId] = {
             val event = serialise(msg)
 
             logAction(event)(topic.url) &> F.delay {
@@ -148,7 +148,7 @@ object Publisher {
   }
 
   /**
-    * It creates a simple [[Publisher]] with a no-op logger.
+    * It creates a simple [[Producer]] with a no-op logger.
     *
     * Published messages will not be logged.
     */
@@ -161,7 +161,7 @@ object Publisher {
       shardKey: E => MessageKey,
       batching: Batching,
       blocker: Blocker
-  ): Resource[F, Publisher[F, E]] =
+  ): Resource[F, Producer[F, E]] =
     withLogger[F, E](client, topic, shardKey, batching, blocker, _ => _ => F.unit)
 
 }
