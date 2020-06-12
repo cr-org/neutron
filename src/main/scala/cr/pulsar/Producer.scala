@@ -28,7 +28,7 @@ import scala.concurrent.duration.FiniteDuration
 trait Producer[F[_], E] {
 
   /**
-    * It publishes a message in a synchronous fashion.
+    * It sends a message in a synchronous fashion.
     */
   def send(msg: E): F[MessageId]
 
@@ -38,7 +38,7 @@ trait Producer[F[_], E] {
   def send_(msg: E): F[Unit]
 
   /**
-    * It publishes a message in an asynchronous fashion.
+    * It sends a message in an asynchronous fashion.
     */
   def sendAsync(msg: E): F[MessageId]
 
@@ -74,7 +74,7 @@ object Producer {
   /**
     * It creates a simple [[Producer]].
     *
-    * Published messages will be logged using the given `logAction`.
+    * Produced messages will be logged using the given `logAction`.
     */
   def withLogger[
       F[_]: ContextShift: Parallel: Concurrent,
@@ -150,7 +150,7 @@ object Producer {
   /**
     * It creates a simple [[Producer]] with a no-op logger.
     *
-    * Published messages will not be logged.
+    * Produced messages will not be logged.
     */
   def create[
       F[_]: ContextShift: Parallel: Concurrent,
