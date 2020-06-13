@@ -3,6 +3,7 @@ import Settings._
 
 lazy val `neutron-core` = project
   .settings(commonSettings)
+  .enablePlugins(AutomateHeaderPlugin)
   .settings(
     libraryDependencies ++= List(
       CompilerPlugins.betterMonadicFor,
@@ -20,7 +21,6 @@ lazy val `neutron-core` = project
 
 lazy val root = (project in file("."))
   .settings(name := "neutron")
-  .enablePlugins(AutomateHeaderPlugin)
   .aggregate(
     `neutron-core`
   )
