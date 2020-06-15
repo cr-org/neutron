@@ -1,7 +1,7 @@
 import Dependencies._
 import Settings._
 
-lazy val `neutron-core` = project
+lazy val `neutron-core` = (project in file("core"))
   .settings(commonSettings)
   .enablePlugins(AutomateHeaderPlugin)
   .settings(
