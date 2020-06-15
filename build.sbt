@@ -4,7 +4,9 @@ import Settings._
 lazy val `neutron-core` = (project in file("core"))
   .settings(commonSettings)
   .enablePlugins(AutomateHeaderPlugin)
+  .configs(IntegrationTest)
   .settings(
+    Defaults.itSettings,
     libraryDependencies ++= List(
       CompilerPlugins.betterMonadicFor,
       CompilerPlugins.contextApplied,
@@ -14,8 +16,8 @@ lazy val `neutron-core` = (project in file("core"))
       Libraries.fs2,
       Libraries.newtype,
       Libraries.pulsar,
-      Libraries.munitCore       % Test,
-      Libraries.munitScalacheck % Test
+      Libraries.munitCore       % "it,test",
+      Libraries.munitScalacheck % "it,test"
     )
   )
 
