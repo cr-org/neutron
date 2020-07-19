@@ -22,6 +22,7 @@ import cats.implicits._
 import cr.pulsar.internal.FutureLift._
 import fs2._
 import org.apache.pulsar.client.api.{ Message, MessageId, SubscriptionInitialPosition }
+import scala.util.control.NoStackTrace
 
 trait Consumer[F[_]] {
   def subscribe: Stream[F, Message[Array[Byte]]]
@@ -30,6 +31,8 @@ trait Consumer[F[_]] {
 }
 
 object Consumer {
+
+  case class DecodingFailure(msg: String) extends NoStackTrace
 
   private def mkConsumer[F[_]: Concurrent: ContextShift](
       client: PulsarClient.T,
@@ -111,13 +114,14 @@ object Consumer {
       logAction: E => Topic.URL => F[Unit]
   ): Pipe[F, Message[Array[Byte]], E] =
     _.evalMap { m =>
-      val id = m.getMessageId
+      val id   = m.getMessageId
+      val data = m.getData
 
-      E.prj(m.getData) match {
+      E.prj(data) match {
         case Some(e) =>
           logAction(e)(Topic.URL(m.getTopicName)) &> c.ack(id).as(e)
         case None =>
-          c.nack(id) *> (new IllegalArgumentException("Decoding error")).raiseError[F, E]
+          c.nack(id) *> DecodingFailure(new String(data, "UTF-8")).raiseError[F, E]
       }
     }
 
