@@ -85,7 +85,7 @@ object Producer {
       shardKey: E => MessageKey, // only needed for key-shared topics
       batching: Batching,
       blocker: Blocker,
-      logAction: Array[Byte] => Topic.URL => F[Unit]
+      logAction: E => Topic.URL => F[Unit]
   ): Resource[F, Producer[F, E]] = {
     def configureBatching(
         batching: Batching,
@@ -115,7 +115,7 @@ object Producer {
       }(p => blocker.delay(p.close()))
       .map { prod =>
         new DefaultProducer[F, E] {
-          val serialise: E => Array[Byte] = Inject[E, Array[Byte]].inj
+          val serialise: E => Array[Byte] = E.inj
 
           private def buildMessage(msg: Array[Byte], key: MessageKey) = {
             val event = prod.newMessage().value(msg)
@@ -127,21 +127,15 @@ object Producer {
             }
           }
 
-          override def send(msg: E): F[MessageId] = {
-            val event = serialise(msg)
+          override def send(msg: E): F[MessageId] =
+            logAction(msg)(topic.url) &> blocker.delay {
+                  buildMessage(serialise(msg), shardKey(msg)).send()
+                }
 
-            logAction(event)(topic.url) &> blocker.delay {
-              buildMessage(event, shardKey(msg)).send()
-            }
-          }
-
-          def sendAsync(msg: E): F[MessageId] = {
-            val event = serialise(msg)
-
-            logAction(event)(topic.url) &> F.delay {
-              buildMessage(event, shardKey(msg)).sendAsync()
-            }.futureLift
-          }
+          def sendAsync(msg: E): F[MessageId] =
+            logAction(msg)(topic.url) &> F.delay {
+                  buildMessage(serialise(msg), shardKey(msg)).sendAsync()
+                }.futureLift
 
         }
       }
