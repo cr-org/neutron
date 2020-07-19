@@ -108,20 +108,17 @@ object Consumer {
       E: Inject[*, Array[Byte]]
   ](
       c: Consumer[F],
-      logAction: Array[Byte] => Topic.URL => F[Unit]
+      logAction: E => Topic.URL => F[Unit]
   ): Pipe[F, Message[Array[Byte]], E] =
     _.evalMap { m =>
-      val id   = m.getMessageId
-      val data = m.getData
+      val id = m.getMessageId
 
-      val acking = E.prj(data) match {
+      E.prj(m.getData) match {
         case Some(e) =>
-          c.ack(id).as(e)
+          logAction(e)(Topic.URL(m.getTopicName)) &> c.ack(id).as(e)
         case None =>
           c.nack(id) *> (new IllegalArgumentException("Decoding error")).raiseError[F, E]
       }
-
-      logAction(data)(Topic.URL(m.getTopicName)) &> acking
     }
 
   /**
