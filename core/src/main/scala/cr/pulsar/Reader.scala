@@ -25,8 +25,8 @@ import org.apache.pulsar.client.api.{ Message, MessageId }
 import scala.util.control.NoStackTrace
 
 /**
- * A Reader can be used to read all the messages currently available in a topic.
- */
+  * A Reader can be used to read all the messages currently available in a topic.
+  */
 trait Reader[F[_]] {
   def read: Stream[F, Message[Array[Byte]]]
 }
@@ -37,14 +37,15 @@ object Reader {
 
   private def mkReader[F[_]: Concurrent: ContextShift](
       client: PulsarClient.T,
-      topic: Topic
+      topic: Topic,
+      messageId: MessageId
   ): Resource[F, Reader[F]] =
     Resource
       .make {
         F.delay {
           client.newReader
             .topic(topic.url.value)
-            .startMessageId(MessageId.earliest)
+            .startMessageId(messageId)
             .create()
         }
       }(
@@ -64,9 +65,10 @@ object Reader {
     */
   def create[F[_]: Concurrent: ContextShift](
       client: PulsarClient.T,
-      topic: Topic
+      topic: Topic,
+      messageId: MessageId
   ): Resource[F, Reader[F]] =
-    mkReader[F](client, topic)
+    mkReader[F](client, topic, messageId)
 
   /**
     * A simple message decoder that uses a [[cats.Inject]] instance
