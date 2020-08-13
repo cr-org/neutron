@@ -16,10 +16,10 @@
 
 package cr.pulsar
 
-import org.apache.pulsar.client.api.{ Message, Schema }
+import cr.pulsar.JavaConversions._
+import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.functions.api.{ Record => JavaRecord }
 
-import scala.collection.JavaConverters._
 import scala.compat.java8.OptionConverters._
 
 final case class Record[T](private val ctx: JavaRecord[T]) {
@@ -33,7 +33,6 @@ final case class Record[T](private val ctx: JavaRecord[T]) {
   def partitionId: Option[String]      = ctx.getPartitionId.asScala
   def properties: Map[String, String]  = ctx.getProperties.asScala.toMap
   def recordSequence: Option[Long]     = ctx.getRecordSequence.asScala.map(x => x)
-  def schema: Schema[T]                = ctx.getSchema
   def topicName: Option[String]        = ctx.getTopicName.asScala
   def value: T                         = ctx.getValue
 }

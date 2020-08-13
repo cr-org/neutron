@@ -22,7 +22,7 @@ import io.estatico.newtype.macros.newtype
 import org.apache.pulsar.functions.api.{ WindowContext => JavaWindowContext }
 import org.slf4j.Logger
 
-import collection.JavaConverters._
+import cr.pulsar.JavaConversions._
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.compat.java8.FutureConverters._
 import scala.compat.java8.OptionConverters._

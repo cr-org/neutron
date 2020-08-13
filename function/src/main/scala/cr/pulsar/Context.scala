@@ -23,7 +23,7 @@ import org.apache.pulsar.client.api.{ Schema, TypedMessageBuilder }
 import org.apache.pulsar.functions.api.{ Context => JavaContext }
 import org.slf4j.Logger
 
-import collection.JavaConverters._
+import cr.pulsar.JavaConversions._
 import scala.compat.java8.OptionConverters._
 import scala.reflect.ClassTag
 

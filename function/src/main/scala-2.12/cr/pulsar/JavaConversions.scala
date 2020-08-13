@@ -16,22 +16,6 @@
 
 package cr.pulsar
 
-import java.util
+import scala.collection.convert.{ DecorateAsJava, DecorateAsScala }
 
-import org.apache.pulsar.functions.api.{
-  Record => JavaRecord,
-  WindowContext => JavaWindowContext,
-  WindowFunction => JavaWindowFunction
-}
-
-import cr.pulsar.JavaConversions._
-
-trait WindowFunction[In, Out] extends JavaWindowFunction[In, Out] {
-  def handle(input: Seq[Record[In]], context: WindowContext): Out
-
-  override def process(
-      input: util.Collection[JavaRecord[In]],
-      context: JavaWindowContext
-  ): Out =
-    handle(input.asScala.toSeq.map(Record(_)), WindowContext(context))
-}
+object JavaConversions extends DecorateAsJava with DecorateAsScala
