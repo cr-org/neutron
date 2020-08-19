@@ -9,25 +9,37 @@ A *pulsar* is a celestial object, thought to be a rapidly rotating neutron star,
 
 [![pulsar](https://www.jpl.nasa.gov/spaceimages/images/largesize/PIA18845_hires.jpg "An accreting pulsar. Credit NASA/JPL-Caltech")](https://www.jpl.nasa.gov/spaceimages/?search=pulsar&category=#submit)
 
-### How to use it
+### Disclaimer   
+**Chatroulette** uses this library in production as a base of the whole platform.      
+However, this library is in active development so if you want to use it **do it at your own risk**. 
 
-DISCLAIMER: It is currently a WIP so **there is no release and we do not recommend its wide usage yet**. However, if you would like to give it a try you can find the latest snapshots published here: [https://oss.sonatype.org/#nexus-search;quick~com.chatroulette](https://oss.sonatype.org/#nexus-search;quick~com.chatroulette).
+### Quick start
+If you are using `SBT` just add it as one of your dependencies:
+```
+val neutronVersion = "0.0.1"
 
-Sooner rather than later we plan to make a first official release and write documentation so it can also be useful outside of our company. Stay tuned!
+libraryDependencies += "com.chatroulette" %% "neutron-core" % neutronVersion     // Core module
+libraryDependencies += "com.chatroulette" %% "neutron-function" % neutronVersion // Function module
+```
+
+That is it!
 
 ### Build
+If you have `SBT` installed you don't have to worry about anything. Simply run `sbt +test` command in the project root to run the tests. 
 
-If you use [Nix Direnv](https://github.com/nix-community/nix-direnv) then you will be able to run the commands straight away. Otherwise, make sure you always enter a Nix Shell by running `nix-shell` at the project's root.
+If you are a `nix` user and you use [Nix Direnv](https://github.com/nix-community/nix-direnv) then you will be able to run the commands straight away. 
+Otherwise, make sure you always enter a `Nix Shell` by running `nix-shell` at the project's root.
 
 ```
 sbt +test
 ```
 
 ### Update CI build YAML
-
+To update CI build you should have `dhall-json` installed or simply use `nix`.
 Using [Github Actions Dhall](https://github.com/regadas/github-actions-dhall).
 
 ```
 cd .github/workflows
 dhall-to-yaml --file scala.dhall > scala.yml
 ```
+

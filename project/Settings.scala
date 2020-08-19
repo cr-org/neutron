@@ -54,6 +54,10 @@ object Settings {
     )
   )
 
+  val noPublish = {
+    skip in publish := true
+  }
+
   def compilerFlags(v: String) =
     CrossVersion.partialVersion(v) match {
       case Some((2, 13)) => List("-Ymacro-annotations")
