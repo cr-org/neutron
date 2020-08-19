@@ -39,6 +39,7 @@ lazy val `neutron-function` = (project in file("function"))
 
 lazy val root = (project in file("."))
   .settings(name := "neutron")
+  .settings(noPublish)
   .aggregate(
     `neutron-function`,
     `neutron-core`
