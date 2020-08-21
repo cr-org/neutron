@@ -16,7 +16,7 @@ A *pulsar* is a celestial object, thought to be a rapidly rotating neutron star,
 
 ### Quick start
 
-Here's a quick consumer / producer example. First of all, both consumers and producers need an instance of `Inject[MyEvent, Array[Byte]]` to be able to encode / decode events. We can create a simple one for strings, for example.
+Here's a quick consumer / producer example.
 
 ```scala
 import cats.effect._
