@@ -33,4 +33,10 @@ object Config {
   @newtype case class PulsarTenant(value: String)
   @newtype case class PulsarNamespace(value: String)
   @newtype case class PulsarURL(value: String)
+
+  val default: Config = Config(
+    PulsarTenant("public"),
+    PulsarNamespace("default"),
+    PulsarURL("pulsar://localhost:6650")
+  )
 }
