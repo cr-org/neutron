@@ -19,10 +19,12 @@ A *pulsar* is a celestial object, thought to be a rapidly rotating neutron star,
 Here's a quick consumer / producer example.
 
 ```scala
+import cats.Inject
 import cats.effect._
 import cats.implicits._
 import fs2._
 import cr.pulsar._
+import org.apache.pulsar.client.api.SubscriptionInitialPosition
 
 object Demo extends IOApp {
 
