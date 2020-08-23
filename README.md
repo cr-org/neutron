@@ -24,21 +24,10 @@ At the moment, we only target Apache Pulsar 2.5.x but we plan to add support for
 
 ### Development
 
-#### Build
-
 If you have `sbt` installed, you don't have to worry about anything. Simply run `sbt +test` command in the project root to run the tests.
 
 If you are a `nix` user, make sure you enter a `Nix Shell` by running `nix-shell` at the project's root.
 
 ```
 sbt +test
-```
-
-#### Update CI build YAML
-
-To update CI build you should have `dhall-json` installed or simply use `nix-shell` and you'll have it available. Using [Github Actions Dhall](https://github.com/regadas/github-actions-dhall).
-
-```
-cd .github/workflows
-dhall-to-yaml --file scala.dhall > scala.yml
 ```
