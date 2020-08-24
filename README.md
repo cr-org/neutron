@@ -12,7 +12,7 @@ A *pulsar* is a celestial object, thought to be a rapidly rotating neutron star,
 
 ### Disclaimer
 
-**ChatRoulette** uses this library in production as the base of the whole platform. However, this library is in active development so if you want to use it, **do it at your own risk**.
+**Chatroulette** uses this library in production as the base of the whole platform. However, this library is in active development so if you want to use it, **do it at your own risk**.
 
 ### Documentation
 
