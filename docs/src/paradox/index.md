@@ -90,3 +90,4 @@ implicit def circeBytesInject[T: Encoder: Decoder]: Inject[T, Array[Byte]] =
       bytes => decode[T](new String(bytes, "UTF-8")).toOption
   }
 ```
+
