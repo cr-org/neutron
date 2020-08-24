@@ -10,7 +10,9 @@ jobs:
   publish:
     runs-on: ubuntu-18.04
     steps:
-      - uses: "actions/checkout@v2.1.0"
+      - uses: "actions/checkout@v2.3.2"
+        with:
+          fetch-depth: 0 # fetch all branches & tags
       - name: "Install Nix ❄️"
         uses: "cachix/install-nix-action@v9"
       - name: "Install SSH 🔑 for GH pages"
@@ -20,6 +22,5 @@ jobs:
           known_hosts: ${{ secrets.KNOWN_HOSTS }}
       - run: git config --global user.email "neutron-site-bot@chatroulette.com"
       - run: git config --global user.name "neutron-site-bot"
-      - run: git fetch --tags
       - name: "Build microsite 🚧"
         run: "nix-shell --run \"sbt ghpagesPushSite\""
