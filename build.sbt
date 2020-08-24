@@ -28,7 +28,6 @@ lazy val `neutron-circe` = (project in file("circe"))
   .settings(
     libraryDependencies ++= List(
           Libraries.circeCore,
-          Libraries.circeGeneric,
           Libraries.circeParser
         )
   )
