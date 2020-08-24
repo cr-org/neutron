@@ -126,23 +126,7 @@ object Producer {
   }
 
   /**
-    * It creates a [[Producer]] with a no-op logger with shared key.
-    *
-    * Produced messages will not be logged.
-    */
-  def withSharedKey[
-      F[_]: ContextShift: Parallel: Concurrent,
-      E: Inject[*, Array[Byte]]
-  ](
-      client: Client.T,
-      topic: Topic,
-      shardKey: E => MessageKey,
-      batching: Batching = Batching.Disabled
-  ): Resource[F, Producer[F, E]] =
-    withLogger[F, E](client, topic, shardKey, batching, _ => _ => F.unit)
-
-  /**
-    * It creates a [[Producer]] with a no-op logger.
+    * It creates a simple [[Producer]] with a no-op logger and disabled batching.
     *
     * Produced messages will not be logged.
     */
@@ -151,13 +135,34 @@ object Producer {
       E: Inject[*, Array[Byte]]
   ](
       client: Client.T,
-      topic: Topic,
-      batching: Batching = Batching.Disabled
+      topic: Topic
   ): Resource[F, Producer[F, E]] =
     withLogger[F, E](
       client,
       topic,
       _ => Producer.MessageKey.Default,
+      Batching.Disabled,
+      _ => _ => F.unit
+    )
+
+  /**
+    * It creates a [[Producer]] with a no-op logger.
+    *
+    * Produced messages will not be logged.
+    */
+  def withOptions[
+      F[_]: ContextShift: Parallel: Concurrent,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Client.T,
+      topic: Topic,
+      shardKey: E => MessageKey,
+      batching: Batching
+  ): Resource[F, Producer[F, E]] =
+    withLogger[F, E](
+      client,
+      topic,
+      shardKey,
       batching,
       _ => _ => F.unit
     )
