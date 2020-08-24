@@ -45,7 +45,8 @@ lazy val docs = (project in file("docs"))
   .enablePlugins(MdocPlugin)
   .settings(
     noPublish,
-    git.remoteRepo := "git@github.com:cr-org/neutron.git",
+    scmInfo := Some(ScmInfo(url("https://github.com/cr-org/neutron"), "scm:git:git@github.com:cr-org/neutron.git")),
+    git.remoteRepo := scmInfo.value.get.connection.replace("scm:git:", ""),
     ghpagesNoJekyll := true,
     version := version.value.takeWhile(_ != '+'),
     paradoxProperties ++= Map(

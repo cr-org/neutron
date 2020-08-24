@@ -28,7 +28,7 @@ import scala.concurrent.duration.FiniteDuration
 trait Producer[F[_], E] {
 
   /**
-    * It sends a message in a synchronous fashion.
+    * It sends a message asynchronously.
     */
   def send(msg: E): F[MessageId]
 
@@ -36,23 +36,6 @@ trait Producer[F[_], E] {
     * Same as [[send]] but it discards its output.
     */
   def send_(msg: E): F[Unit]
-
-  /**
-    * It sends a message in an asynchronous fashion.
-    */
-  def sendAsync(msg: E): F[MessageId]
-
-  /**
-    * Same as [[sendAsync]] but it discards its output.
-    */
-  def sendAsync_(msg: E): F[Unit]
-}
-
-abstract class DefaultProducer[F[_]: Functor, E] extends Producer[F, E] {
-  def send_(msg: E): F[Unit] =
-    send(msg).void
-  def sendAsync_(msg: E): F[Unit] =
-    sendAsync(msg).void
 }
 
 object Producer {
@@ -77,14 +60,13 @@ object Producer {
     * Produced messages will be logged using the given `logAction`.
     */
   def withLogger[
-      F[_]: ContextShift: Parallel: Concurrent,
+      F[_]: Concurrent: ContextShift: Parallel,
       E: Inject[*, Array[Byte]]
   ](
       client: PulsarClient.T,
       topic: Topic,
       shardKey: E => MessageKey, // only needed for key-shared topics
       batching: Batching,
-      blocker: Blocker,
       logAction: E => Topic.URL => F[Unit]
   ): Resource[F, Producer[F, E]] = {
     def configureBatching(
@@ -106,15 +88,15 @@ object Producer {
 
     Resource
       .make {
-        blocker.delay(
+        F.delay(
           configureBatching(
             batching,
             client.newProducer.topic(topic.url.value)
           ).create
         )
-      }(p => blocker.delay(p.close()))
+      }(p => F.delay(p.closeAsync()).futureLift.void)
       .map { prod =>
-        new DefaultProducer[F, E] {
+        new Producer[F, E] {
           val serialise: E => Array[Byte] = E.inj
 
           private def buildMessage(msg: Array[Byte], key: MessageKey) = {
@@ -128,14 +110,11 @@ object Producer {
           }
 
           override def send(msg: E): F[MessageId] =
-            logAction(msg)(topic.url) &> blocker.delay {
-                  buildMessage(serialise(msg), shardKey(msg)).send()
-                }
-
-          def sendAsync(msg: E): F[MessageId] =
             logAction(msg)(topic.url) &> F.delay {
                   buildMessage(serialise(msg), shardKey(msg)).sendAsync()
                 }.futureLift
+
+          override def send_(msg: E): F[Unit] = send(msg).void
 
         }
       }
@@ -153,9 +132,8 @@ object Producer {
       client: PulsarClient.T,
       topic: Topic,
       shardKey: E => MessageKey,
-      batching: Batching,
-      blocker: Blocker
+      batching: Batching
   ): Resource[F, Producer[F, E]] =
-    withLogger[F, E](client, topic, shardKey, batching, blocker, _ => _ => F.unit)
+    withLogger[F, E](client, topic, shardKey, batching, _ => _ => F.unit)
 
 }
