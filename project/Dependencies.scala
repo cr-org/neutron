@@ -7,6 +7,7 @@ object Dependencies {
 
     val cats       = "2.1.1"
     val catsEffect = "2.1.4"
+    val circe      = "0.13.0"
     val fs2        = "2.4.4"
     val munit      = "0.7.11"
     val newtype    = "0.4.4"
@@ -19,10 +20,14 @@ object Dependencies {
   }
 
   object Libraries {
-    val cats       = "org.typelevel"     %% "cats-core"    % V.cats
-    val catsEffect = "org.typelevel"     %% "cats-effect"  % V.catsEffect
-    val fs2        = "co.fs2"            %% "fs2-core"     % V.fs2
-    val newtype    = "io.estatico"       %% "newtype"      % V.newtype
+    val cats       = "org.typelevel" %% "cats-core"   % V.cats
+    val catsEffect = "org.typelevel" %% "cats-effect" % V.catsEffect
+    val fs2        = "co.fs2"        %% "fs2-core"    % V.fs2
+    val newtype    = "io.estatico"   %% "newtype"     % V.newtype
+
+    val circeCore    = "io.circe" %% "circe-core"    % V.circe
+    val circeGeneric = "io.circe" %% "circe-generic" % V.circe
+    val circeParser  = "io.circe" %% "circe-parser"  % V.circe
 
     val java8Compat = "org.scala-lang.modules" %% "scala-java8-compat" % V.java8Compat
 

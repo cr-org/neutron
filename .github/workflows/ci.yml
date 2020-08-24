@@ -34,7 +34,7 @@ jobs:
         uses: "olafurpg/setup-java@v6"
         with:
           java-version: "${{ matrix.java}}"
-      - run: "sbt \"++ test;doc;makeSite\""
+      - run: "sbt \"++ test;mdoc;makeSite\""
       - run: "sbt \"++ it:test\""
       - name: "Shutting down Pulsar 🐳"
         run: docker-compose down
