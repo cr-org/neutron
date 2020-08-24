@@ -2,13 +2,15 @@
 
 Neutron is a purely functional [Apache Pulsar](https://pulsar.apache.org/) client for Scala, build on top of [fs2](https://fs2.io) and the Java Pulsar client.
 
-It is published for Scala $scala-versions$. You can include it in your project by adding the following dependencies (only `neutron-core` is essential):
+It is published for Scala $scala-versions$. You can include it in your project by adding the following dependencies:
 
 @@dependency[sbt,Maven,Gradle] {
   group="$org$" artifact="$neutron-core$" version="$version$"
   group2="$org$" artifact2="$neutron-circe$" version2="$version$"
   group3="$org$" artifact3="$neutron-function$" version3="$version$"
 }
+
+From which only `neutron-core` is essential.
 
 ## Quick start
 

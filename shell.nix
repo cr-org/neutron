@@ -8,6 +8,7 @@ let
 in
   pkgs.mkShell {
     buildInputs = with pkgs; [
+      git     # v2.26.2
       openjdk # v1.8.0_242
       sbt     # v1.3.10
     ];
