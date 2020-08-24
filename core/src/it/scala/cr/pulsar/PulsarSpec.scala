@@ -71,11 +71,14 @@ class PulsarSpec extends PulsarSuite {
       val makeSub =
         (n: String) => Subscription(Subscription.Name(n), Subscription.Type.KeyShared)
 
+      val opts =
+        Producer.Options[IO, Event]().withShardKey(_.shardKey).withBatching(batch)
+
       val res: Resource[IO, (Consumer[IO], Consumer[IO], Producer[IO, Event])] =
         for {
           c1 <- Consumer.create[IO](client, topic, makeSub("s1"))
           c2 <- Consumer.create[IO](client, topic, makeSub("s2"))
-          producer <- Producer.withOptions[IO, Event](client, topic, _.shardKey, batch)
+          producer <- Producer.withOptions(client, topic, opts)
         } yield (c1, c2, producer)
 
       (Ref.of[IO, List[Event]](List.empty), Ref.of[IO, List[Event]](List.empty)).tupled

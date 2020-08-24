@@ -57,19 +57,15 @@ object Producer {
   }
 
   /**
-    * It creates a simple [[Producer]].
-    *
-    * Produced messages will be logged using the given `logAction`.
+    * It creates a simple [[Producer]] with the supplied options.
     */
-  def withLogger[
+  def withOptions[
       F[_]: Concurrent: ContextShift: Parallel,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
       topic: Topic,
-      shardKey: E => MessageKey, // only needed for key-shared topics
-      batching: Batching,
-      logAction: E => Topic.URL => F[Unit]
+      opts: Options[F, E]
   ): Resource[F, Producer[F, E]] = {
     def configureBatching(
         batching: Batching,
@@ -92,7 +88,7 @@ object Producer {
       .make {
         F.delay(
           configureBatching(
-            batching,
+            opts.batching,
             client.newProducer.topic(topic.url.value)
           ).create
         )
@@ -115,8 +111,8 @@ object Producer {
           }
 
           override def send(msg: E): F[MessageId] =
-            logAction(msg)(topic.url) &> F.delay {
-                  buildMessage(serialise(msg), shardKey(msg)).sendAsync()
+            opts.logger(msg)(topic.url) &> F.delay {
+                  buildMessage(serialise(msg), opts.shardKey(msg)).sendAsync()
                 }.futureLift
 
           override def send_(msg: E): F[Unit] = send(msg).void
@@ -126,9 +122,20 @@ object Producer {
   }
 
   /**
-    * It creates a simple [[Producer]] with a no-op logger and disabled batching.
-    *
-    * Produced messages will not be logged.
+    * It creates a [[Producer]] with default options and the supplied message logger.
+    */
+  def withLogger[
+      F[_]: ContextShift: Parallel: Concurrent,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topic: Topic,
+      logger: E => Topic.URL => F[Unit]
+  ): Resource[F, Producer[F, E]] =
+    withOptions(client, topic, Options[F, E]().withLogger(logger))
+
+  /**
+    * It creates a [[Producer]] with default options (no-op logger).
     */
   def create[
       F[_]: ContextShift: Parallel: Concurrent,
@@ -137,33 +144,40 @@ object Producer {
       client: Pulsar.T,
       topic: Topic
   ): Resource[F, Producer[F, E]] =
-    withLogger[F, E](
-      client,
-      topic,
-      _ => Producer.MessageKey.Default,
-      Batching.Disabled,
-      _ => _ => F.unit
-    )
+    withOptions(client, topic, Options[F, E]())
+
+  // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
+  sealed abstract class Options[F[_], E] {
+    val batching: Batching
+    val shardKey: E => MessageKey
+    val logger: E => Topic.URL => F[Unit]
+    def withBatching(_batching: Batching): Options[F, E]
+    def withShardKey(_shardKey: E => MessageKey): Options[F, E]
+    def withLogger(_logger: E => Topic.URL => F[Unit]): Options[F, E]
+  }
 
   /**
-    * It creates a [[Producer]] with a no-op logger.
-    *
-    * Produced messages will not be logged.
+    * Producer options such as sharding key, batching, and message logger
     */
-  def withOptions[
-      F[_]: ContextShift: Parallel: Concurrent,
-      E: Inject[*, Array[Byte]]
-  ](
-      client: Pulsar.T,
-      topic: Topic,
-      shardKey: E => MessageKey,
-      batching: Batching
-  ): Resource[F, Producer[F, E]] =
-    withLogger[F, E](
-      client,
-      topic,
-      shardKey,
-      batching,
-      _ => _ => F.unit
-    )
+  object Options {
+    private case class OptionsImpl[F[_], E](
+        batching: Batching,
+        shardKey: E => MessageKey,
+        logger: E => Topic.URL => F[Unit]
+    ) extends Options[F, E] {
+      override def withBatching(_batching: Batching): Options[F, E] =
+        copy(batching = _batching)
+      override def withShardKey(_shardKey: E => MessageKey): Options[F, E] =
+        copy(shardKey = _shardKey)
+      override def withLogger(_logger: E => (Topic.URL => F[Unit])): Options[F, E] =
+        copy(logger = _logger)
+    }
+    def apply[F[_]: Applicative, E](): Options[F, E] =
+      OptionsImpl[F, E](
+        Batching.Disabled,
+        _ => Producer.MessageKey.Default,
+        _ => _ => F.unit
+      )
+  }
+
 }
