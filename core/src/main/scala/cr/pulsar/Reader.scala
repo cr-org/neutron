@@ -36,7 +36,7 @@ object Reader {
   case class DecodingFailure(msg: String) extends NoStackTrace
 
   private def mkReader[F[_]: Concurrent: ContextShift](
-      client: Client.T,
+      client: Pulsar.T,
       topic: Topic,
       messageId: MessageId
   ): Resource[F, Reader[F]] =
@@ -64,7 +64,7 @@ object Reader {
     * It creates a simple [[Reader]].
     */
   def create[F[_]: Concurrent: ContextShift](
-      client: Client.T,
+      client: Pulsar.T,
       topic: Topic,
       messageId: MessageId
   ): Resource[F, Reader[F]] =

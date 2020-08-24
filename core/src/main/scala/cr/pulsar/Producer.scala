@@ -65,7 +65,7 @@ object Producer {
       F[_]: Concurrent: ContextShift: Parallel,
       E: Inject[*, Array[Byte]]
   ](
-      client: Client.T,
+      client: Pulsar.T,
       topic: Topic,
       shardKey: E => MessageKey, // only needed for key-shared topics
       batching: Batching,
@@ -134,7 +134,7 @@ object Producer {
       F[_]: ContextShift: Parallel: Concurrent,
       E: Inject[*, Array[Byte]]
   ](
-      client: Client.T,
+      client: Pulsar.T,
       topic: Topic
   ): Resource[F, Producer[F, E]] =
     withLogger[F, E](
@@ -154,7 +154,7 @@ object Producer {
       F[_]: ContextShift: Parallel: Concurrent,
       E: Inject[*, Array[Byte]]
   ](
-      client: Client.T,
+      client: Pulsar.T,
       topic: Topic,
       shardKey: E => MessageKey,
       batching: Batching
