@@ -13,6 +13,12 @@ jobs:
     runs-on: ubuntu-18.04
     steps:
       - uses: "actions/checkout@v2.1.0"
-      - uses: "cachix/install-nix-action@v9"
+      - name: "Install Nix ❄️"
+        uses: "cachix/install-nix-action@v9"
+      - name: "Install SSH 🔑 for GH pages"
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_KEY }}
+          known_hosts: ${{ secrets.KNOWN_HOSTS }}
       - name: "Building microsite 🚧"
         run: "nix-shell --run \"sbt ghpagesPushSite\""
