@@ -20,7 +20,7 @@ jobs:
         with:
           key: ${{ secrets.SSH_KEY }}
           known_hosts: ${{ secrets.KNOWN_HOSTS }}
-      - run: git config --global user.email "neutron-site@chatroulette.com"
-      - run: git config --global user.name "neutron-site@chatroulette.com"
+      - run: git config --global user.email "neutron-site-bot@chatroulette.com"
+      - run: git config --global user.name "neutron-site-bot"
       - name: "Building microsite 🚧"
         run: "nix-shell --run \"sbt ghpagesPushSite\""
