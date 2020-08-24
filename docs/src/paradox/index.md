@@ -6,7 +6,8 @@ It is published for Scala $scala-versions$ and can be included in your project.
 
 @@dependency[sbt,Maven,Gradle] {
   group="$org$" artifact="$neutron-core$" version="$version$"
-  group2="$org$" artifact2="$neutron-function$" version2="$version$"
+  group2="$org$" artifact2="$neutron-circe$" version2="$version$"
+  group3="$org$" artifact3="$neutron-function$" version3="$version$"
 }
 
 ## Quick start
@@ -14,11 +15,10 @@ It is published for Scala $scala-versions$ and can be included in your project.
 Here's a quick consumer / producer example using Neutron. Note: both are fully asynchronous.
 
 ```scala mdoc:compile-only
-import cats.Inject
 import cats.effect._
-import cats.implicits._
 import fs2.Stream
 import cr.pulsar._
+import cr.pulsar.schema.utf8._
 import org.apache.pulsar.client.api.SubscriptionInitialPosition
 import scala.concurrent.duration._
 
@@ -32,16 +32,9 @@ object Demo extends IOApp {
   val subs    = Subscription(Subscription.Name("my-sub"), Subscription.Type.Shared)
   val initPos = SubscriptionInitialPosition.Latest
 
-  // Needed for consumers and producers to be able to decode and encode messages, respectively
-  implicit val stringBytesInject: Inject[String, Array[Byte]] =
-    new Inject[String, Array[Byte]] {
-      override val inj: String => Array[Byte] = _.getBytes("UTF-8")
-      override val prj: Array[Byte] => Option[String] = new String(_, "UTF-8").some
-    }
-
   val resources: Resource[IO, (Consumer[IO], Producer[IO, String])] =
     for {
-      client <- Pulsar.create[IO](config.serviceUrl)
+      client   <- Pulsar.create[IO](config.serviceUrl)
       consumer <- Consumer.create[IO](client, topic, subs, initPos)
       producer <- Producer.create[IO, String](client, topic)
     } yield (consumer, producer)
@@ -70,20 +63,16 @@ object Demo extends IOApp {
 }
 ```
 
-Another common `Inject` instance we use is an encoder / decoder based on the Circe library:
+### Schema
+
+Neutron relies on `cats.Inject[A, Array[Byte]]` instances to be able to decode & encode messages from & to raw bytes instead of using the native schema solution. As functional programmers, we believe this has certain benefits. In the example above, we are using a standard "UTF-8" encoding of `String => Array[Byte]`, brought by `import cr.pulsar.schema.utf8._`.
+
+At Chatroulette, we use JSON-serialised data for which we define an `Inject` instance based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` extra dependency (available since `v0.0.2`).
+
+Once you added the dependency, you are an import away from having JSON schema based on Circe.
 
 ```scala
-import io.circe._
-import io.circe.parser.decode
-import io.circe.syntax._
-
-implicit def circeBytesInject[T: Encoder: Decoder]: Inject[T, Array[Byte]] =
-  new Inject[T, Array[Byte]] {
-    val inj: T => Array[Byte] =
-      t => t.asJson.noSpaces.getBytes("UTF-8")
-
-    val prj: Array[Byte] => Option[T] =
-      bytes => decode[T](new String(bytes, "UTF-8")).toOption
-  }
+import cr.pulsar.schema.circe._
 ```
 
+Be aware that your datatype needs to provide instances of `io.circe.Encoder` and `io.circe.Decoder` for this instance to be available.

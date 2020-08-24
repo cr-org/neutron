@@ -21,6 +21,17 @@ lazy val `neutron-core` = (project in file("core"))
         )
   )
 
+lazy val `neutron-circe` = (project in file("circe"))
+  .enablePlugins(AutomateHeaderPlugin)
+  .dependsOn(`neutron-core`)
+  .settings(commonSettings)
+  .settings(
+    libraryDependencies ++= List(
+          Libraries.circeCore,
+          Libraries.circeParser
+        )
+  )
+
 lazy val `neutron-function` = (project in file("function"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
@@ -45,7 +56,12 @@ lazy val docs = (project in file("docs"))
   .enablePlugins(MdocPlugin)
   .settings(
     noPublish,
-    scmInfo := Some(ScmInfo(url("https://github.com/cr-org/neutron"), "scm:git:git@github.com:cr-org/neutron.git")),
+    scmInfo := Some(
+          ScmInfo(
+            url("https://github.com/cr-org/neutron"),
+            "scm:git:git@github.com:cr-org/neutron.git"
+          )
+        ),
     git.remoteRepo := scmInfo.value.get.connection.replace("scm:git:", ""),
     ghpagesNoJekyll := true,
     version := version.value.takeWhile(_ != '+'),
@@ -80,6 +96,7 @@ lazy val root = (project in file("."))
   .settings(noPublish)
   .aggregate(
     `neutron-function`,
+    `neutron-circe`,
     `neutron-core`,
     docs
   )
