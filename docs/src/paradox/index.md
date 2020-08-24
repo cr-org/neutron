@@ -67,7 +67,7 @@ object Demo extends IOApp {
 
 Neutron relies on `cats.Inject[A, Array[Byte]]` instances to be able to decode & encode messages from & to raw bytes instead of using the native schema solution. As functional programmers, we believe this has certain benefits. In the example above, we are using a standard "UTF-8" encoding of `String => Array[Byte]`, brought by `import cr.pulsar.schema.utf8._`.
 
-At ChatRoulette, we use JSON-serialised data for which we define an `Inject` instance based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` extra dependency (available since `v0.0.2`).
+At Chatroulette, we use JSON-serialised data for which we define an `Inject` instance based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` extra dependency (available since `v0.0.2`).
 
 Once you added the dependency, you are an import away from having JSON schema based on Circe.
 
