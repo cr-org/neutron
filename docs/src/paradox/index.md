@@ -10,8 +10,6 @@ It is published for Scala $scala-versions$. You can include it in your project b
   group3="$org$" artifact3="$neutron-function$" version3="$version$"
 }
 
-From which only `neutron-core` is essential.
-
 ## Quick start
 
 Here's a quick consumer / producer example using Neutron. Note: both are fully asynchronous.
