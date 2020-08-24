@@ -8,8 +8,7 @@ let
 in
   pkgs.mkShell {
     buildInputs = with pkgs; [
-      haskellPackages.dhall-json # v1.6.2
       openjdk # v1.8.0_242
-      sbt # v1.3.10
+      sbt     # v1.3.10
     ];
   }

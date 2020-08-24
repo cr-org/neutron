@@ -1,3 +1,10 @@
+name: Scala
+on:
+  pull_request: {}
+  push:
+    branches:
+      - master
+
 jobs:
   build:
     name: Build
@@ -27,7 +34,7 @@ jobs:
         uses: "olafurpg/setup-java@v6"
         with:
           java-version: "${{ matrix.java}}"
-      - run: "sbt \"++ test\""
+      - run: "sbt \"++ test;doc;makeSite\""
       - run: "sbt \"++ it:test\""
       - name: "Shutting down Pulsar 🐳"
         run: docker-compose down
@@ -36,9 +43,3 @@ jobs:
         java:
           - '8.0.242'
           - '11.0.5'
-name: Scala
-on:
-  pull_request: {}
-  push:
-    branches:
-      - master
