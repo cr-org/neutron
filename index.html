@@ -179,6 +179,7 @@ cr-org/neutron
 <p>Neutron is a purely functional <a href="https://pulsar.apache.org/">Apache Pulsar</a> client for Scala, build on top of <a href="https://fs2.io">fs2</a> and the Java Pulsar client.</p>
 <p>It is published for Scala 2.12/13 and can be included in your project.</p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies ++= Seq(
   "com.chatroulette" %% "neutron-core" % "0.0.1",
+  "com.chatroulette" % "$neutron-circe$" % "0.0.1",
   "com.chatroulette" %% "neutron-function" % "0.0.1"
 )</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependency&gt;
   &lt;groupId&gt;com.chatroulette&lt;/groupId&gt;
@@ -187,19 +188,24 @@ cr-org/neutron
 &lt;/dependency&gt;
 &lt;dependency&gt;
   &lt;groupId&gt;com.chatroulette&lt;/groupId&gt;
+  &lt;artifactId&gt;$neutron-circe$&lt;/artifactId&gt;
+  &lt;version&gt;0.0.1&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+  &lt;groupId&gt;com.chatroulette&lt;/groupId&gt;
   &lt;artifactId&gt;neutron-function_2.12&lt;/artifactId&gt;
   &lt;version&gt;0.0.1&lt;/version&gt;
 &lt;/dependency&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
   compile group: 'com.chatroulette', name: 'neutron-core_2.12', version: '0.0.1',
+  compile group: 'com.chatroulette', name: '$neutron-circe$', version: '0.0.1',
   compile group: 'com.chatroulette', name: 'neutron-function_2.12', version: '0.0.1'
 }</code></pre></dd></dl>
 <h2><a href="#quick-start" name="quick-start" class="anchor"><span class="anchor-link"></span></a>Quick start</h2>
 <p>Here&rsquo;s a quick consumer / producer example using Neutron. Note: both are fully asynchronous.</p>
-<pre class="prettyprint"><code class="language-scala mdoc:compile-only">import cats.Inject
-import cats.effect._
-import cats.implicits._
+<pre class="prettyprint"><code class="language-scala mdoc:compile-only">import cats.effect._
 import fs2.Stream
 import cr.pulsar._
+import cr.pulsar.schema.utf8._
 import org.apache.pulsar.client.api.SubscriptionInitialPosition
 import scala.concurrent.duration._
 
@@ -213,22 +219,11 @@ object Demo extends IOApp {
   val subs    = Subscription(Subscription.Name(&quot;my-sub&quot;), Subscription.Type.Shared)
   val initPos = SubscriptionInitialPosition.Latest
 
-  // Producer details
-  val shardKey: String =&gt; Producer.MessageKey = _ =&gt; Producer.MessageKey.Default
-  val batching = Producer.Batching.Disabled
-
-  // Needed for consumers and producers to be able to decode and encode messages, respectively
-  implicit val stringBytesInject: Inject[String, Array[Byte]] =
-    new Inject[String, Array[Byte]] {
-      override val inj: String =&gt; Array[Byte] = _.getBytes(&quot;UTF-8&quot;)
-      override val prj: Array[Byte] =&gt; Option[String] = new String(_, &quot;UTF-8&quot;).some
-    }
-
   val resources: Resource[IO, (Consumer[IO], Producer[IO, String])] =
     for {
-      client &lt;- PulsarClient.create[IO](config.serviceUrl)
+      client   &lt;- Pulsar.create[IO](config.serviceUrl)
       consumer &lt;- Consumer.create[IO](client, topic, subs, initPos)
-      producer &lt;- Producer.create[IO, String](client, topic, shardKey, batching)
+      producer &lt;- Producer.create[IO, String](client, topic)
     } yield (consumer, producer)
 
   def run(args: List[String]): IO[ExitCode] =
@@ -254,20 +249,13 @@ object Demo extends IOApp {
 
 }
 </code></pre>
-<p>Another common <code>Inject</code> instance we use is an encoder / decoder based on the Circe library:</p>
-<pre class="prettyprint"><code class="language-scala">import io.circe._
-import io.circe.parser.decode
-import io.circe.syntax._
-
-implicit def circeBytesInject[T: Encoder: Decoder]: Inject[T, Array[Byte]] =
-  new Inject[T, Array[Byte]] {
-    val inj: T =&gt; Array[Byte] =
-      t =&gt; t.asJson.noSpaces.getBytes(&quot;UTF-8&quot;)
-
-    val prj: Array[Byte] =&gt; Option[T] =
-      bytes =&gt; decode[T](new String(bytes, &quot;UTF-8&quot;)).toOption
-  }
+<h3><a href="#schema" name="schema" class="anchor"><span class="anchor-link"></span></a>Schema</h3>
+<p>Neutron relies on <code>cats.Inject[A, Array[Byte]]</code> instances to be able to decode &amp; encode messages from &amp; to raw bytes instead of using the native schema solution. As functional programmers, we believe this has certain benefits. In the example above, we are using a standard &ldquo;UTF-8&rdquo; encoding of <code>String =&gt; Array[Byte]</code>, brought by <code>import cr.pulsar.schema.utf8._</code>.</p>
+<p>At Chatroulette, we use JSON-serialised data for which we define an <code>Inject</code> instance based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the <code>neutron-circe</code> extra dependency (available since <code>v0.0.2</code>).</p>
+<p>Once you added the dependency, you are an import away from having JSON schema based on Circe.</p>
+<pre class="prettyprint"><code class="language-scala">import cr.pulsar.schema.circe._
 </code></pre>
+<p>Be aware that your datatype needs to provide instances of <code>io.circe.Encoder</code> and <code>io.circe.Decoder</code> for this instance to be available.</p>
 </div>
 <div>
 <a href="https://github.com/cr-org/neutron/tree/master/docs/src/paradox/index.md" title="Edit this page" class="md-source-file md-edit">
