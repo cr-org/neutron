@@ -194,7 +194,7 @@ cr-org/neutron
   compile group: 'com.chatroulette', name: 'neutron-function_2.12', version: '0.0.1'
 }</code></pre></dd></dl>
 <h2><a href="#quick-start" name="quick-start" class="anchor"><span class="anchor-link"></span></a>Quick start</h2>
-<p>Here&rsquo;s a quick consumer / producer example using Neutron.</p>
+<p>Here&rsquo;s a quick consumer / producer example using Neutron. Note: both are fully asynchronous.</p>
 <pre class="prettyprint"><code class="language-scala mdoc:compile-only">import cats.Inject
 import cats.effect._
 import cats.implicits._
@@ -227,9 +227,8 @@ object Demo extends IOApp {
   val resources: Resource[IO, (Consumer[IO], Producer[IO, String])] =
     for {
       client &lt;- PulsarClient.create[IO](config.serviceUrl)
-      blocker &lt;- Blocker[IO]
       consumer &lt;- Consumer.create[IO](client, topic, subs, initPos)
-      producer &lt;- Producer.create[IO, String](client, topic, shardKey, batching, blocker)
+      producer &lt;- Producer.create[IO, String](client, topic, shardKey, batching)
     } yield (consumer, producer)
 
   def run(args: List[String]): IO[ExitCode] =
