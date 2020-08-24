@@ -32,10 +32,6 @@ object Demo extends IOApp {
   val subs    = Subscription(Subscription.Name("my-sub"), Subscription.Type.Shared)
   val initPos = SubscriptionInitialPosition.Latest
 
-  // Producer details
-  val shardKey: String => Producer.MessageKey = _ => Producer.MessageKey.Default
-  val batching = Producer.Batching.Disabled
-
   // Needed for consumers and producers to be able to decode and encode messages, respectively
   implicit val stringBytesInject: Inject[String, Array[Byte]] =
     new Inject[String, Array[Byte]] {
@@ -47,7 +43,7 @@ object Demo extends IOApp {
     for {
       client <- PulsarClient.create[IO](config.serviceUrl)
       consumer <- Consumer.create[IO](client, topic, subs, initPos)
-      producer <- Producer.create[IO, String](client, topic, shardKey, batching)
+      producer <- Producer.create[IO, String](client, topic)
     } yield (consumer, producer)
 
   def run(args: List[String]): IO[ExitCode] =
