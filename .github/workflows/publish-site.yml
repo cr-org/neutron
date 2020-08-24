@@ -20,9 +20,6 @@ jobs:
           known_hosts: ${{ secrets.KNOWN_HOSTS }}
       - run: git config --global user.email "neutron-site-bot@chatroulette.com"
       - run: git config --global user.name "neutron-site-bot"
-      - name: "Show root version"
-        run: "nix-shell --run \"sbt version\""
-      - name: "Show doc version"
-        run: "nix-shell --run \"sbt docs / version\""
+      - run: git fetch --tags
       - name: "Build microsite 🚧"
         run: "nix-shell --run \"sbt ghpagesPushSite\""
