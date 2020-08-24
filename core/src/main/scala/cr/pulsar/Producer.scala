@@ -22,7 +22,9 @@ import cats.implicits._
 import cr.pulsar.internal.FutureLift._
 import fs2.concurrent.{ Topic => _ }
 import java.util.concurrent.TimeUnit
-import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder }
+
+import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder, TypedMessageBuilder }
+
 import scala.concurrent.duration.FiniteDuration
 
 trait Producer[F[_], E] {
@@ -63,7 +65,7 @@ object Producer {
       F[_]: Concurrent: ContextShift: Parallel,
       E: Inject[*, Array[Byte]]
   ](
-      client: PulsarClient.T,
+      client: Pulsar.T,
       topic: Topic,
       shardKey: E => MessageKey, // only needed for key-shared topics
       batching: Batching,
@@ -99,7 +101,10 @@ object Producer {
         new Producer[F, E] {
           val serialise: E => Array[Byte] = E.inj
 
-          private def buildMessage(msg: Array[Byte], key: MessageKey) = {
+          private def buildMessage(
+              msg: Array[Byte],
+              key: MessageKey
+          ): TypedMessageBuilder[Array[Byte]] = {
             val event = prod.newMessage().value(msg)
             key match {
               case MessageKey.Of(k) =>
@@ -121,7 +126,7 @@ object Producer {
   }
 
   /**
-    * It creates a simple [[Producer]] with a no-op logger.
+    * It creates a simple [[Producer]] with a no-op logger and disabled batching.
     *
     * Produced messages will not be logged.
     */
@@ -129,11 +134,36 @@ object Producer {
       F[_]: ContextShift: Parallel: Concurrent,
       E: Inject[*, Array[Byte]]
   ](
-      client: PulsarClient.T,
+      client: Pulsar.T,
+      topic: Topic
+  ): Resource[F, Producer[F, E]] =
+    withLogger[F, E](
+      client,
+      topic,
+      _ => Producer.MessageKey.Default,
+      Batching.Disabled,
+      _ => _ => F.unit
+    )
+
+  /**
+    * It creates a [[Producer]] with a no-op logger.
+    *
+    * Produced messages will not be logged.
+    */
+  def withOptions[
+      F[_]: ContextShift: Parallel: Concurrent,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
       topic: Topic,
       shardKey: E => MessageKey,
       batching: Batching
   ): Resource[F, Producer[F, E]] =
-    withLogger[F, E](client, topic, shardKey, batching, _ => _ => F.unit)
-
+    withLogger[F, E](
+      client,
+      topic,
+      shardKey,
+      batching,
+      _ => _ => F.unit
+    )
 }

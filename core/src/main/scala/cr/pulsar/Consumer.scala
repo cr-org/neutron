@@ -35,7 +35,7 @@ object Consumer {
   case class DecodingFailure(msg: String) extends NoStackTrace
 
   private def mkConsumer[F[_]: Concurrent: ContextShift](
-      client: PulsarClient.T,
+      client: Pulsar.T,
       subs: Subscription,
       initial: SubscriptionInitialPosition,
       topicType: Either[Topic.Pattern, Topic]
@@ -79,7 +79,7 @@ object Consumer {
     * you can use [[Consumer#subscribe]] for this purpose.
     */
   def multiTopic[F[_]: Concurrent: ContextShift](
-      client: PulsarClient.T,
+      client: Pulsar.T,
       topicPattern: Topic.Pattern,
       subs: Subscription,
       initial: SubscriptionInitialPosition
@@ -93,7 +93,7 @@ object Consumer {
     * you can use [[Consumer#subscribe]] for this purpose.
     */
   def create[F[_]: Concurrent: ContextShift](
-      client: PulsarClient.T,
+      client: Pulsar.T,
       topic: Topic,
       subs: Subscription,
       initial: SubscriptionInitialPosition

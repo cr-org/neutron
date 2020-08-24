@@ -31,7 +31,7 @@ abstract class PulsarSuite extends FunSuite {
   implicit val `⏳` = IO.contextShift(ExecutionContext.global)
   implicit val `⏰` = IO.timer(ExecutionContext.global)
 
-  private[this] var client: PulsarClient.T = null
+  private[this] var client: Pulsar.T = null
   private[this] var close: IO[Unit]        = null
   private[this] val latch                  = Deferred[IO, Unit].unsafeRunSync()
 
@@ -43,7 +43,7 @@ abstract class PulsarSuite extends FunSuite {
   override def beforeAll(): Unit = {
     super.beforeAll()
     val (cli, release) =
-      PulsarClient.create[IO](cfg.serviceUrl).allocated.unsafeRunSync()
+      Pulsar.create[IO](cfg.serviceUrl).allocated.unsafeRunSync()
     this.client = cli
     this.close = release
     latch.complete(()).unsafeRunSync()
@@ -54,7 +54,7 @@ abstract class PulsarSuite extends FunSuite {
     super.afterAll()
   }
 
-  def withPulsarClient(f: (=> PulsarClient.T) => Unit): Unit =
+  def withPulsarClient(f: (=> Pulsar.T) => Unit): Unit =
     f {
       //to ensure the resource has been allocated before any test(...) call
       latch.get.unsafeRunSync

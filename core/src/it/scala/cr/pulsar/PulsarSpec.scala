@@ -37,7 +37,7 @@ class PulsarSpec extends PulsarSuite {
       val res: Resource[IO, (Consumer[IO], Producer[IO, Event])] =
         for {
           consumer <- Consumer.create[IO](client, topic, subs, spos)
-          producer <- Producer.create[IO, Event](client, topic, shard, batch)
+          producer <- Producer.create[IO, Event](client, topic)
         } yield consumer -> producer
 
       Deferred[IO, Event].flatMap { latch =>
@@ -77,7 +77,7 @@ class PulsarSpec extends PulsarSuite {
         for {
           c1 <- Consumer.create[IO](client, topic, makeSub("s1"), spos)
           c2 <- Consumer.create[IO](client, topic, makeSub("s2"), spos)
-          producer <- Producer.create[IO, Event](client, topic, _.shardKey, batch)
+          producer <- Producer.withOptions[IO, Event](client, topic, _.shardKey, batch)
         } yield (c1, c2, producer)
 
       (Ref.of[IO, List[Event]](List.empty), Ref.of[IO, List[Event]](List.empty)).tupled
