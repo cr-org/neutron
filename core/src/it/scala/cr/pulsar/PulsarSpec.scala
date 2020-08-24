@@ -22,12 +22,10 @@ import cats.implicits._
 import cr.pulsar.Producer.MessageKey
 import fs2.Stream
 import java.util.UUID
-import org.apache.pulsar.client.api.SubscriptionInitialPosition
 
 class PulsarSpec extends PulsarSuite {
 
   val subs  = Subscription(Subscription.Name("test"), Subscription.Type.Failover)
-  val spos  = SubscriptionInitialPosition.Latest
   val topic = Topic(cfg, Topic.Name("test"), Topic.Type.Persistent)
   val batch = Producer.Batching.Disabled
   val shard = (_: Event) => Producer.MessageKey.Default
@@ -36,7 +34,7 @@ class PulsarSpec extends PulsarSuite {
     test("A message is published and consumed successfully") {
       val res: Resource[IO, (Consumer[IO], Producer[IO, Event])] =
         for {
-          consumer <- Consumer.create[IO](client, topic, subs, spos)
+          consumer <- Consumer.create[IO](client, topic, subs)
           producer <- Producer.create[IO, Event](client, topic)
         } yield consumer -> producer
 
@@ -75,8 +73,8 @@ class PulsarSpec extends PulsarSuite {
 
       val res: Resource[IO, (Consumer[IO], Consumer[IO], Producer[IO, Event])] =
         for {
-          c1 <- Consumer.create[IO](client, topic, makeSub("s1"), spos)
-          c2 <- Consumer.create[IO](client, topic, makeSub("s2"), spos)
+          c1 <- Consumer.create[IO](client, topic, makeSub("s1"))
+          c2 <- Consumer.create[IO](client, topic, makeSub("s2"))
           producer <- Producer.withOptions[IO, Event](client, topic, _.shardKey, batch)
         } yield (c1, c2, producer)
 

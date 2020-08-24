@@ -21,7 +21,7 @@ import cats.effect._
 import cats.implicits._
 import cr.pulsar.internal.FutureLift._
 import fs2._
-import org.apache.pulsar.client.api.{ Message, MessageId, SubscriptionInitialPosition }
+import org.apache.pulsar.client.api.{ Message, MessageId }
 import scala.util.control.NoStackTrace
 
 trait Consumer[F[_]] {
@@ -37,8 +37,8 @@ object Consumer {
   private def mkConsumer[F[_]: Concurrent: ContextShift](
       client: Pulsar.T,
       subs: Subscription,
-      initial: SubscriptionInitialPosition,
-      topicType: Either[Topic.Pattern, Topic]
+      topicType: Either[Topic.Pattern, Topic],
+      opts: ConsumerOpts
   ): Resource[F, Consumer[F]] =
     Resource
       .make {
@@ -51,7 +51,7 @@ object Consumer {
             )
             .subscriptionType(subs.sType)
             .subscriptionName(subs.name)
-            .subscriptionInitialPosition(initial)
+            .subscriptionInitialPosition(opts.initial)
             .subscribeAsync
         }.futureLift
       }(
@@ -81,10 +81,9 @@ object Consumer {
   def multiTopic[F[_]: Concurrent: ContextShift](
       client: Pulsar.T,
       topicPattern: Topic.Pattern,
-      subs: Subscription,
-      initial: SubscriptionInitialPosition
+      subs: Subscription
   ): Resource[F, Consumer[F]] =
-    mkConsumer[F](client, subs, initial, topicPattern.asLeft)
+    mkConsumer[F](client, subs, topicPattern.asLeft, ConsumerOpts())
 
   /**
     * It creates a simple [[Consumer]].
@@ -95,10 +94,23 @@ object Consumer {
   def create[F[_]: Concurrent: ContextShift](
       client: Pulsar.T,
       topic: Topic,
-      subs: Subscription,
-      initial: SubscriptionInitialPosition
+      subs: Subscription
   ): Resource[F, Consumer[F]] =
-    mkConsumer[F](client, subs, initial, topic.asRight)
+    mkConsumer[F](client, subs, topic.asRight, ConsumerOpts())
+
+  /**
+    * It creates a simple [[Consumer]] with the supplied options.
+    *
+    * Note that this does not create a subscription to any Topic,
+    * you can use [[Consumer#subscribe]] for this purpose.
+    */
+  def withOptions[F[_]: Concurrent: ContextShift](
+      client: Pulsar.T,
+      topic: Topic,
+      subs: Subscription,
+      opts: ConsumerOpts
+  ): Resource[F, Consumer[F]] =
+    mkConsumer[F](client, subs, topic.asRight, opts)
 
   /**
     * A simple message decoder that uses a [[cats.Inject]] instance

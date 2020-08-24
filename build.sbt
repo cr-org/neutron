@@ -74,6 +74,7 @@ lazy val docs = (project in file("docs"))
           "org" -> organization.value,
           "scala.binary.version" -> s"2.${CrossVersion.partialVersion(scalaVersion.value).get._2}",
           "neutron-core" -> s"${(`neutron-core` / name).value}_2.${CrossVersion.partialVersion(scalaVersion.value).get._2}",
+          "neutron-circe" -> s"${(`neutron-circe` / name).value}_2.${CrossVersion.partialVersion(scalaVersion.value).get._2}",
           "neutron-function" -> s"${(`neutron-function` / name).value}_2.${CrossVersion.partialVersion(scalaVersion.value).get._2}",
           "version" -> version.value
         ),
