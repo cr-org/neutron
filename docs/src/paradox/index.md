@@ -11,7 +11,7 @@ It is published for Scala $scala-versions$ and can be included in your project.
 
 ## Quick start
 
-Here's a quick consumer / producer example using Neutron.
+Here's a quick consumer / producer example using Neutron. Note: both are fully asynchronous.
 
 ```scala mdoc:compile-only
 import cats.Inject
@@ -46,9 +46,8 @@ object Demo extends IOApp {
   val resources: Resource[IO, (Consumer[IO], Producer[IO, String])] =
     for {
       client <- PulsarClient.create[IO](config.serviceUrl)
-      blocker <- Blocker[IO]
       consumer <- Consumer.create[IO](client, topic, subs, initPos)
-      producer <- Producer.create[IO, String](client, topic, shardKey, batching, blocker)
+      producer <- Producer.create[IO, String](client, topic, shardKey, batching)
     } yield (consumer, producer)
 
   def run(args: List[String]): IO[ExitCode] =
