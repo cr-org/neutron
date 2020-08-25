@@ -36,9 +36,9 @@ object Consumer {
 
   private def mkConsumer[F[_]: Concurrent: ContextShift](
       client: Pulsar.T,
-      subs: Subscription,
-      initial: SubscriptionInitialPosition,
-      topicType: Either[Topic.Pattern, Topic]
+      sub: Subscription,
+      topicType: Either[Topic.Pattern, Topic],
+      opts: Options
   ): Resource[F, Consumer[F]] =
     Resource
       .make {
@@ -49,9 +49,9 @@ object Consumer {
               p => c.topicsPattern(p.url.value.r.pattern),
               t => c.topic(t.url.value)
             )
-            .subscriptionType(subs.sType)
-            .subscriptionName(subs.name)
-            .subscriptionInitialPosition(initial)
+            .subscriptionType(sub.sType)
+            .subscriptionName(sub.name)
+            .subscriptionInitialPosition(opts.initial)
             .subscribeAsync
         }.futureLift
       }(
@@ -81,13 +81,12 @@ object Consumer {
   def multiTopic[F[_]: Concurrent: ContextShift](
       client: Pulsar.T,
       topicPattern: Topic.Pattern,
-      subs: Subscription,
-      initial: SubscriptionInitialPosition
+      sub: Subscription
   ): Resource[F, Consumer[F]] =
-    mkConsumer[F](client, subs, initial, topicPattern.asLeft)
+    mkConsumer[F](client, sub, topicPattern.asLeft, Options())
 
   /**
-    * It creates a simple [[Consumer]].
+    * It creates a simple [[Consumer]] with default options.
     *
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
@@ -95,10 +94,23 @@ object Consumer {
   def create[F[_]: Concurrent: ContextShift](
       client: Pulsar.T,
       topic: Topic,
-      subs: Subscription,
-      initial: SubscriptionInitialPosition
+      sub: Subscription
   ): Resource[F, Consumer[F]] =
-    mkConsumer[F](client, subs, initial, topic.asRight)
+    mkConsumer[F](client, sub, topic.asRight, Options())
+
+  /**
+    * It creates a simple [[Consumer]] with the supplied options.
+    *
+    * Note that this does not create a subscription to any Topic,
+    * you can use [[Consumer#subscribe]] for this purpose.
+    */
+  def withOptions[F[_]: Concurrent: ContextShift](
+      client: Pulsar.T,
+      topic: Topic,
+      sub: Subscription,
+      opts: Options
+  ): Resource[F, Consumer[F]] =
+    mkConsumer[F](client, sub, topic.asRight, opts)
 
   /**
     * A simple message decoder that uses a [[cats.Inject]] instance
@@ -138,5 +150,26 @@ object Consumer {
       c: Consumer[F]
   ): Pipe[F, Message[Array[Byte]], E] =
     loggingMessageDecoder[F, E](c, _ => _ => F.unit)
+
+  // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
+  sealed abstract class Options {
+    val initial: SubscriptionInitialPosition
+    def withInitialPosition(initial: SubscriptionInitialPosition): Options
+  }
+
+  /**
+    * Consumer options such as subscription initial position.
+    */
+  object Options {
+    private case class OptionsImpl(
+        initial: SubscriptionInitialPosition
+    ) extends Options {
+      override def withInitialPosition(
+          _initial: SubscriptionInitialPosition
+      ): Options =
+        copy(initial = _initial)
+    }
+    def apply(): Options = OptionsImpl(SubscriptionInitialPosition.Latest)
+  }
 
 }

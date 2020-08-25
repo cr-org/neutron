@@ -10,7 +10,7 @@ jobs:
     name: Build
     runs-on: ubuntu-18.04
     steps:
-      - uses: "actions/checkout@v2.1.0"
+      - uses: "actions/checkout@v2.3.2"
       - name: "Starting up Pulsar 🐳"
         run: docker-compose up -d
       - run: |

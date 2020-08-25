@@ -19,23 +19,18 @@ import cats.effect._
 import fs2.Stream
 import cr.pulsar._
 import cr.pulsar.schema.utf8._
-import org.apache.pulsar.client.api.SubscriptionInitialPosition
 import scala.concurrent.duration._
 
 object Demo extends IOApp {
 
-  // Pulsar configuration
-  val config  = Config.default
-  val topic   = Topic(config, Topic.Name("my-topic"), Topic.Type.NonPersistent)
-
-  // Consumer details
-  val subs    = Subscription(Subscription.Name("my-sub"), Subscription.Type.Shared)
-  val initPos = SubscriptionInitialPosition.Latest
+  val config = Config.default
+  val topic  = Topic(config, Topic.Name("my-topic"), Topic.Type.NonPersistent)
+  val subs   = Subscription(Subscription.Name("my-sub"), Subscription.Type.Shared)
 
   val resources: Resource[IO, (Consumer[IO], Producer[IO, String])] =
     for {
       client   <- Pulsar.create[IO](config.serviceUrl)
-      consumer <- Consumer.create[IO](client, topic, subs, initPos)
+      consumer <- Consumer.create[IO](client, topic, subs)
       producer <- Producer.create[IO, String](client, topic)
     } yield (consumer, producer)
 

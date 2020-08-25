@@ -11,7 +11,9 @@ jobs:
     name: Publish
     runs-on: ubuntu-18.04
     steps:
-      - uses: "actions/checkout@v2.1.0"
+      - uses: "actions/checkout@v2.3.2"
+        with:
+          fetch-depth: 0 # fetch all branches & tags
       - name: java 11 setup
         uses: "olafurpg/setup-java@v6"
         with:
