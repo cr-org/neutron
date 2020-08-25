@@ -179,7 +179,7 @@ cr-org/neutron
 <p>Neutron is a purely functional <a href="https://pulsar.apache.org/">Apache Pulsar</a> client for Scala, build on top of <a href="https://fs2.io">fs2</a> and the Java Pulsar client.</p>
 <p>It is published for Scala 2.12/13. You can include it in your project by adding the following dependencies.</p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies ++= Seq(
   "com.chatroulette" %% "neutron-core" % "0.0.1",
-  "com.chatroulette" % "$neutron-circe$" % "0.0.1",
+  "com.chatroulette" %% "neutron-circe" % "0.0.1",
   "com.chatroulette" %% "neutron-function" % "0.0.1"
 )</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependency&gt;
   &lt;groupId&gt;com.chatroulette&lt;/groupId&gt;
@@ -188,7 +188,7 @@ cr-org/neutron
 &lt;/dependency&gt;
 &lt;dependency&gt;
   &lt;groupId&gt;com.chatroulette&lt;/groupId&gt;
-  &lt;artifactId&gt;$neutron-circe$&lt;/artifactId&gt;
+  &lt;artifactId&gt;neutron-circe_2.12&lt;/artifactId&gt;
   &lt;version&gt;0.0.1&lt;/version&gt;
 &lt;/dependency&gt;
 &lt;dependency&gt;
@@ -197,7 +197,7 @@ cr-org/neutron
   &lt;version&gt;0.0.1&lt;/version&gt;
 &lt;/dependency&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
   compile group: 'com.chatroulette', name: 'neutron-core_2.12', version: '0.0.1',
-  compile group: 'com.chatroulette', name: '$neutron-circe$', version: '0.0.1',
+  compile group: 'com.chatroulette', name: 'neutron-circe_2.12', version: '0.0.1',
   compile group: 'com.chatroulette', name: 'neutron-function_2.12', version: '0.0.1'
 }</code></pre></dd></dl>
 <h2><a href="#quick-start" name="quick-start" class="anchor"><span class="anchor-link"></span></a>Quick start</h2>
@@ -206,23 +206,18 @@ cr-org/neutron
 import fs2.Stream
 import cr.pulsar._
 import cr.pulsar.schema.utf8._
-import org.apache.pulsar.client.api.SubscriptionInitialPosition
 import scala.concurrent.duration._
 
 object Demo extends IOApp {
 
-  // Pulsar configuration
-  val config  = Config.default
-  val topic   = Topic(config, Topic.Name(&quot;my-topic&quot;), Topic.Type.NonPersistent)
-
-  // Consumer details
-  val subs    = Subscription(Subscription.Name(&quot;my-sub&quot;), Subscription.Type.Shared)
-  val initPos = SubscriptionInitialPosition.Latest
+  val config = Config.default
+  val topic  = Topic(config, Topic.Name(&quot;my-topic&quot;), Topic.Type.NonPersistent)
+  val subs   = Subscription(Subscription.Name(&quot;my-sub&quot;), Subscription.Type.Shared)
 
   val resources: Resource[IO, (Consumer[IO], Producer[IO, String])] =
     for {
       client   &lt;- Pulsar.create[IO](config.serviceUrl)
-      consumer &lt;- Consumer.create[IO](client, topic, subs, initPos)
+      consumer &lt;- Consumer.create[IO](client, topic, subs)
       producer &lt;- Producer.create[IO, String](client, topic)
     } yield (consumer, producer)
 
