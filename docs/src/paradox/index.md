@@ -16,6 +16,7 @@ Here's a quick consumer / producer example using Neutron. Note: both are fully a
 
 ```scala mdoc:compile-only
 import cats.effect._
+import cats.implicits._
 import fs2.Stream
 import cr.pulsar._
 import cr.pulsar.schema.utf8._
@@ -27,11 +28,11 @@ object Demo extends IOApp {
   val topic  = Topic(config, Topic.Name("my-topic"), Topic.Type.NonPersistent)
   val subs   = Subscription(Subscription.Name("my-sub"), Subscription.Type.Shared)
 
-  val resources: Resource[IO, (Consumer[IO], Producer[IO, String])] =
+  val resources: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
     for {
-      client   <- Pulsar.create[IO](config.serviceUrl)
-      consumer <- Consumer.create[IO](client, topic, subs)
-      producer <- Producer.create[IO, String](client, topic)
+      pulsar   <- Pulsar.create[IO](config.serviceUrl)
+      consumer <- Consumer.create[IO, String](pulsar, topic, subs)
+      producer <- Producer.create[IO, String](pulsar, topic)
     } yield (consumer, producer)
 
   def run(args: List[String]): IO[ExitCode] =
@@ -42,8 +43,7 @@ object Demo extends IOApp {
           val consume =
             consumer
               .subscribe
-              .evalTap(m => IO(println(stringBytesInject.prj(m.getData))))
-              .evalMap(m => consumer.ack(m.getMessageId))
+              .evalMap(m => IO(println(m.payload)) >> consumer.ack(m.id))
 
           val produce =
             Stream

@@ -25,16 +25,16 @@ import java.util.UUID
 
 class PulsarSpec extends PulsarSuite {
 
-  val subs  = Subscription(Subscription.Name("test"), Subscription.Type.Failover)
+  val sub   = Subscription(Subscription.Name("test"), Subscription.Type.Failover)
   val topic = Topic(cfg, Topic.Name("test"), Topic.Type.Persistent)
   val batch = Producer.Batching.Disabled
   val shard = (_: Event) => Producer.MessageKey.Default
 
   withPulsarClient { client =>
     test("A message is published and consumed successfully") {
-      val res: Resource[IO, (Consumer[IO], Producer[IO, Event])] =
+      val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event])] =
         for {
-          consumer <- Consumer.create[IO](client, topic, subs)
+          consumer <- Consumer.create[IO, Event](client, topic, sub)
           producer <- Producer.create[IO, Event](client, topic)
         } yield consumer -> producer
 
@@ -45,8 +45,7 @@ class PulsarSpec extends PulsarSuite {
             case (consumer, producer) =>
               val consume =
                 consumer.subscribe
-                  .through(Consumer.messageDecoder[IO, Event](consumer))
-                  .evalMap(latch.complete(_))
+                  .evalMap(msg => consumer.ack(msg.id) >> latch.complete(msg.payload))
 
               val testEvent = Event(UUID.randomUUID(), "test")
 
@@ -74,10 +73,13 @@ class PulsarSpec extends PulsarSuite {
       val opts =
         Producer.Options[IO, Event]().withShardKey(_.shardKey).withBatching(batch)
 
-      val res: Resource[IO, (Consumer[IO], Consumer[IO], Producer[IO, Event])] =
+      val res: Resource[
+        IO,
+        (Consumer[IO, Event], Consumer[IO, Event], Producer[IO, Event])
+      ] =
         for {
-          c1 <- Consumer.create[IO](client, topic, makeSub("s1"))
-          c2 <- Consumer.create[IO](client, topic, makeSub("s2"))
+          c1 <- Consumer.create[IO, Event](client, topic, makeSub("s1"))
+          c2 <- Consumer.create[IO, Event](client, topic, makeSub("s2"))
           producer <- Producer.withOptions(client, topic, opts)
         } yield (c1, c2, producer)
 
@@ -90,13 +92,11 @@ class PulsarSpec extends PulsarSuite {
                 case (c1, c2, producer) =>
                   val consume1 =
                     c1.subscribe
-                      .through(Consumer.messageDecoder[IO, Event](c1))
-                      .evalMap(e => events1.update(_ :+ e))
+                      .evalMap(msg => c1.ack(msg.id) >> events1.update(_ :+ msg.payload))
 
                   val consume2 =
                     c2.subscribe
-                      .through(Consumer.messageDecoder[IO, Event](c2))
-                      .evalMap(e => events2.update(_ :+ e))
+                      .evalMap(msg => c2.ack(msg.id) >> events2.update(_ :+ msg.payload))
 
                   val uuids = List(UUID.randomUUID(), UUID.randomUUID())
 
