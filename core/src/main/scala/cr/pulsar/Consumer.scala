@@ -21,25 +21,29 @@ import cats.effect._
 import cats.implicits._
 import cr.pulsar.internal.FutureLift._
 import fs2._
-import org.apache.pulsar.client.api.{ Message, MessageId, SubscriptionInitialPosition }
+import org.apache.pulsar.client.api.{ MessageId, SubscriptionInitialPosition }
 import scala.util.control.NoStackTrace
 
-trait Consumer[F[_]] {
-  def subscribe: Stream[F, Message[Array[Byte]]]
+trait Consumer[F[_], E] {
+  def subscribe: Stream[F, Consumer.Message[E]]
   def ack(id: MessageId): F[Unit]
   def nack(id: MessageId): F[Unit]
 }
 
 object Consumer {
 
-  case class DecodingFailure(msg: String) extends NoStackTrace
+  case class Message[A](id: MessageId, payload: A)
+  case class DecodingFailure(bytes: Array[Byte]) extends NoStackTrace
 
-  private def mkConsumer[F[_]: Concurrent: ContextShift](
+  private def mkConsumer[
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
       client: Pulsar.T,
       sub: Subscription,
       topicType: Either[Topic.Pattern, Topic],
-      opts: Options
-  ): Resource[F, Consumer[F]] =
+      opts: Options[F, E]
+  ): Resource[F, Consumer[F, E]] =
     Resource
       .make {
         F.delay {
@@ -60,116 +64,119 @@ object Consumer {
             .futureLift >> F.delay(c.closeAsync()).futureLift.void
       )
       .map { c =>
-        new Consumer[F] {
+        new Consumer[F, E] {
           override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
           override def nack(id: MessageId): F[Unit] = F.delay(c.negativeAcknowledge(id))
-          override def subscribe: Stream[F, Message[Array[Byte]]] =
+          override def subscribe: Stream[F, Message[E]] =
             Stream.repeatEval(
-              F.delay(c.receiveAsync()).futureLift
+              F.delay(c.receiveAsync()).futureLift.flatMap { m =>
+                val data = m.getData()
+
+                E.prj(data) match {
+                  case Some(e) =>
+                    (opts
+                      .logger(e)(Topic.URL(m.getTopicName)))
+                      .as(Message(m.getMessageId, e))
+                  case None =>
+                    DecodingFailure(data).raiseError[F, Message[E]]
+                }
+              }
             )
         }
       }
 
   /**
-    * It creates a simple [[Consumer]] for a multi-topic subscription.
+    * It creates a [[Consumer]] for a multi-topic subscription.
     *
     * Find out more at [[https://pulsar.apache.org/docs/en/concepts-messaging/#multi-topic-subscriptions]]
     *
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
     */
-  def multiTopic[F[_]: Concurrent: ContextShift](
+  def multiTopic[
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
       client: Pulsar.T,
       topicPattern: Topic.Pattern,
       sub: Subscription
-  ): Resource[F, Consumer[F]] =
-    mkConsumer[F](client, sub, topicPattern.asLeft, Options())
+  ): Resource[F, Consumer[F, E]] =
+    mkConsumer(client, sub, topicPattern.asLeft, Options[F, E]())
 
   /**
-    * It creates a simple [[Consumer]] with default options.
+    * It creates a [[Consumer]] with default options.
     *
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
     */
-  def create[F[_]: Concurrent: ContextShift](
+  def create[
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
       client: Pulsar.T,
       topic: Topic,
       sub: Subscription
-  ): Resource[F, Consumer[F]] =
-    mkConsumer[F](client, sub, topic.asRight, Options())
+  ): Resource[F, Consumer[F, E]] =
+    withOptions(client, topic, sub, Options[F, E]())
 
   /**
-    * It creates a simple [[Consumer]] with the supplied options.
+    * It creates a [[Consumer]] with default options and the supplied message logger.
+    */
+  def withLogger[
+      F[_]: ContextShift: Parallel: Concurrent,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topic: Topic,
+      sub: Subscription,
+      logger: E => Topic.URL => F[Unit]
+  ): Resource[F, Consumer[F, E]] =
+    withOptions(client, topic, sub, Options[F, E]().withLogger(logger))
+
+  /**
+    * It creates a [[Consumer]] with the supplied options.
     *
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
     */
-  def withOptions[F[_]: Concurrent: ContextShift](
+  def withOptions[
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
       client: Pulsar.T,
       topic: Topic,
       sub: Subscription,
-      opts: Options
-  ): Resource[F, Consumer[F]] =
-    mkConsumer[F](client, sub, topic.asRight, opts)
-
-  /**
-    * A simple message decoder that uses a [[cats.Inject]] instance
-    * to deserialise consumed messages.
-    *
-    * Consumed messages will be logged using the given `logAction`.
-    */
-  def loggingMessageDecoder[
-      F[_]: MonadError[*[_], Throwable]: Parallel,
-      E: Inject[*, Array[Byte]]
-  ](
-      c: Consumer[F],
-      logAction: E => Topic.URL => F[Unit]
-  ): Pipe[F, Message[Array[Byte]], E] =
-    _.evalMap { m =>
-      val id   = m.getMessageId
-      val data = m.getData
-
-      E.prj(data) match {
-        case Some(e) =>
-          logAction(e)(Topic.URL(m.getTopicName)) &> c.ack(id).as(e)
-        case None =>
-          c.nack(id) *> DecodingFailure(new String(data, "UTF-8")).raiseError[F, E]
-      }
-    }
-
-  /**
-    * A simple message decoder that uses a [[cats.Inject]] instance
-    * to deserialise consumed messages.
-    *
-    * Messages will not be logged by default.
-    */
-  def messageDecoder[
-      F[_]: MonadError[*[_], Throwable]: Parallel,
-      E: Inject[*, Array[Byte]]
-  ](
-      c: Consumer[F]
-  ): Pipe[F, Message[Array[Byte]], E] =
-    loggingMessageDecoder[F, E](c, _ => _ => F.unit)
+      opts: Options[F, E]
+  ): Resource[F, Consumer[F, E]] =
+    mkConsumer(client, sub, topic.asRight, opts)
 
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
-  sealed abstract class Options {
+  sealed abstract class Options[F[_], E] {
     val initial: SubscriptionInitialPosition
-    def withInitialPosition(initial: SubscriptionInitialPosition): Options
+    val logger: E => Topic.URL => F[Unit]
+    def withInitialPosition(_initial: SubscriptionInitialPosition): Options[F, E]
+    def withLogger(_logger: E => Topic.URL => F[Unit]): Options[F, E]
   }
 
   /**
-    * Consumer options such as subscription initial position.
+    * Consumer options such as subscription initial position and message logger.
     */
   object Options {
-    private case class OptionsImpl(
-        initial: SubscriptionInitialPosition
-    ) extends Options {
+    private case class OptionsImpl[F[_], E](
+        initial: SubscriptionInitialPosition,
+        logger: E => Topic.URL => F[Unit]
+    ) extends Options[F, E] {
       override def withInitialPosition(
           _initial: SubscriptionInitialPosition
-      ): Options =
+      ): Options[F, E] =
         copy(initial = _initial)
+      override def withLogger(_logger: E => (Topic.URL => F[Unit])): Options[F, E] =
+        copy(logger = _logger)
     }
-    def apply(): Options = OptionsImpl(SubscriptionInitialPosition.Latest)
+    def apply[F[_]: Applicative, E](): Options[F, E] = OptionsImpl[F, E](
+      SubscriptionInitialPosition.Latest,
+      _ => _ => F.unit
+    )
   }
 
 }
