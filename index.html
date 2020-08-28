@@ -203,7 +203,6 @@ cr-org/neutron
 <h2><a href="#quick-start" name="quick-start" class="anchor"><span class="anchor-link"></span></a>Quick start</h2>
 <p>Here&rsquo;s a quick consumer / producer example using Neutron. Note: both are fully asynchronous.</p>
 <pre class="prettyprint"><code class="language-scala mdoc:compile-only">import cats.effect._
-import cats.implicits._
 import fs2.Stream
 import cr.pulsar._
 import cr.pulsar.schema.utf8._
@@ -215,11 +214,11 @@ object Demo extends IOApp {
   val topic  = Topic(config, Topic.Name(&quot;my-topic&quot;), Topic.Type.NonPersistent)
   val subs   = Subscription(Subscription.Name(&quot;my-sub&quot;), Subscription.Type.Shared)
 
-  val resources: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
+  val resources: Resource[IO, (Consumer[IO], Producer[IO, String])] =
     for {
-      pulsar   &lt;- Pulsar.create[IO](config.serviceUrl)
-      consumer &lt;- Consumer.create[IO, String](pulsar, topic, subs)
-      producer &lt;- Producer.create[IO, String](pulsar, topic)
+      client   &lt;- Pulsar.create[IO](config.serviceUrl)
+      consumer &lt;- Consumer.create[IO](client, topic, subs)
+      producer &lt;- Producer.create[IO, String](client, topic)
     } yield (consumer, producer)
 
   def run(args: List[String]): IO[ExitCode] =
@@ -230,7 +229,8 @@ object Demo extends IOApp {
           val consume =
             consumer
               .subscribe
-              .evalMap(m =&gt; IO(println(m.payload)) &gt;&gt; consumer.ack(m.id))
+              .evalTap(m =&gt; IO(println(stringBytesInject.prj(m.getData))))
+              .evalMap(m =&gt; consumer.ack(m.getMessageId))
 
           val produce =
             Stream
@@ -253,7 +253,7 @@ object Demo extends IOApp {
 <p>Be aware that your datatype needs to provide instances of <code>io.circe.Encoder</code> and <code>io.circe.Decoder</code> for this instance to be available.</p>
 </div>
 <div>
-<a href="https://github.com/cr-org/neutron/tree/master/docs/src/paradox/index.md" title="Edit this page" class="md-source-file md-edit">
+<a href="https://github.com/cr-org/neutron/tree/v0.0.2/docs/src/paradox/index.md" title="Edit this page" class="md-source-file md-edit">
 Edit this page
 </a>
 </div>
