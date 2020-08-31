@@ -20,16 +20,17 @@ import cats.Inject
 import io.circe._
 import io.circe.parser.decode
 import io.circe.syntax._
+import java.nio.charset.StandardCharsets.UTF_8
 
 object circe {
 
   implicit def circeBytesInject[T: Encoder: Decoder]: Inject[T, Array[Byte]] =
     new Inject[T, Array[Byte]] {
       val inj: T => Array[Byte] =
-        t => t.asJson.noSpaces.getBytes("UTF-8")
+        _.asJson.noSpaces.getBytes(UTF_8)
 
       val prj: Array[Byte] => Option[T] =
-        bytes => decode[T](new String(bytes, "UTF-8")).toOption
+        bytes => decode[T](new String(bytes, UTF_8)).toOption
     }
 
 }
