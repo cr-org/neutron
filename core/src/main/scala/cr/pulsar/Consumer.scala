@@ -21,7 +21,11 @@ import cats.effect._
 import cats.implicits._
 import cr.pulsar.internal.FutureLift._
 import fs2._
-import org.apache.pulsar.client.api.{ MessageId, SubscriptionInitialPosition }
+import org.apache.pulsar.client.api.{
+  Consumer => JConsumer,
+  MessageId,
+  SubscriptionInitialPosition
+}
 import scala.util.control.NoStackTrace
 
 trait Consumer[F[_], E] {
@@ -43,26 +47,27 @@ object Consumer {
       sub: Subscription,
       topicType: Either[Topic.Pattern, Topic],
       opts: Options[F, E]
-  ): Resource[F, Consumer[F, E]] =
+  ): Resource[F, Consumer[F, E]] = {
+    val acquire =
+      F.delay {
+        val c = client.newConsumer
+        topicType
+          .fold(
+            p => c.topicsPattern(p.url.value.r.pattern),
+            t => c.topic(t.url.value)
+          )
+          .subscriptionType(sub.sType)
+          .subscriptionName(sub.name)
+          .subscriptionInitialPosition(opts.initial)
+          .subscribeAsync
+      }.futureLift
+
+    def release(c: JConsumer[Array[Byte]]): F[Unit] =
+      F.delay(c.unsubscribeAsync()).futureLift.attempt.void >>
+          F.delay(c.closeAsync()).futureLift.void
+
     Resource
-      .make {
-        F.delay {
-          val c = client.newConsumer
-          topicType
-            .fold(
-              p => c.topicsPattern(p.url.value.r.pattern),
-              t => c.topic(t.url.value)
-            )
-            .subscriptionType(sub.sType)
-            .subscriptionName(sub.name)
-            .subscriptionInitialPosition(opts.initial)
-            .subscribeAsync
-        }.futureLift
-      }(
-        c =>
-          F.delay(c.unsubscribeAsync())
-            .futureLift >> F.delay(c.closeAsync()).futureLift.void
-      )
+      .make(acquire)(release)
       .map { c =>
         new Consumer[F, E] {
           override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
@@ -84,6 +89,7 @@ object Consumer {
             )
         }
       }
+  }
 
   /**
     * It creates a [[Consumer]] for a multi-topic subscription.
