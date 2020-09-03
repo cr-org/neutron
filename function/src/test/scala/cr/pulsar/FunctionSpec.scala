@@ -16,7 +16,7 @@
 
 package cr.pulsar
 
-import cats.implicits._
+import cats.syntax.all._
 import cr.pulsar.FunctionInput._
 import munit.ScalaCheckSuite
 import org.scalacheck.Prop._

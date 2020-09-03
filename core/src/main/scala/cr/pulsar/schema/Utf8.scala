@@ -19,7 +19,7 @@ package cr.pulsar.schema
 import java.nio.charset.StandardCharsets.UTF_8
 
 import cats.Inject
-import cats.implicits._
+import cats.syntax.all._
 
 object utf8 {
 

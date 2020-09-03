@@ -32,7 +32,7 @@ sealed abstract case class Topic(name: Topic.Name, url: Topic.URL)
   * Find out more at [[https://pulsar.apache.org/docs/en/concepts-messaging/#topics]]
   */
 object Topic {
-  import cats.implicits._
+  import cats.syntax.all._
 
   @newtype case class Name(value: String)
   @newtype case class NamePattern(value: Regex)

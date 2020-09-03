@@ -19,7 +19,7 @@ package cr.pulsar
 import cr.pulsar.FunctionInput._
 import munit.ScalaCheckSuite
 import org.scalacheck.Prop._
-import cats.implicits._
+import cats.syntax.all._
 
 class WindowFunctionSpec extends ScalaCheckSuite {
   property("WindowFunction can convert numbers to strings") {
