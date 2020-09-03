@@ -21,7 +21,7 @@ import java.util
 import java.util.Optional
 import java.util.concurrent.CompletableFuture
 
-import cats.implicits._
+import cats.syntax.all._
 import cr.pulsar.WindowContext.OutputTopic
 import munit.ScalaCheckSuite
 import org.apache.pulsar.functions.api.{ WindowContext => JavaWindowContext }

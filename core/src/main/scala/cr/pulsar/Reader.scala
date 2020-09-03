@@ -18,7 +18,7 @@ package cr.pulsar
 
 import cats._
 import cats.effect._
-import cats.implicits._
+import cats.syntax.all._
 import cr.pulsar.internal.FutureLift._
 import fs2._
 import org.apache.pulsar.client.api.{ Message, MessageId }
