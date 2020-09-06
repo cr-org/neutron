@@ -29,9 +29,18 @@ import org.apache.pulsar.client.api.{
 import scala.util.control.NoStackTrace
 
 trait Consumer[F[_], E] {
-  def subscribe: Stream[F, Consumer.Message[E]]
   def ack(id: MessageId): F[Unit]
   def nack(id: MessageId): F[Unit]
+  def subscribe: Stream[F, Consumer.Message[E]]
+
+  /**
+    * This operation fails when performed on a shared subscription where multiple
+    * consumers are currently connected.
+    *
+    * If you do not need a durable subscription, consider using a
+    * [[Subscription.Mode.NonDurable]] instead.
+    */
+  def unsubscribe: F[Unit]
 }
 
 object Consumer {
@@ -58,13 +67,18 @@ object Consumer {
           )
           .subscriptionType(sub.sType)
           .subscriptionName(sub.name)
+          .subscriptionMode(sub.mode)
           .subscriptionInitialPosition(opts.initial)
           .subscribeAsync
       }.futureLift
 
-    def release(c: JConsumer[Array[Byte]]): F[Unit] =
-      F.delay(c.unsubscribeAsync()).futureLift.attempt.void >>
-          F.delay(c.closeAsync()).futureLift.void
+    def release(c: JConsumer[Array[Byte]]): F[Unit] = {
+      val maybeUnsubscribe = opts.unsubscribeMode match {
+        case UnsubscribeMode.Auto   => F.delay(c.unsubscribeAsync()).futureLift.attempt.void
+        case UnsubscribeMode.Manual => F.unit
+      }
+      maybeUnsubscribe >> F.delay(c.closeAsync()).futureLift.void
+    }
 
     Resource
       .make(acquire)(release)
@@ -72,6 +86,8 @@ object Consumer {
         new Consumer[F, E] {
           override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
           override def nack(id: MessageId): F[Unit] = F.delay(c.negativeAcknowledge(id))
+          override def unsubscribe: F[Unit] =
+            F.delay(c.unsubscribeAsync()).futureLift.void
           override def subscribe: Stream[F, Message[E]] =
             Stream.repeatEval(
               F.delay(c.receiveAsync()).futureLift.flatMap { m =>
@@ -156,12 +172,35 @@ object Consumer {
   ): Resource[F, Consumer[F, E]] =
     mkConsumer(client, sub, topic.asRight, opts)
 
+  sealed trait UnsubscribeMode
+  object UnsubscribeMode {
+    case object Auto extends UnsubscribeMode
+    case object Manual extends UnsubscribeMode
+  }
+
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {
     val initial: SubscriptionInitialPosition
     val logger: E => Topic.URL => F[Unit]
+    val unsubscribeMode: UnsubscribeMode
+
+    /**
+      * The Subscription Initial Position. `Latest` by default.
+      */
     def withInitialPosition(_initial: SubscriptionInitialPosition): Options[F, E]
+
+    /**
+      * The logger action that runs on every message consumed. It does nothing by default.
+      */
     def withLogger(_logger: E => Topic.URL => F[Unit]): Options[F, E]
+
+    /**
+      * The unsubscribe mode. `Auto` by default. If `Manual`, you need to call `unsubscribe` manually.
+      *
+      * Note that the `unsubscribe` operation fails when performed on a shared subscription where
+      * multiple consumers are currently connected.
+      */
+    def withUnsubscribeMode(_mode: UnsubscribeMode): Options[F, E]
   }
 
   /**
@@ -170,7 +209,8 @@ object Consumer {
   object Options {
     private case class OptionsImpl[F[_], E](
         initial: SubscriptionInitialPosition,
-        logger: E => Topic.URL => F[Unit]
+        logger: E => Topic.URL => F[Unit],
+        unsubscribeMode: UnsubscribeMode
     ) extends Options[F, E] {
       override def withInitialPosition(
           _initial: SubscriptionInitialPosition
@@ -178,10 +218,15 @@ object Consumer {
         copy(initial = _initial)
       override def withLogger(_logger: E => (Topic.URL => F[Unit])): Options[F, E] =
         copy(logger = _logger)
+      override def withUnsubscribeMode(
+          _unsubscribeMode: UnsubscribeMode
+      ): Options[F, E] =
+        copy(unsubscribeMode = _unsubscribeMode)
     }
     def apply[F[_]: Applicative, E](): Options[F, E] = OptionsImpl[F, E](
       SubscriptionInitialPosition.Latest,
-      _ => _ => F.unit
+      _ => _ => F.unit,
+      UnsubscribeMode.Auto
     )
   }
 
