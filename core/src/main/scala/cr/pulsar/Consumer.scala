@@ -65,9 +65,9 @@ object Consumer {
             p => c.topicsPattern(p.url.value.r.pattern),
             t => c.topic(t.url.value)
           )
-          .subscriptionType(sub.sType)
-          .subscriptionName(sub.name)
-          .subscriptionMode(sub.mode)
+          .subscriptionType(sub.`type`.pulsarSubscriptionType)
+          .subscriptionName(sub.name.value)
+          .subscriptionMode(sub.mode.pulsarSubscriptionMode)
           .subscriptionInitialPosition(opts.initial)
           .subscribeAsync
       }.futureLift

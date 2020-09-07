@@ -20,7 +20,6 @@ import cats._
 import cats.effect._
 import cats.effect.concurrent.Deferred
 import cats.implicits._
-import cr.pulsar.Config._
 import java.util.UUID
 import munit.FunSuite
 import scala.concurrent.ExecutionContext
@@ -32,8 +31,8 @@ abstract class PulsarSuite extends FunSuite {
   implicit val `⏰` = IO.timer(ExecutionContext.global)
 
   private[this] var client: Pulsar.T = null
-  private[this] var close: IO[Unit]        = null
-  private[this] val latch                  = Deferred[IO, Unit].unsafeRunSync()
+  private[this] var close: IO[Unit]  = null
+  private[this] val latch            = Deferred[IO, Unit].unsafeRunSync()
 
   override def munitValueTransforms: List[ValueTransform] =
     super.munitValueTransforms :+ new ValueTransform("IO", {
@@ -81,10 +80,6 @@ abstract class PulsarSuite extends FunSuite {
       }
   }
 
-  lazy val cfg = Config(
-    PulsarTenant("public"),
-    PulsarNamespace("default"),
-    PulsarURL("pulsar://localhost:6650")
-  )
+  lazy val cfg = Config.Default
 
 }

@@ -23,20 +23,44 @@ import io.estatico.newtype.macros._
   * Basic Pulsar configuration to establish
   * a connection.
   */
-case class Config(
-    tenant: PulsarTenant,
-    namespace: PulsarNamespace,
-    serviceUrl: PulsarURL
-)
+sealed abstract class Config {
+  val tenant: PulsarTenant
+  val namespace: PulsarNamespace
+  val serviceUrl: PulsarURL
+  def withTenant(_tenant: PulsarTenant): Config
+  def withNamespace(_namespace: PulsarNamespace): Config
+  def withURL(_url: PulsarURL): Config
+}
 
 object Config {
   @newtype case class PulsarTenant(value: String)
   @newtype case class PulsarNamespace(value: String)
   @newtype case class PulsarURL(value: String)
 
-  val default: Config = Config(
-    PulsarTenant("public"),
-    PulsarNamespace("default"),
-    PulsarURL("pulsar://localhost:6650")
-  )
+  private case class ConfigImpl(
+      tenant: PulsarTenant,
+      namespace: PulsarNamespace,
+      serviceUrl: PulsarURL
+  ) extends Config {
+    def withTenant(_tenant: PulsarTenant): Config =
+      copy(tenant = _tenant)
+    def withNamespace(_namespace: PulsarNamespace): Config =
+      copy(namespace = _namespace)
+    def withURL(_serviceUrl: PulsarURL): Config =
+      copy(serviceUrl = _serviceUrl)
+  }
+
+  /**
+    * It creates a default configuration.
+    *
+    * - tenant: "public"
+    * - namespace: "default"
+    * - url: "pulsar://localhost:6650"
+    */
+  def Default: Config =
+    ConfigImpl(
+      PulsarTenant("public"),
+      PulsarNamespace("default"),
+      PulsarURL("pulsar://localhost:6650")
+    )
 }
