@@ -84,10 +84,6 @@ object Consumer {
       .make(acquire)(release)
       .map { c =>
         new Consumer[F, E] {
-          def autoAck(id: MessageId): F[Unit] =
-            if (opts.autoAck) ack(id)
-            else F.unit
-
           override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
           override def nack(id: MessageId): F[Unit] = F.delay(c.negativeAcknowledge(id))
           override def unsubscribe: F[Unit] =
@@ -99,8 +95,8 @@ object Consumer {
 
                 E.prj(data) match {
                   case Some(e) =>
-                    opts.logger(e)(Topic.URL(m.getTopicName)) >>
-                      autoAck(m.getMessageId).as(Message(m.getMessageId, e))
+                    (opts.logger(e)(Topic.URL(m.getTopicName)) >> ack(m.getMessageId).whenA(opts.autoAck))
+                      .as(Message(m.getMessageId, e))
                   case None =>
                     DecodingFailure(data).raiseError[F, Message[E]]
                 }
