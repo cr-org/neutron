@@ -84,6 +84,10 @@ object Consumer {
       .make(acquire)(release)
       .map { c =>
         new Consumer[F, E] {
+          def autoAck(id: MessageId): F[Unit] =
+            if (opts.autoAck) ack(id)
+            else F.unit
+
           override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
           override def nack(id: MessageId): F[Unit] = F.delay(c.negativeAcknowledge(id))
           override def unsubscribe: F[Unit] =
@@ -95,9 +99,8 @@ object Consumer {
 
                 E.prj(data) match {
                   case Some(e) =>
-                    (opts
-                      .logger(e)(Topic.URL(m.getTopicName)))
-                      .as(Message(m.getMessageId, e))
+                    opts.logger(e)(Topic.URL(m.getTopicName)) >>
+                      autoAck(m.getMessageId).as(Message(m.getMessageId, e))
                   case None =>
                     DecodingFailure(data).raiseError[F, Message[E]]
                 }
@@ -183,6 +186,7 @@ object Consumer {
     val initial: SubscriptionInitialPosition
     val logger: E => Topic.URL => F[Unit]
     val unsubscribeMode: UnsubscribeMode
+    val autoAck: Boolean
 
     /**
       * The Subscription Initial Position. `Latest` by default.
@@ -201,6 +205,11 @@ object Consumer {
       * multiple consumers are currently connected.
       */
     def withUnsubscribeMode(_mode: UnsubscribeMode): Options[F, E]
+
+    /**
+     * Automatically `ack` incoming messages
+     */
+    def withAutoAck(_autoAck: Boolean): Options[F, E]
   }
 
   /**
@@ -210,23 +219,31 @@ object Consumer {
     private case class OptionsImpl[F[_], E](
         initial: SubscriptionInitialPosition,
         logger: E => Topic.URL => F[Unit],
-        unsubscribeMode: UnsubscribeMode
+        unsubscribeMode: UnsubscribeMode,
+        autoAck: Boolean
     ) extends Options[F, E] {
       override def withInitialPosition(
           _initial: SubscriptionInitialPosition
       ): Options[F, E] =
         copy(initial = _initial)
+
       override def withLogger(_logger: E => (Topic.URL => F[Unit])): Options[F, E] =
         copy(logger = _logger)
+
       override def withUnsubscribeMode(
           _unsubscribeMode: UnsubscribeMode
       ): Options[F, E] =
         copy(unsubscribeMode = _unsubscribeMode)
+
+      override def withAutoAck(_autoAck: Boolean): Options[F, E] =
+        copy(autoAck = _autoAck)
     }
+
     def apply[F[_]: Applicative, E](): Options[F, E] = OptionsImpl[F, E](
       SubscriptionInitialPosition.Latest,
       _ => _ => F.unit,
-      UnsubscribeMode.Auto
+      UnsubscribeMode.Auto,
+      autoAck = false
     )
   }
 
