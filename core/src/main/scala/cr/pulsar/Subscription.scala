@@ -19,11 +19,14 @@ package cr.pulsar
 import io.estatico.newtype.macros.newtype
 import org.apache.pulsar.client.api.{ SubscriptionMode, SubscriptionType }
 
-sealed abstract case class Subscription(
-    name: String,
-    sType: SubscriptionType,
-    mode: SubscriptionMode
-)
+// Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
+sealed abstract class Subscription {
+  val name: Subscription.Name
+  val `type`: Subscription.Type
+  val mode: Subscription.Mode
+  def withType(_type: Subscription.Type): Subscription
+  def withMode(_mode: Subscription.Mode): Subscription
+}
 
 /**
   * A [[Subscription]] can be one of the following types:
@@ -36,7 +39,6 @@ sealed abstract case class Subscription(
   * Find out more at [[https://pulsar.apache.org/docs/en/concepts-messaging/#subscriptions]]
   */
 object Subscription {
-
   @newtype case class Name(value: String)
 
   sealed trait Mode {
@@ -71,11 +73,25 @@ object Subscription {
     }
   }
 
-  def apply(name: Name, sType: Type, mode: Mode) =
-    new Subscription(
-      name.value ++ "-subscription",
-      sType.pulsarSubscriptionType,
-      mode.pulsarSubscriptionMode
-    ) {}
+  private case class SubscriptionImpl(
+      name: Subscription.Name,
+      `type`: Subscription.Type,
+      mode: Subscription.Mode
+  ) extends Subscription {
+    def withType(_type: Subscription.Type): Subscription =
+      copy(`type` = _type)
+    def withMode(_mode: Subscription.Mode): Subscription =
+      copy(mode = _mode)
+  }
+
+  /**
+    * It creates a subscription with default configuration.
+    *
+    * - type: Exclusive
+    * - mode: Durable
+    */
+  def apply(name: Name): Subscription =
+    // Same as Java's defaults: https://github.com/apache/pulsar/blob/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/conf/ConsumerConfigurationData.java#L62
+    SubscriptionImpl(Name(s"${name.value}-subscription"), Type.Exclusive, Mode.Durable)
 
 }
