@@ -25,7 +25,7 @@ import java.util.UUID
 
 class PulsarSpec extends PulsarSuite {
 
-  val sub   = Subscription(Subscription.Name("test"), Subscription.Type.Failover)
+  val sub   = Subscription(Subscription.Name("test"), Subscription.Type.Failover, Subscription.Mode.Durable)
   val topic = Topic(cfg, Topic.Name("test"), Topic.Type.Persistent)
   val batch = Producer.Batching.Disabled
   val shard = (_: Event) => Producer.MessageKey.Default
@@ -68,7 +68,7 @@ class PulsarSpec extends PulsarSuite {
       "A message with key is published and consumed successfully by the right consumer"
     ) {
       val makeSub =
-        (n: String) => Subscription(Subscription.Name(n), Subscription.Type.KeyShared)
+        (n: String) => Subscription(Subscription.Name(n), Subscription.Type.KeyShared, Subscription.Mode.Durable)
 
       val opts =
         Producer.Options[IO, Event]().withShardKey(_.shardKey).withBatching(batch)

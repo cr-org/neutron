@@ -17,9 +17,13 @@
 package cr.pulsar
 
 import io.estatico.newtype.macros.newtype
-import org.apache.pulsar.client.api.SubscriptionType
+import org.apache.pulsar.client.api.{ SubscriptionMode, SubscriptionType }
 
-sealed abstract case class Subscription(name: String, sType: SubscriptionType)
+sealed abstract case class Subscription(
+    name: String,
+    sType: SubscriptionType,
+    mode: SubscriptionMode
+)
 
 /**
   * A [[Subscription]] can be one of the following types:
@@ -34,6 +38,19 @@ sealed abstract case class Subscription(name: String, sType: SubscriptionType)
 object Subscription {
 
   @newtype case class Name(value: String)
+
+  sealed trait Mode {
+    def pulsarSubscriptionMode: SubscriptionMode
+  }
+
+  object Mode {
+    case object Durable extends Mode {
+      override def pulsarSubscriptionMode: SubscriptionMode = SubscriptionMode.Durable
+    }
+    case object NonDurable extends Mode {
+      override def pulsarSubscriptionMode: SubscriptionMode = SubscriptionMode.NonDurable
+    }
+  }
 
   sealed trait Type {
     def pulsarSubscriptionType: SubscriptionType
@@ -54,7 +71,11 @@ object Subscription {
     }
   }
 
-  def apply(name: Name, sType: Type) =
-    new Subscription(name.value ++ "-subscription", sType.pulsarSubscriptionType) {}
+  def apply(name: Name, sType: Type, mode: Mode) =
+    new Subscription(
+      name.value ++ "-subscription",
+      sType.pulsarSubscriptionType,
+      mode.pulsarSubscriptionMode
+    ) {}
 
 }

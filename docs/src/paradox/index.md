@@ -26,7 +26,7 @@ object Demo extends IOApp {
 
   val config = Config.default
   val topic  = Topic(config, Topic.Name("my-topic"), Topic.Type.NonPersistent)
-  val subs   = Subscription(Subscription.Name("my-sub"), Subscription.Type.Shared)
+  val subs   = Subscription(Subscription.Name("my-sub"), Subscription.Type.Shared, Subscription.Mode.Durable)
 
   val resources: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
     for {
