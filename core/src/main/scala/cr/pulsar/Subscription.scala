@@ -90,8 +90,8 @@ object Subscription {
     * - type: Exclusive
     * - mode: Durable
     */
-  def apply(name: String): Subscription =
+  def apply(name: Name): Subscription =
     // Same as Java's defaults: https://github.com/apache/pulsar/blob/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/conf/ConsumerConfigurationData.java#L62
-    SubscriptionImpl(Name(s"$name-subscription"), Type.Exclusive, Mode.Durable)
+    SubscriptionImpl(Name(s"${name.value}-subscription"), Type.Exclusive, Mode.Durable)
 
 }

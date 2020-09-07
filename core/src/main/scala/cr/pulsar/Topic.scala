@@ -70,10 +70,8 @@ object Topic {
     *
     * - type: Persistent
     */
-  def apply(name: String, cfg: Config): Topic = {
-    val _name = Name(name)
-    TopicImpl(_name, buildUrl(cfg, _name, Type.Persistent), cfg)
-  }
+  def apply(name: Name, cfg: Config): Topic =
+    TopicImpl(name, buildUrl(cfg, name, Type.Persistent), cfg)
 
   // ------- Pattern topic -------
 
@@ -101,9 +99,7 @@ object Topic {
     *
     * - type: Persistent
     */
-  def pattern(regex: Regex, cfg: Config): Topic.Pattern = {
-    val np = NamePattern(regex)
-    PatternImpl(np, buildRegexUrl(cfg, np, Type.Persistent), cfg)
-  }
+  def pattern(namePattern: NamePattern, cfg: Config): Topic.Pattern =
+    PatternImpl(namePattern, buildRegexUrl(cfg, namePattern, Type.Persistent), cfg)
 
 }

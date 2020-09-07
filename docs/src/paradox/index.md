@@ -25,8 +25,8 @@ import scala.concurrent.duration._
 object Demo extends IOApp {
 
   val config = Config.Default
-  val topic  = Topic("my-topic", config).withType(Topic.Type.NonPersistent)
-  val subs   = Subscription("my-sub").withType(Subscription.Type.Shared)
+  val topic  = Topic(Topic.Name("my-topic"), config).withType(Topic.Type.NonPersistent)
+  val subs   = Subscription(Subscription.Name("my-sub")).withType(Subscription.Type.Shared)
 
   val resources: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
     for {
