@@ -72,13 +72,14 @@ object Consumer {
           .subscribeAsync
       }.futureLift
 
-    def release(c: JConsumer[Array[Byte]]): F[Unit] = {
-      val maybeUnsubscribe = opts.unsubscribeMode match {
-        case UnsubscribeMode.Auto   => F.delay(c.unsubscribeAsync()).futureLift.attempt.void
-        case UnsubscribeMode.Manual => F.unit
-      }
-      maybeUnsubscribe >> F.delay(c.closeAsync()).futureLift.void
-    }
+    def release(c: JConsumer[Array[Byte]]) =
+      F.delay(c.unsubscribeAsync())
+        .futureLift
+        .attempt
+        .whenA(opts.manualUnsubscribe)
+        .as(c.closeAsync())
+        .futureLift
+        .void
 
     Resource
       .make(acquire)(release)
@@ -95,9 +96,10 @@ object Consumer {
 
                 E.prj(data) match {
                   case Some(e) =>
-                    (opts.logger(e)(Topic.URL(m.getTopicName)) >> ack(m.getMessageId)
-                          .whenA(opts.autoAck))
-                      .as(Message(m.getMessageId, e))
+                    opts.logger(e)(Topic.URL(m.getTopicName)) >>
+                        ack(m.getMessageId)
+                          .whenA(opts.autoAck)
+                          .as(Message(m.getMessageId, e))
                   case None =>
                     DecodingFailure(data).raiseError[F, Message[E]]
                 }
@@ -172,17 +174,11 @@ object Consumer {
   ): Resource[F, Consumer[F, E]] =
     mkConsumer(client, sub, topic.asRight, opts)
 
-  sealed trait UnsubscribeMode
-  object UnsubscribeMode {
-    case object Auto extends UnsubscribeMode
-    case object Manual extends UnsubscribeMode
-  }
-
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {
     val initial: SubscriptionInitialPosition
     val logger: E => Topic.URL => F[Unit]
-    val unsubscribeMode: UnsubscribeMode
+    val manualUnsubscribe: Boolean
     val autoAck: Boolean
 
     /**
@@ -197,7 +193,7 @@ object Consumer {
 
     /**
       * Sets unsubscribe mode to `Manual`.
-     * If you select this option you will have to call `unsubscribe` manually.
+      * If you select this option you will have to call `unsubscribe` manually.
       *
       * Note that the `unsubscribe` operation fails when performed on a shared subscription where
       * multiple consumers are currently connected.
@@ -217,7 +213,7 @@ object Consumer {
     private case class OptionsImpl[F[_], E](
         initial: SubscriptionInitialPosition,
         logger: E => Topic.URL => F[Unit],
-        unsubscribeMode: UnsubscribeMode,
+        manualUnsubscribe: Boolean,
         autoAck: Boolean
     ) extends Options[F, E] {
       override def withInitialPosition(
@@ -229,7 +225,7 @@ object Consumer {
         copy(logger = _logger)
 
       override def withManualUnsubscribe: Options[F, E] =
-        copy(unsubscribeMode = UnsubscribeMode.Manual)
+        copy(manualUnsubscribe = true)
 
       override def withAutoAck: Options[F, E] =
         copy(autoAck = true)
@@ -238,7 +234,7 @@ object Consumer {
     def apply[F[_]: Applicative, E](): Options[F, E] = OptionsImpl[F, E](
       SubscriptionInitialPosition.Latest,
       _ => _ => F.unit,
-      UnsubscribeMode.Auto,
+      manualUnsubscribe = false,
       autoAck = false
     )
   }
