@@ -95,7 +95,8 @@ object Consumer {
 
                 E.prj(data) match {
                   case Some(e) =>
-                    (opts.logger(e)(Topic.URL(m.getTopicName)) >> ack(m.getMessageId).whenA(opts.autoAck))
+                    (opts.logger(e)(Topic.URL(m.getTopicName)) >> ack(m.getMessageId)
+                          .whenA(opts.autoAck))
                       .as(Message(m.getMessageId, e))
                   case None =>
                     DecodingFailure(data).raiseError[F, Message[E]]
@@ -195,17 +196,18 @@ object Consumer {
     def withLogger(_logger: E => Topic.URL => F[Unit]): Options[F, E]
 
     /**
-      * The unsubscribe mode. `Auto` by default. If `Manual`, you need to call `unsubscribe` manually.
+      * Sets unsubscribe mode to `Manual`.
+     * If you select this option you will have to call `unsubscribe` manually.
       *
       * Note that the `unsubscribe` operation fails when performed on a shared subscription where
       * multiple consumers are currently connected.
       */
-    def withUnsubscribeMode(_mode: UnsubscribeMode): Options[F, E]
+    def withManualUnsubscribe: Options[F, E]
 
     /**
-     * Automatically `ack` incoming messages
-     */
-    def withAutoAck(_autoAck: Boolean): Options[F, E]
+      * Automatically `ack` incoming messages
+      */
+    def withAutoAck: Options[F, E]
   }
 
   /**
@@ -226,13 +228,11 @@ object Consumer {
       override def withLogger(_logger: E => (Topic.URL => F[Unit])): Options[F, E] =
         copy(logger = _logger)
 
-      override def withUnsubscribeMode(
-          _unsubscribeMode: UnsubscribeMode
-      ): Options[F, E] =
-        copy(unsubscribeMode = _unsubscribeMode)
+      override def withManualUnsubscribe: Options[F, E] =
+        copy(unsubscribeMode = UnsubscribeMode.Manual)
 
-      override def withAutoAck(_autoAck: Boolean): Options[F, E] =
-        copy(autoAck = _autoAck)
+      override def withAutoAck: Options[F, E] =
+        copy(autoAck = true)
     }
 
     def apply[F[_]: Applicative, E](): Options[F, E] = OptionsImpl[F, E](
