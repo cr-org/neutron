@@ -72,14 +72,9 @@ object Consumer {
           .subscribeAsync
       }.futureLift
 
-    def release(c: JConsumer[Array[Byte]]) =
-      F.delay(c.unsubscribeAsync())
-        .futureLift
-        .attempt
-        .whenA(opts.manualUnsubscribe)
-        .as(c.closeAsync())
-        .futureLift
-        .void
+    def release(c: JConsumer[Array[Byte]]): F[Unit] =
+      F.delay(c.unsubscribeAsync()).futureLift.attempt.whenA(opts.manualUnsubscribe) >>
+          F.delay(c.closeAsync()).futureLift.void
 
     Resource
       .make(acquire)(release)
