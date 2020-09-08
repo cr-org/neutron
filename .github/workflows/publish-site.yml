@@ -12,7 +12,7 @@ jobs:
         with:
           fetch-depth: 0 # fetch all branches & tags
       - name: "Install Nix ❄️"
-      - uses: "cachix/install-nix-action@v10"
+        uses: "cachix/install-nix-action@v10"
         with:
           skip_adding_nixpkgs_channel: true
       - name: "Install SSH 🔑 for GH pages"
