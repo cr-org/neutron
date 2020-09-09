@@ -50,6 +50,12 @@ object Config {
       copy(serviceUrl = _serviceUrl)
   }
 
+  def apply(
+      tenant: PulsarTenant,
+      namespace: PulsarNamespace,
+      serviceUrl: PulsarURL
+  ): Config = ConfigImpl(tenant, namespace, serviceUrl)
+
   /**
     * It creates a default configuration.
     *
