@@ -48,7 +48,7 @@ trait Consumer[F[_], E] {
   def subscribe: Stream[F, Consumer.Message[E]]
 
   /**
-    * Use together with `autoAck`.
+    * Auto-ack subscription that consumes the message payload directly.
     */
   def autoSubscribe: Stream[F, E]
 
@@ -99,12 +99,7 @@ object Consumer {
       .make(acquire)(release)
       .map { c =>
         new Consumer[F, E] {
-          override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
-          override def nack(id: MessageId): F[Unit] = F.delay(c.negativeAcknowledge(id))
-          override def unsubscribe: F[Unit] =
-            F.delay(c.unsubscribeAsync()).futureLift.void
-          override def autoSubscribe: Stream[F, E] = subscribe.map(_.payload)
-          override def subscribe: Stream[F, Message[E]] =
+          private def subscribeInternal(autoAck: Boolean): Stream[F, Message[E]] =
             Stream.repeatEval(
               F.delay(c.receiveAsync()).futureLift.flatMap { m =>
                 val data = m.getData()
@@ -113,7 +108,7 @@ object Consumer {
                   case Some(e) =>
                     opts.logger(e)(Topic.URL(m.getTopicName)) >>
                         ack(m.getMessageId)
-                          .whenA(opts.autoAck)
+                          .whenA(autoAck)
                           .as(Message(m.getMessageId, e))
                   case None =>
                     nack(m.getMessageId).whenA(opts.autoNackOnFailure) >>
@@ -121,6 +116,15 @@ object Consumer {
                 }
               }
             )
+
+          override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
+          override def nack(id: MessageId): F[Unit] = F.delay(c.negativeAcknowledge(id))
+          override def unsubscribe: F[Unit] =
+            F.delay(c.unsubscribeAsync()).futureLift.void
+          override def subscribe: Stream[F, Message[E]] =
+            subscribeInternal(opts.autoAck)
+          override def autoSubscribe: Stream[F, E] =
+            subscribeInternal(autoAck = true).map(_.payload)
         }
       }
   }
