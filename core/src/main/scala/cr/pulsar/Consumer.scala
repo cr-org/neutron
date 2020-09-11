@@ -96,7 +96,8 @@ object Consumer {
                           .whenA(opts.autoAck)
                           .as(Message(m.getMessageId, e))
                   case None =>
-                    DecodingFailure(data).raiseError[F, Message[E]]
+                    nack(m.getMessageId).whenA(opts.autoNackOnFailure) >>
+                        DecodingFailure(data).raiseError[F, Message[E]]
                 }
               }
             )
@@ -175,6 +176,7 @@ object Consumer {
     val logger: E => Topic.URL => F[Unit]
     val manualUnsubscribe: Boolean
     val autoAck: Boolean
+    val autoNackOnFailure: Boolean
 
     /**
       * The Subscription Initial Position. `Latest` by default.
@@ -199,6 +201,13 @@ object Consumer {
       * Automatically `ack` incoming messages
       */
     def withAutoAck: Options[F, E]
+
+    /**
+      * Automatically `nack` when a message fails to be decoded, then raise a `DecodingFailure` error.
+      *
+      * By default, a `DecodingFailure` will be raised without `nack`ing.
+      */
+    def withAutoNackOnFailure: Options[F, E]
   }
 
   /**
@@ -209,7 +218,8 @@ object Consumer {
         initial: SubscriptionInitialPosition,
         logger: E => Topic.URL => F[Unit],
         manualUnsubscribe: Boolean,
-        autoAck: Boolean
+        autoAck: Boolean,
+        autoNackOnFailure: Boolean
     ) extends Options[F, E] {
       override def withInitialPosition(
           _initial: SubscriptionInitialPosition
@@ -224,13 +234,17 @@ object Consumer {
 
       override def withAutoAck: Options[F, E] =
         copy(autoAck = true)
+
+      override def withAutoNackOnFailure: Options[F, E] =
+        copy(autoNackOnFailure = true)
     }
 
     def apply[F[_]: Applicative, E](): Options[F, E] = OptionsImpl[F, E](
       SubscriptionInitialPosition.Latest,
       _ => _ => F.unit,
       manualUnsubscribe = false,
-      autoAck = false
+      autoAck = false,
+      autoNackOnFailure = false
     )
   }
 
