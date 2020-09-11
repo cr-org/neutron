@@ -66,9 +66,11 @@ class PulsarSpec extends PulsarSuite {
     }
 
     test("A message is published and nack'ed when consumer fails to decode it") {
+      val opts = Consumer.Options[IO, Event]().withAutoAck
+
       val res: Resource[IO, (Consumer[IO, Event], Producer[IO, String])] =
         for {
-          consumer <- Consumer.create[IO, Event](client, topic("auto-nack"), sub("auto-nack"))
+          consumer <- Consumer.withOptions(client, topic("auto-nack"), sub("auto-nack"), opts)
           producer <- Producer.create[IO, String](client, topic("auto-nack"))
         } yield consumer -> producer
 
@@ -78,8 +80,7 @@ class PulsarSpec extends PulsarSuite {
           .flatMap {
             case (consumer, producer) =>
               val consume =
-                consumer.subscribe
-                  .evalMap(msg => consumer.ack(msg.id))
+                consumer.autoSubscribe
                   .handleErrorWith {
                     case Consumer.DecodingFailure(data) => Stream.eval(latch.complete(data))
                   }

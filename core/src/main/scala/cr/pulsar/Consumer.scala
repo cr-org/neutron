@@ -29,9 +29,28 @@ import org.apache.pulsar.client.api.{
 import scala.util.control.NoStackTrace
 
 trait Consumer[F[_], E] {
+
+  /**
+    * Acknowledge for a single message.
+    */
   def ack(id: MessageId): F[Unit]
+
+  /**
+    * Negative acknowledge for a single message.
+    */
   def nack(id: MessageId): F[Unit]
+
+  /**
+    * It consumes [[Consumer.Message]]s, which contain the ID and the PAYLOAD.
+    *
+    * If you don't need manual [[ack]]ing, consider using [[autoSubscribe]] instead.
+    */
   def subscribe: Stream[F, Consumer.Message[E]]
+
+  /**
+    * Use together with `autoAck`.
+    */
+  def autoSubscribe: Stream[F, E]
 
   /**
     * This operation fails when performed on a shared subscription where multiple
@@ -84,6 +103,7 @@ object Consumer {
           override def nack(id: MessageId): F[Unit] = F.delay(c.negativeAcknowledge(id))
           override def unsubscribe: F[Unit] =
             F.delay(c.unsubscribeAsync()).futureLift.void
+          override def autoSubscribe: Stream[F, E] = subscribe.map(_.payload)
           override def subscribe: Stream[F, Message[E]] =
             Stream.repeatEval(
               F.delay(c.receiveAsync()).futureLift.flatMap { m =>
