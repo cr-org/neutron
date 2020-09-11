@@ -78,8 +78,7 @@ class PulsarSpec extends PulsarSuite {
           .flatMap {
             case (consumer, producer) =>
               val consume =
-                consumer.subscribe
-                  .evalMap(msg => consumer.ack(msg.id))
+                consumer.autoSubscribe
                   .handleErrorWith {
                     case Consumer.DecodingFailure(data) => Stream.eval(latch.complete(data))
                   }
