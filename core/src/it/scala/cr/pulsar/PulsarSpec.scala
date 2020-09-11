@@ -20,13 +20,14 @@ import cats.effect._
 import cats.effect.concurrent.{ Deferred, Ref }
 import cats.implicits._
 import cr.pulsar.Producer.MessageKey
+import cr.pulsar.schema.utf8._
 import fs2.Stream
 import java.util.UUID
 
 class PulsarSpec extends PulsarSuite {
 
-  val sub   = Subscription(Subscription.Name("test")).withType(Subscription.Type.Failover)
-  val topic = Topic(Topic.Name("test"), cfg)
+  val sub   = (s: String) => Subscription(Subscription.Name(s)).withType(Subscription.Type.Failover)
+  val topic = (s: String) => Topic(Topic.Name(s), cfg)
   val batch = Producer.Batching.Disabled
   val shard = (_: Event) => Producer.MessageKey.Default
 
@@ -34,8 +35,8 @@ class PulsarSpec extends PulsarSuite {
     test("A message is published and consumed successfully") {
       val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event])] =
         for {
-          consumer <- Consumer.create[IO, Event](client, topic, sub)
-          producer <- Producer.create[IO, Event](client, topic)
+          consumer <- Consumer.create[IO, Event](client, topic("happy-path"), sub("happy-path"))
+          producer <- Producer.create[IO, Event](client, topic("happy-path"))
         } yield consumer -> producer
 
       Deferred[IO, Event].flatMap { latch =>
@@ -64,6 +65,42 @@ class PulsarSpec extends PulsarSuite {
       }
     }
 
+    test("A message is published and nack'ed when consumer fails to decode it") {
+      val res: Resource[IO, (Consumer[IO, Event], Producer[IO, String])] =
+        for {
+          consumer <- Consumer.create[IO, Event](client, topic("auto-nack"), sub("auto-nack"))
+          producer <- Producer.create[IO, String](client, topic("auto-nack"))
+        } yield consumer -> producer
+
+      Deferred[IO, Array[Byte]].flatMap { latch =>
+        Stream
+          .resource(res)
+          .flatMap {
+            case (consumer, producer) =>
+              val consume =
+                consumer.subscribe
+                  .evalMap(msg => consumer.ack(msg.id))
+                  .handleErrorWith {
+                    case Consumer.DecodingFailure(data) => Stream.eval(latch.complete(data))
+                  }
+
+              val testMessage = "Consumer will fail to decode this message"
+
+              val produce =
+                Stream(testMessage)
+                  .covary[IO]
+                  .evalMap(producer.send)
+                  .evalMap(_ => latch.get)
+
+              produce.concurrently(consume).evalMap { msg =>
+                IO(assert(stringBytesInject.prj(msg).contains(testMessage)))
+              }
+          }
+          .compile
+          .drain
+      }
+    }
+
     test(
       "A message with key is published and consumed successfully by the right consumer"
     ) {
@@ -79,9 +116,9 @@ class PulsarSpec extends PulsarSuite {
         (Consumer[IO, Event], Consumer[IO, Event], Producer[IO, Event])
       ] =
         for {
-          c1 <- Consumer.create[IO, Event](client, topic, makeSub("s1"))
-          c2 <- Consumer.create[IO, Event](client, topic, makeSub("s2"))
-          producer <- Producer.withOptions(client, topic, opts)
+          c1 <- Consumer.create[IO, Event](client, topic("shared"), makeSub("s1"))
+          c2 <- Consumer.create[IO, Event](client, topic("shared"), makeSub("s2"))
+          producer <- Producer.withOptions(client, topic("shared"), opts)
         } yield (c1, c2, producer)
 
       (Ref.of[IO, List[Event]](List.empty), Ref.of[IO, List[Event]](List.empty)).tupled
