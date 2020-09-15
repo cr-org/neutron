@@ -92,7 +92,7 @@ object Consumer {
       }.futureLift
 
     def release(c: JConsumer[Array[Byte]]): F[Unit] =
-      F.delay(c.unsubscribeAsync()).futureLift.attempt.whenA(opts.manualUnsubscribe) >>
+      F.delay(c.unsubscribeAsync()).futureLift.attempt.unlessA(opts.manualUnsubscribe) >>
           F.delay(c.closeAsync()).futureLift.void
 
     Resource
