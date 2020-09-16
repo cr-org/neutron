@@ -28,13 +28,13 @@ class PulsarSpec extends PulsarSuite {
 
   val sub = (s: String) =>
     Subscription.Builder
-      .withName(Subscription.Name(s))
+      .withName(s)
       .withType(Subscription.Type.Failover)
       .build
 
   val topic = (s: String) =>
     Topic.Builder
-      .withName(Topic.Name(s))
+      .withName(s)
       .withConfig(cfg)
       .build
 
@@ -119,7 +119,7 @@ class PulsarSpec extends PulsarSuite {
       val makeSub =
         (n: String) =>
           Subscription.Builder
-            .withName(Subscription.Name(n))
+            .withName(n)
             .withType(Subscription.Type.KeyShared)
             .build
 

@@ -28,14 +28,14 @@ object Demo extends IOApp {
 
   val topic  =
     Topic.Builder
-      .withName(Topic.Name("my-topic"))
+      .withName("my-topic")
       .withConfig(config)
       .withType(Topic.Type.NonPersistent)
       .build
 
   val subs =
     Subscription.Builder
-      .withName(Subscription.Name("my-sub"))
+      .withName("my-sub")
       .withType(Subscription.Type.Shared)
       .build
 
