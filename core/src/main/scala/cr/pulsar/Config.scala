@@ -18,6 +18,7 @@ package cr.pulsar
 
 import Config._
 import io.estatico.newtype.macros._
+import scala.annotation.implicitNotFound
 
 /**
   * Basic Pulsar configuration to establish
@@ -26,10 +27,7 @@ import io.estatico.newtype.macros._
 sealed abstract class Config {
   val tenant: PulsarTenant
   val namespace: PulsarNamespace
-  val serviceUrl: PulsarURL
-  def withTenant(_tenant: PulsarTenant): Config
-  def withNamespace(_namespace: PulsarNamespace): Config
-  def withURL(_url: PulsarURL): Config
+  val url: PulsarURL
 }
 
 object Config {
@@ -37,36 +35,61 @@ object Config {
   @newtype case class PulsarNamespace(value: String)
   @newtype case class PulsarURL(value: String)
 
-  private case class ConfigImpl(
-      tenant: PulsarTenant,
-      namespace: PulsarNamespace,
-      serviceUrl: PulsarURL
-  ) extends Config {
-    def withTenant(_tenant: PulsarTenant): Config =
-      copy(tenant = _tenant)
-    def withNamespace(_namespace: PulsarNamespace): Config =
-      copy(namespace = _namespace)
-    def withURL(_serviceUrl: PulsarURL): Config =
-      copy(serviceUrl = _serviceUrl)
+  /**************** Type-level builder ******************/
+  sealed trait Info
+  object Info {
+    sealed trait Empty extends Info
+    sealed trait Namespace extends Info
+    sealed trait Tenant extends Info
+    sealed trait URL extends Info
+
+    type Mandatory = Empty with Namespace with Tenant with URL
   }
 
-  def apply(
-      tenant: PulsarTenant,
-      namespace: PulsarNamespace,
-      serviceUrl: PulsarURL
-  ): Config = ConfigImpl(tenant, namespace, serviceUrl)
+  case class ConfigBuilder[I <: Info] protected (
+      _tenant: PulsarTenant = PulsarTenant(""),
+      _namespace: PulsarNamespace = PulsarNamespace(""),
+      _url: PulsarURL = PulsarURL("")
+  ) {
+    def withTenant(tenant: PulsarTenant): ConfigBuilder[I with Info.Tenant] =
+      this.copy(_tenant = tenant)
 
-  /**
-    * It creates a default configuration.
-    *
-    * - tenant: "public"
-    * - namespace: "default"
-    * - url: "pulsar://localhost:6650"
-    */
-  def Default: Config =
-    ConfigImpl(
-      PulsarTenant("public"),
-      PulsarNamespace("default"),
-      PulsarURL("pulsar://localhost:6650")
-    )
+    def withNameSpace(namespace: PulsarNamespace): ConfigBuilder[I with Info.Namespace] =
+      this.copy(_namespace = namespace)
+
+    def withURL(url: PulsarURL): ConfigBuilder[I with Info.URL] =
+      this.copy(_url = url)
+
+    /**
+      * It creates a new configuration.
+      */
+    def build(
+        implicit @implicitNotFound(
+          "Tenant, Namespace and URL are mandatory. To create a default configuration, use Config.Builder.default instead."
+        ) ev: I =:= Info.Mandatory
+    ): Config =
+      new Config {
+        val tenant    = _tenant
+        val namespace = _namespace
+        val url       = _url
+      }
+
+    /**
+      * It creates a new configuration with the following default values:
+      *
+      * - tenant: "public"
+      * - namespace: "default"
+      * - url: "pulsar://localhost:6650"
+      */
+    def default: Config =
+      Config.Builder
+        .withTenant(PulsarTenant("public"))
+        .withNameSpace(PulsarNamespace("default"))
+        .withURL(PulsarURL("pulsar://localhost:6650"))
+        .build
+
+  }
+
+  object Builder extends ConfigBuilder[Info.Empty]()
+
 }

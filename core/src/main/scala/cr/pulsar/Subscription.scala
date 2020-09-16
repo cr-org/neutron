@@ -18,14 +18,12 @@ package cr.pulsar
 
 import io.estatico.newtype.macros.newtype
 import org.apache.pulsar.client.api.{ SubscriptionMode, SubscriptionType }
+import scala.annotation.implicitNotFound
 
-// Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
 sealed abstract class Subscription {
   val name: Subscription.Name
   val `type`: Subscription.Type
   val mode: Subscription.Mode
-  def withType(_type: Subscription.Type): Subscription
-  def withMode(_mode: Subscription.Mode): Subscription
 }
 
 /**
@@ -73,25 +71,50 @@ object Subscription {
     }
   }
 
-  private case class SubscriptionImpl(
-      name: Subscription.Name,
-      `type`: Subscription.Type,
-      mode: Subscription.Mode
-  ) extends Subscription {
-    def withType(_type: Subscription.Type): Subscription =
-      copy(`type` = _type)
-    def withMode(_mode: Subscription.Mode): Subscription =
-      copy(mode = _mode)
+  /**************** Type-level builder ******************/
+  sealed trait Info
+  object Info {
+    sealed trait Empty extends Info
+    sealed trait Name extends Info
+    sealed trait Mode extends Info
+    sealed trait Type extends Info
+
+    type Mandatory = Empty with Name with Mode with Type
   }
 
-  /**
-    * It creates a subscription with default configuration.
-    *
-    * - type: Exclusive
-    * - mode: Durable
-    */
-  def apply(name: Name): Subscription =
-    // Same as Java's defaults: https://github.com/apache/pulsar/blob/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/conf/ConsumerConfigurationData.java#L62
-    SubscriptionImpl(Name(s"${name.value}-subscription"), Type.Exclusive, Mode.Durable)
+  case class SubscriptionBuilder[I <: Info] protected (
+      _name: Name = Name(""),
+      _type: Type = Type.Exclusive,
+      _mode: Mode = Mode.Durable
+  ) {
+    def withName(name: Name): SubscriptionBuilder[I with Info.Name] =
+      this.copy(_name = Name(s"${name.value}-subscription"))
+
+    def withMode(mode: Mode): SubscriptionBuilder[I with Info.Mode] =
+      this.copy(_mode = mode)
+
+    def withType(typ: Type): SubscriptionBuilder[I with Info.Type] =
+      this.copy(_type = typ)
+
+    /**
+      * It creates a subscription with default configuration.
+      *
+      * - type: Exclusive
+      * - mode: Durable
+      */
+    def build(
+        implicit @implicitNotFound(
+          "Subscription.Name is mandatory. By default Type=Exclusive and Mode=Durable."
+        ) ev: I =:= Info.Mandatory
+    ): Subscription =
+      new Subscription {
+        val name   = _name
+        val `type` = _type
+        val mode   = _mode
+      }
+
+  }
+
+  object Builder extends SubscriptionBuilder[Info.Empty with Info.Type with Info.Mode]()
 
 }

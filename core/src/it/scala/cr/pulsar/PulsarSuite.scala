@@ -41,8 +41,7 @@ abstract class PulsarSuite extends FunSuite {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val (cli, release) =
-      Pulsar.create[IO](cfg.serviceUrl).allocated.unsafeRunSync()
+    val (cli, release) = Pulsar.create[IO](cfg.url).allocated.unsafeRunSync()
     this.client = cli
     this.close = release
     latch.complete(()).unsafeRunSync()
@@ -80,6 +79,6 @@ abstract class PulsarSuite extends FunSuite {
       }
   }
 
-  lazy val cfg = Config.Default
+  lazy val cfg = Config.Builder.default
 
 }

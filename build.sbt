@@ -1,6 +1,8 @@
 import Dependencies._
 import Settings._
 
+scalaVersion in ThisBuild := "2.13.2"
+
 lazy val `neutron-core` = (project in file("core"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
