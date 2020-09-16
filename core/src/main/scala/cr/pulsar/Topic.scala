@@ -17,14 +17,14 @@
 package cr.pulsar
 
 import cats.Show.show
+import cats.syntax.all._
 import io.estatico.newtype.macros.newtype
+import scala.annotation.implicitNotFound
 import scala.util.matching.Regex
 
-// Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
 sealed abstract class Topic {
   val name: Topic.Name
   val url: Topic.URL
-  def withType(_type: Topic.Type): Topic
 }
 
 /**
@@ -37,7 +37,6 @@ sealed abstract class Topic {
   * Find out more at [[https://pulsar.apache.org/docs/en/concepts-messaging/#topics]]
   */
 object Topic {
-  import cats.syntax.all._
 
   @newtype case class Name(value: String)
   @newtype case class NamePattern(value: Regex)
@@ -56,28 +55,8 @@ object Topic {
   private def buildUrl(cfg: Config, name: Name, `type`: Type): URL =
     URL(s"${`type`.show}://${cfg.tenant.value}/${cfg.namespace.value}/${name.value}")
 
-  private case class TopicImpl(
-      name: Name,
-      url: URL,
-      cfg: Config
-  ) extends Topic {
-    def withType(_type: Type): Topic =
-      copy(url = buildUrl(cfg, name, _type))
-  }
-
-  /**
-    * It creates a topic with default configuration.
-    *
-    * - type: Persistent
-    */
-  def apply(name: Name, cfg: Config): Topic =
-    TopicImpl(name, buildUrl(cfg, name, Type.Persistent), cfg)
-
-  // ------- Pattern topic -------
-
   sealed abstract class Pattern {
     val url: URL
-    def withType(_type: Type): Pattern
   }
 
   private def buildRegexUrl(cfg: Config, namePattern: NamePattern, `type`: Type): URL =
@@ -85,21 +64,64 @@ object Topic {
       s"${`type`.show}://${cfg.tenant.value}/${cfg.namespace.value}/${namePattern.value.regex}"
     )
 
-  private case class PatternImpl(
-      namePattern: NamePattern,
-      url: URL,
-      cfg: Config
-  ) extends Pattern {
-    def withType(_type: Type): Pattern =
-      copy(url = buildRegexUrl(cfg, namePattern, _type))
+  /**************** Type-level builder ******************/
+  sealed trait Info
+  object Info {
+    sealed trait Empty extends Info
+    sealed trait Config extends Info
+    sealed trait Name extends Info
+    sealed trait Pattern extends Info
+    sealed trait Type extends Info
+
+    type Mandatory        = Empty with Config with Name with Type
+    type PatternMandatory = Empty with Config with Pattern with Type
   }
 
-  /**
-    * It creates a topic for a regex pattern with default configuration.
-    *
-    * - type: Persistent
-    */
-  def pattern(namePattern: NamePattern, cfg: Config): Topic.Pattern =
-    PatternImpl(namePattern, buildRegexUrl(cfg, namePattern, Type.Persistent), cfg)
+  case class TopicBuilder[I <: Info] protected (
+      _name: Name = Name(""),
+      _pattern: NamePattern = NamePattern("".r),
+      _config: Config = Config.Builder.default,
+      _type: Type = Type.Persistent
+  ) {
+    def withName(name: Name): TopicBuilder[I with Info.Name] =
+      this.copy(_name = name)
+
+    def withNamePattern(pattern: NamePattern): TopicBuilder[I with Info.Pattern] =
+      this.copy(_pattern = pattern)
+
+    def withConfig(config: Config): TopicBuilder[I with Info.Config] =
+      this.copy(_config = config)
+
+    def withType(typ: Type): TopicBuilder[I with Info.Type] =
+      this.copy(_type = typ)
+
+    /**
+      * It creates a topic. By default, Type=Persistent.
+      */
+    def build(
+        implicit @implicitNotFound(
+          "Topic.Name and Config are mandatory. By default Type=Persistent."
+        ) ev: I =:= Info.Mandatory
+    ): Topic =
+      new Topic {
+        val name = _name
+        val url  = buildUrl(_config, _name, _type)
+      }
+
+    /**
+      * It creates a topic for a regex pattern. By default, Type=Persistent.
+      */
+    def buildPattern(
+        implicit @implicitNotFound(
+          "Topic.NamePattern and Config are mandatory. By default Type=Persistent."
+        ) ev: I =:= Info.PatternMandatory
+    ): Topic.Pattern =
+      new Topic.Pattern {
+        val url = buildRegexUrl(_config, _pattern, _type)
+      }
+
+  }
+
+  object Builder extends TopicBuilder[Info.Empty with Info.Type]()
 
 }

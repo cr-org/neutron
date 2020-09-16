@@ -24,13 +24,24 @@ import scala.concurrent.duration._
 
 object Demo extends IOApp {
 
-  val config = Config.Default
-  val topic  = Topic(Topic.Name("my-topic"), config).withType(Topic.Type.NonPersistent)
-  val subs   = Subscription(Subscription.Name("my-sub")).withType(Subscription.Type.Shared)
+  val config = Config.Builder.default
+
+  val topic  =
+    Topic.Builder
+      .withName(Topic.Name("my-topic"))
+      .withConfig(config)
+      .withType(Topic.Type.NonPersistent)
+      .build
+
+  val subs =
+    Subscription.Builder
+      .withName(Subscription.Name("my-sub"))
+      .withType(Subscription.Type.Shared)
+      .build
 
   val resources: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
     for {
-      pulsar   <- Pulsar.create[IO](config.serviceUrl)
+      pulsar   <- Pulsar.create[IO](config.url)
       consumer <- Consumer.create[IO, String](pulsar, topic, subs)
       producer <- Producer.create[IO, String](pulsar, topic)
     } yield (consumer, producer)

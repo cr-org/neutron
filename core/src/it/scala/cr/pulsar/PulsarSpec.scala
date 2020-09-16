@@ -26,8 +26,18 @@ import java.util.UUID
 
 class PulsarSpec extends PulsarSuite {
 
-  val sub   = (s: String) => Subscription(Subscription.Name(s)).withType(Subscription.Type.Failover)
-  val topic = (s: String) => Topic(Topic.Name(s), cfg)
+  val sub = (s: String) =>
+    Subscription.Builder
+      .withName(Subscription.Name(s))
+      .withType(Subscription.Type.Failover)
+      .build
+
+  val topic = (s: String) =>
+    Topic.Builder
+      .withName(Topic.Name(s))
+      .withConfig(cfg)
+      .build
+
   val batch = Producer.Batching.Disabled
   val shard = (_: Event) => Producer.MessageKey.Default
 
@@ -35,7 +45,8 @@ class PulsarSpec extends PulsarSuite {
     test("A message is published and consumed successfully") {
       val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event])] =
         for {
-          consumer <- Consumer.create[IO, Event](client, topic("happy-path"), sub("happy-path"))
+          consumer <- Consumer
+                       .create[IO, Event](client, topic("happy-path"), sub("happy-path"))
           producer <- Producer.create[IO, Event](client, topic("happy-path"))
         } yield consumer -> producer
 
@@ -68,7 +79,8 @@ class PulsarSpec extends PulsarSuite {
     test("A message is published and nack'ed when consumer fails to decode it") {
       val res: Resource[IO, (Consumer[IO, Event], Producer[IO, String])] =
         for {
-          consumer <- Consumer.create[IO, Event](client, topic("auto-nack"), sub("auto-nack"))
+          consumer <- Consumer
+                       .create[IO, Event](client, topic("auto-nack"), sub("auto-nack"))
           producer <- Producer.create[IO, String](client, topic("auto-nack"))
         } yield consumer -> producer
 
@@ -80,7 +92,8 @@ class PulsarSpec extends PulsarSuite {
               val consume =
                 consumer.autoSubscribe
                   .handleErrorWith {
-                    case Consumer.DecodingFailure(data) => Stream.eval(latch.complete(data))
+                    case Consumer.DecodingFailure(data) =>
+                      Stream.eval(latch.complete(data))
                   }
 
               val testMessage = "Consumer will fail to decode this message"
@@ -105,7 +118,10 @@ class PulsarSpec extends PulsarSuite {
     ) {
       val makeSub =
         (n: String) =>
-          Subscription(Subscription.Name(n)).withType(Subscription.Type.KeyShared)
+          Subscription.Builder
+            .withName(Subscription.Name(n))
+            .withType(Subscription.Type.KeyShared)
+            .build
 
       val opts =
         Producer.Options[IO, Event]().withShardKey(_.shardKey).withBatching(batch)
