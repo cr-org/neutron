@@ -16,7 +16,7 @@
 
 package cr.pulsar
 
-import cats.Show.show
+import cats.Show
 import cats.syntax.all._
 import io.estatico.newtype.macros.newtype
 import scala.annotation.implicitNotFound
@@ -38,6 +38,9 @@ sealed abstract class Topic {
   */
 object Topic {
 
+  implicit val showTopic: Show[Topic] =
+    Show[String].contramap(_.url.value)
+
   @newtype case class Name(value: String)
   @newtype case class NamePattern(value: Regex)
   @newtype case class URL(value: String)
@@ -46,7 +49,7 @@ object Topic {
   object Type {
     case object Persistent extends Type
     case object NonPersistent extends Type
-    implicit val showInstance = show[Type] {
+    implicit val showType = Show.show[Type] {
       case Persistent    => "persistent"
       case NonPersistent => "non-persistent"
     }
@@ -86,8 +89,14 @@ object Topic {
     def withName(name: Name): TopicBuilder[I with Info.Name] =
       this.copy(_name = name)
 
+    def withName(name: String): TopicBuilder[I with Info.Name] =
+      withName(Name(name))
+
     def withNamePattern(pattern: NamePattern): TopicBuilder[I with Info.Pattern] =
       this.copy(_pattern = pattern)
+
+    def withNamePattern(regex: Regex): TopicBuilder[I with Info.Pattern] =
+      withNamePattern(NamePattern(regex))
 
     def withConfig(config: Config): TopicBuilder[I with Info.Config] =
       this.copy(_config = config)

@@ -90,6 +90,9 @@ object Subscription {
     def withName(name: Name): SubscriptionBuilder[I with Info.Name] =
       this.copy(_name = Name(s"${name.value}-subscription"))
 
+    def withName(name: String): SubscriptionBuilder[I with Info.Name] =
+      withName(Name(name))
+
     def withMode(mode: Mode): SubscriptionBuilder[I with Info.Mode] =
       this.copy(_mode = mode)
 
