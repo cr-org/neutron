@@ -17,11 +17,6 @@ jobs:
           fetch-depth: 0 # fetch all branches & tags
 
       - uses: "olafurpg/setup-gpg@v2"
-      - env:
-          PGP_PASSPHRASE: "${{ secrets.PGP_PASSPHRASE }}"
-          PGP_SECRET: "${{ secrets.PGP_SECRET }}"
-          SONATYPE_PASSWORD: "${{ secrets.SONATYPE_PASSWORD }}"
-          SONATYPE_USERNAME: "${{ secrets.SONATYPE_USERNAME }}"
 
       - name: "Install Nix ❄️"
         uses: "cachix/install-nix-action@v10"
@@ -29,4 +24,9 @@ jobs:
           skip_adding_nixpkgs_channel: true
 
       - name: "Publish ${{ github.ref }} 🚀"
+        env:
+          PGP_PASSPHRASE: "${{ secrets.PGP_PASSPHRASE }}"
+          PGP_SECRET: "${{ secrets.PGP_SECRET }}"
+          SONATYPE_PASSWORD: "${{ secrets.SONATYPE_PASSWORD }}"
+          SONATYPE_USERNAME: "${{ secrets.SONATYPE_USERNAME }}"
         run: nix-shell --run "sbt ci-release"
