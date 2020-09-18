@@ -9,7 +9,12 @@ let
 
   config = {
     packageOverrides = p: {
-      sbt = p.sbt.override { jre = p.${java}; };
+      sbt = p.sbt.overrideAttrs (
+        old: {
+          version = "1.3.13";
+          jre     = p.${java};
+        }
+      );
     };
   };
 
