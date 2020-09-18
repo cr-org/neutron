@@ -1,4 +1,5 @@
 name: Scala
+
 on:
   pull_request: {}
   push:
