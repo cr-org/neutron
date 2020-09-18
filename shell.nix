@@ -16,5 +16,9 @@ let
   pkgs = import nixpkgs { inherit config; };
 in
   pkgs.mkShell {
-    buildInputs = [ pkgs.${java} pkgs.sbt ];
+    buildInputs = [
+      pkgs.gnupg
+      pkgs.${java}
+      pkgs.sbt
+    ];
   }

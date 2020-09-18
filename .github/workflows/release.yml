@@ -16,8 +16,6 @@ jobs:
         with:
           fetch-depth: 0 # fetch all branches & tags
 
-      - uses: "olafurpg/setup-gpg@v2"
-
       - name: "Install Nix ❄️"
         uses: "cachix/install-nix-action@v10"
         with:
