@@ -1,4 +1,4 @@
-{ jdk ? "11" }:
+{ java ? "jdk11" }:
 
 let
   nixpkgs = fetchTarball {
@@ -7,19 +7,14 @@ let
     sha256 = "04x750byjr397d3mfwkl09b2cz7z71fcykhvn8ypxrck8w7kdi1h";
   };
 
-  matrix = p:
-    if jdk == "14" then p.jdk14
-    else if jdk == "11" then p.jdk11
-    else p.jdk8;
-
   config = {
     packageOverrides = p: {
-      sbt = p.sbt.override { jre = matrix p; };
+      sbt = p.sbt.override { jre = p.${java}; };
     };
   };
 
   pkgs = import nixpkgs { inherit config; };
 in
   pkgs.mkShell {
-    buildInputs = [ (matrix pkgs) pkgs.sbt ];
+    buildInputs = [ pkgs.${java} pkgs.sbt ];
   }

@@ -38,13 +38,13 @@ jobs:
           skip_adding_nixpkgs_channel: true
 
       - name: "Run with JDK8 🚀"
-        run: nix-shell --argstr jdk 8 --run "sbt ++ 'test;makeSite;it:test'"
+        run: nix-shell --argstr java jdk8 --run "sbt ++ 'test;makeSite;it:test'"
 
       - name: "Run with JDK11 🚀"
-        run: nix-shell --argstr jdk 11 --run "sbt ++ 'test;makeSite;it:test'"
+        run: nix-shell --argstr java jdk11 --run "sbt ++ 'test;makeSite;it:test'"
 
       - name: "Run with JDK14 🚀"
-        run: nix-shell --argstr jdk 14 --run "sbt ++ 'test;makeSite;it:test'"
+        run: nix-shell --argstr java jdk14 --run "sbt ++ 'test;makeSite;it:test'"
 
       - name: "Shutting down Pulsar 🐳"
         run: docker-compose down
