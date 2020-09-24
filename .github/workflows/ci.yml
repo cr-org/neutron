@@ -15,7 +15,7 @@ jobs:
       - name: "Starting up Pulsar 🐳"
         run: docker-compose up -d
 
-      - name: "SBT & Courser cache ♨️"
+      - name: "Cache for sbt & coursier ♨️"
         uses: gvolpe/sbt-coursier-cache@master
 
       - name: "Install Nix ❄️"
