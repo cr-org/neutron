@@ -37,7 +37,7 @@ jobs:
         uses: nixbuild/nix-quick-install-action@v2
 
       - name: "Starting up SBT server ♨️"
-        run: nix-shell --run sbt
+        run: nix-shell --run "sbt </dev/null &>/dev/null &"
 
       - name: "Run with JDK8 🚀"
         run: nix-shell --argstr java jdk8 --run "sbt --client ++ 'test;makeSite;it:test'"
