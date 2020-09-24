@@ -34,18 +34,22 @@ jobs:
           restore-keys: coursier
 
       - name: "Install Nix ❄️"
-        uses: "cachix/install-nix-action@v10"
-        with:
-          skip_adding_nixpkgs_channel: true
+        uses: nixbuild/nix-quick-install-action@v2
+
+      - name: "Starting up SBT server ♨️"
+        run: nix-shell --run sbt
 
       - name: "Run with JDK8 🚀"
-        run: nix-shell --argstr java jdk8 --run "sbt ++ 'test;makeSite;it:test'"
+        run: nix-shell --argstr java jdk8 --run "sbt --client ++ 'test;makeSite;it:test'"
 
       - name: "Run with JDK11 🚀"
-        run: nix-shell --argstr java jdk11 --run "sbt ++ 'test;makeSite;it:test'"
+        run: nix-shell --argstr java jdk11 --run "sbt --client ++ 'test;makeSite;it:test'"
 
       - name: "Run with JDK14 🚀"
-        run: nix-shell --argstr java jdk14 --run "sbt ++ 'test;makeSite;it:test'"
+        run: nix-shell --argstr java jdk14 --run "sbt --client ++ 'test;makeSite;it:test'"
+
+      - name: "Shutting down SBT server ♨️"
+        run: nix-shell --run "sbt --client shutdown"
 
       - name: "Shutting down Pulsar 🐳"
         run: docker-compose down
