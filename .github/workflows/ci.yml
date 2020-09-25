@@ -35,7 +35,7 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
 
       - name: "Run with ${{ matrix.java }} 🚀"
-        run: nix-shell --argstr java "${{ matrix.java }}" --run "sbt ++ 'test;makeSite;it:test'" ci.nix
+        run: nix-shell --argstr java "${{ matrix.java }}" --run "sbt ++ 'test;makeSite;it:test'" nix/ci.nix
 
       - name: "Shutting down Pulsar 🐳"
         run: docker-compose down
