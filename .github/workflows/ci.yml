@@ -29,13 +29,13 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
 
       - name: "Run with JDK8 🚀"
-        run: nix-shell --argstr java jdk8 --run "sbt ++ 'test;makeSite;it:test'"
+        run: nix-shell --argstr java jdk8 --run "sbt ++ 'test;makeSite;it:test'" ci.nix
 
       - name: "Run with JDK11 🚀"
-        run: nix-shell --argstr java jdk11 --run "sbt ++ 'test;makeSite;it:test'"
+        run: nix-shell --argstr java jdk11 --run "sbt ++ 'test;makeSite;it:test'" ci.nix
 
       - name: "Run with JDK14 🚀"
-        run: nix-shell --argstr java jdk14 --run "sbt ++ 'test;makeSite;it:test'"
+        run: nix-shell --argstr java jdk14 --run "sbt ++ 'test;makeSite;it:test'" ci.nix
 
       - name: "Shutting down Pulsar 🐳"
         run: docker-compose down
