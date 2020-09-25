@@ -12,7 +12,10 @@ let
       sbt = p.sbt.overrideAttrs (
         old: {
           version = "1.3.13";
-          jre     = p.${java};
+          sbtJdk  = p.${java};
+          patchPhase = ''
+            echo -java-home ${sbtJdk} >> conf/sbtopts
+          '';
         }
       );
     };
