@@ -23,10 +23,10 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
 
       - name: "Build sbt derivation with JDK8 🚀"
-        run: nix-build --argstr java jdk8 | cachix push neutron
+        run: nix-build --argstr java jdk8 sbt.nix | cachix push neutron
 
       - name: "Build sbt derivation with JDK11 🚀"
-        run: nix-build --argstr java jdk11 | cachix push neutron
+        run: nix-build --argstr java jdk11 sbt.nix | cachix push neutron
 
       - name: "Build sbt derivation with JDK14 🚀"
-        run: nix-build --argstr java jdk14 | cachix push neutron
+        run: nix-build --argstr java jdk14 sbt.nix | cachix push neutron
