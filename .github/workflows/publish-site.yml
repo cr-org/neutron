@@ -32,4 +32,4 @@ jobs:
       - run: git config --global user.name "neutron-site-bot"
 
       - name: "Build microsite 🚧"
-        run: "nix-shell --run \"sbt ghpagesPushSite\""
+        run: nix-shell --run "sbt ghpagesPushSite"
