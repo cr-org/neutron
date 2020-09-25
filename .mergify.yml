@@ -2,8 +2,7 @@ pull_request_rules:
   - name: automatically merge Scala Steward PRs on CI success
     conditions:
       - author=scala-steward
-      - "status-success=Build (8.0.242)"
-      - "status-success=Build (11.0.5)"
+      - status-success=Build
     actions:
       merge:
         method: merge
