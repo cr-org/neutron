@@ -17,9 +17,13 @@ jobs:
           fetch-depth: 0 # fetch all branches & tags
 
       - name: "Install Nix ❄️"
-        uses: "cachix/install-nix-action@v10"
+        uses: nixbuild/nix-quick-install-action@v2
+
+      - name: "Install Cachix ❄️"
+        uses: cachix/cachix-action@v6
         with:
-          skip_adding_nixpkgs_channel: true
+          name: neutron
+          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
 
       - name: "Publish ${{ github.ref }} 🚀"
         env:

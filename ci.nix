@@ -4,9 +4,5 @@ let
   pkgs = import ./pkgs.nix { inherit java; };
 in
   pkgs.mkShell {
-    buildInputs = [
-      pkgs.gnupg
-      pkgs.${java}
-      pkgs.sbt
-    ];
+    buildInputs = [ pkgs.sbt ];
   }
