@@ -3,8 +3,8 @@ name: sbt-nix-derivation
 on:
   pull_request:
     paths:
-      - "pkgs.nix"
-      - "sbt.nix"
+      - "nix/pkgs.nix"
+      - "nix/sbt.nix"
 
 jobs:
   build:
@@ -23,10 +23,10 @@ jobs:
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
 
       - name: "Build sbt derivation with JDK8 🚀"
-        run: nix-build --argstr java jdk8 sbt.nix | cachix push neutron
+        run: nix-build --argstr java jdk8 nix/sbt.nix | cachix push neutron
 
       - name: "Build sbt derivation with JDK11 🚀"
-        run: nix-build --argstr java jdk11 sbt.nix | cachix push neutron
+        run: nix-build --argstr java jdk11 nix/sbt.nix | cachix push neutron
 
       - name: "Build sbt derivation with JDK14 🚀"
-        run: nix-build --argstr java jdk14 sbt.nix | cachix push neutron
+        run: nix-build --argstr java jdk14 nix/sbt.nix | cachix push neutron
