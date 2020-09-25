@@ -22,6 +22,12 @@ jobs:
       - name: "Install Nix ❄️"
         uses: nixbuild/nix-quick-install-action@v2
 
+      - name: "Install Cachix ❄️"
+        uses: cachix/cachix-action@v6
+        with:
+          name: neutron
+          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+
       - name: "Run with JDK8 🚀"
         run: nix-shell --argstr java jdk8 --run "sbt ++ 'test;makeSite;it:test'"
 
