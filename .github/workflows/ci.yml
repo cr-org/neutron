@@ -16,7 +16,7 @@ jobs:
         run: docker-compose up -d
 
       - name: "Cache for sbt & coursier ♨️"
-        uses: gvolpe/sbt-coursier-cache@v1.0
+        uses: coursier/cache-action@v4
 
       - name: "Install Nix ❄️"
         uses: nixbuild/nix-quick-install-action@v2
