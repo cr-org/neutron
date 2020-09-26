@@ -1,4 +1,4 @@
-{ java ? "jdk11" }:
+{ java }:
 
 let
   nixpkgs = fetchTarball {
