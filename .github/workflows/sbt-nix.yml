@@ -1,7 +1,9 @@
 name: sbt-nix-derivation
 
 on:
-  pull_request:
+  push:
+    branches:
+      - master
     paths:
       - "nix/pkgs.nix"
       - "nix/sbt.nix"
@@ -10,6 +12,8 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-18.04
+    env:
+      - CACHIX_SIGNING_KEY: "${{ secrets.CACHIX_SIGNING_KEY }}"
     steps:
       - uses: actions/checkout@v2.3.2
 
