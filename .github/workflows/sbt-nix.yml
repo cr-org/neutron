@@ -14,6 +14,12 @@ jobs:
     runs-on: ubuntu-18.04
     env:
       - CACHIX_SIGNING_KEY: "${{ secrets.CACHIX_SIGNING_KEY }}"
+    strategy:
+      matrix:
+        java:
+          - jdk8
+          - jdk11
+          - jdk14
     steps:
       - uses: actions/checkout@v2.3.2
 
@@ -26,11 +32,5 @@ jobs:
           name: neutron
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
 
-      - name: "Build sbt derivation with JDK8 🚀"
-        run: nix-build --argstr java jdk8 nix/sbt.nix | cachix push neutron
-
-      - name: "Build sbt derivation with JDK11 🚀"
-        run: nix-build --argstr java jdk11 nix/sbt.nix | cachix push neutron
-
-      - name: "Build sbt derivation with JDK14 🚀"
-        run: nix-build --argstr java jdk14 nix/sbt.nix | cachix push neutron
+      - name: "Build sbt derivation with ${{ matrix.java }} 🚀"
+        run: nix-build --argstr java "${{ matrix.java }}" nix/sbt.nix | cachix push neutron
