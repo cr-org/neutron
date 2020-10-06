@@ -21,14 +21,13 @@ import java.{ lang, util }
 import java.util.Optional
 import java.util.concurrent.CompletableFuture
 
-import org.apache.pulsar.client.api.{ Schema, TypedMessageBuilder }
+import org.apache.pulsar.client.api.{ ConsumerBuilder, Schema, TypedMessageBuilder }
 import org.apache.pulsar.functions.api.{
-  Record => JavaRecord,
   Context => JavaContext,
+  Record => JavaRecord,
   WindowContext => JavaWindowContext
 }
 import org.slf4j.Logger
-
 import cr.pulsar.JavaConversions._
 
 object FunctionInput {
@@ -103,7 +102,8 @@ object FunctionInput {
     override def newOutputMessage[O](
         topicName: String,
         schema: Schema[O]
-    ): TypedMessageBuilder[O] = ???
+    ): TypedMessageBuilder[O]                                                 = ???
+    override def newConsumerBuilder[O](schema: Schema[O]): ConsumerBuilder[O] = ???
   }
 
   def input[A](seq: Seq[A]): util.Collection[JavaRecord[A]] = {
