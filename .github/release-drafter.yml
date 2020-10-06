@@ -8,6 +8,6 @@ categories:
   - title: '🤖 Dependency Updates'
     label: 'dependency-update'
 template: |
-  ## What’s Changed
+  ## 🚀 Changes
 
   $CHANGES
