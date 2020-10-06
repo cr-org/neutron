@@ -1,15 +1,19 @@
-name: Scala
+name: sbt-nix-derivation
 
 on:
-  pull_request: {}
   push:
     branches:
       - master
+    paths:
+      - "nix/pkgs.nix"
+      - "nix/sbt.nix"
 
 jobs:
   build:
     name: Build
     runs-on: ubuntu-18.04
+    env:
+      - CACHIX_SIGNING_KEY: "${{ secrets.CACHIX_SIGNING_KEY }}"
     strategy:
       matrix:
         java:
@@ -18,12 +22,6 @@ jobs:
           - jdk14
     steps:
       - uses: actions/checkout@v2.3.2
-
-      - name: "Starting up Pulsar 🐳"
-        run: docker-compose up -d
-
-      - name: "Cache for sbt & coursier ♨️"
-        uses: coursier/cache-action@v4.1
 
       - name: "Install Nix ❄️"
         uses: nixbuild/nix-quick-install-action@v2
@@ -34,8 +32,5 @@ jobs:
           name: neutron
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
 
-      - name: "Run with ${{ matrix.java }} 🚀"
-        run: nix-shell --argstr java "${{ matrix.java }}" --run "sbt ++ 'test;makeSite;it:test'" nix/ci.nix
-
-      - name: "Shutting down Pulsar 🐳"
-        run: docker-compose down
+      - name: "Build sbt derivation with ${{ matrix.java }} 🚀"
+        run: nix-build --argstr java "${{ matrix.java }}" nix/sbt.nix | cachix push neutron
