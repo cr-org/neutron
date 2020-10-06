@@ -7,6 +7,8 @@ categories:
     label: 'documentation'
   - title: '🤖 Dependency Updates'
     label: 'dependency-update'
+exclude-labels:
+  - 'maintenance'
 template: |
   ## 🚀 Changes
 
