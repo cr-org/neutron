@@ -122,7 +122,7 @@ object Consumer {
           override def unsubscribe: F[Unit] =
             F.delay(c.unsubscribeAsync()).futureLift.void
           override def subscribe: Stream[F, Message[E]] =
-            subscribeInternal(opts.autoAck)
+            subscribeInternal(autoAck = false)
           override def autoSubscribe: Stream[F, E] =
             subscribeInternal(autoAck = true).map(_.payload)
         }
@@ -199,7 +199,6 @@ object Consumer {
     val initial: SubscriptionInitialPosition
     val logger: E => Topic.URL => F[Unit]
     val manualUnsubscribe: Boolean
-    val autoAck: Boolean
     val autoNackOnFailure: Boolean
 
     /**
@@ -222,11 +221,6 @@ object Consumer {
     def withManualUnsubscribe: Options[F, E]
 
     /**
-      * Automatically `ack` incoming messages
-      */
-    def withAutoAck: Options[F, E]
-
-    /**
       * Automatically `nack` when a message fails to be decoded, then raise a `DecodingFailure` error.
       *
       * By default, a `DecodingFailure` will be raised without `nack`ing.
@@ -242,7 +236,6 @@ object Consumer {
         initial: SubscriptionInitialPosition,
         logger: E => Topic.URL => F[Unit],
         manualUnsubscribe: Boolean,
-        autoAck: Boolean,
         autoNackOnFailure: Boolean
     ) extends Options[F, E] {
       override def withInitialPosition(
@@ -256,9 +249,6 @@ object Consumer {
       override def withManualUnsubscribe: Options[F, E] =
         copy(manualUnsubscribe = true)
 
-      override def withAutoAck: Options[F, E] =
-        copy(autoAck = true)
-
       override def withAutoNackOnFailure: Options[F, E] =
         copy(autoNackOnFailure = true)
     }
@@ -267,7 +257,6 @@ object Consumer {
       SubscriptionInitialPosition.Latest,
       _ => _ => F.unit,
       manualUnsubscribe = false,
-      autoAck = false,
       autoNackOnFailure = false
     )
   }
