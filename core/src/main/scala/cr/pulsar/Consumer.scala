@@ -19,13 +19,15 @@ package cr.pulsar
 import cats._
 import cats.effect._
 import cats.syntax.all._
-import cr.pulsar.internal.FutureLift._
+import cr.pulsar.internal.FutureLift.FutureLift
 import fs2._
+import monix.catnap.syntax._
 import org.apache.pulsar.client.api.{
-  Consumer => JConsumer,
   MessageId,
-  SubscriptionInitialPosition
+  SubscriptionInitialPosition,
+  Consumer => JConsumer
 }
+
 import scala.util.control.NoStackTrace
 
 trait Consumer[F[_], E] {
@@ -68,7 +70,7 @@ object Consumer {
   case class DecodingFailure(bytes: Array[Byte]) extends NoStackTrace
 
   private def mkConsumer[
-      F[_]: Concurrent: ContextShift,
+      F[_]: FutureLift: Sync,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -138,7 +140,7 @@ object Consumer {
     * you can use [[Consumer#subscribe]] for this purpose.
     */
   def multiTopic[
-      F[_]: Concurrent: ContextShift,
+      F[_]: FutureLift: Sync,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -154,7 +156,7 @@ object Consumer {
     * you can use [[Consumer#subscribe]] for this purpose.
     */
   def create[
-      F[_]: Concurrent: ContextShift,
+      F[_]: FutureLift: Sync,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -167,7 +169,7 @@ object Consumer {
     * It creates a [[Consumer]] with default options and the supplied message logger.
     */
   def withLogger[
-      F[_]: ContextShift: Parallel: Concurrent,
+      F[_]: FutureLift: Sync,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -184,7 +186,7 @@ object Consumer {
     * you can use [[Consumer#subscribe]] for this purpose.
     */
   def withOptions[
-      F[_]: Concurrent: ContextShift,
+      F[_]: FutureLift: Sync,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,

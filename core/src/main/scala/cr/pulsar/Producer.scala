@@ -16,13 +16,14 @@
 
 package cr.pulsar
 
+import java.util.concurrent.TimeUnit
+
 import cats._
 import cats.effect._
 import cats.syntax.all._
-import cr.pulsar.internal.FutureLift._
+import cr.pulsar.internal.FutureLift.FutureLift
 import fs2.concurrent.{ Topic => _ }
-import java.util.concurrent.TimeUnit
-
+import monix.catnap.syntax._
 import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder, TypedMessageBuilder }
 
 import scala.concurrent.duration.FiniteDuration
@@ -60,7 +61,7 @@ object Producer {
     * It creates a simple [[Producer]] with the supplied options.
     */
   def withOptions[
-      F[_]: Concurrent: ContextShift: Parallel,
+      F[_]: FutureLift: Parallel: Sync,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -125,7 +126,7 @@ object Producer {
     * It creates a [[Producer]] with default options and the supplied message logger.
     */
   def withLogger[
-      F[_]: ContextShift: Parallel: Concurrent,
+      F[_]: FutureLift: Parallel: Sync,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -138,7 +139,7 @@ object Producer {
     * It creates a [[Producer]] with default options (no-op logger).
     */
   def create[
-      F[_]: ContextShift: Parallel: Concurrent,
+      F[_]: FutureLift: Parallel: Sync,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,

@@ -19,9 +19,11 @@ package cr.pulsar
 import cats._
 import cats.effect._
 import cats.syntax.all._
-import cr.pulsar.internal.FutureLift._
+import cr.pulsar.internal.FutureLift.FutureLift
 import fs2._
+import monix.catnap.syntax._
 import org.apache.pulsar.client.api.{ Message, MessageId }
+
 import scala.util.control.NoStackTrace
 
 /**
@@ -35,7 +37,7 @@ object Reader {
 
   case class DecodingFailure(msg: String) extends NoStackTrace
 
-  private def mkReader[F[_]: Concurrent: ContextShift](
+  private def mkReader[F[_]: FutureLift: Sync](
       client: Pulsar.T,
       topic: Topic,
       messageId: MessageId
@@ -63,7 +65,7 @@ object Reader {
   /**
     * It creates a simple [[Reader]].
     */
-  def create[F[_]: Concurrent: ContextShift](
+  def create[F[_]: FutureLift: Sync](
       client: Pulsar.T,
       topic: Topic,
       messageId: MessageId

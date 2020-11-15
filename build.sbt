@@ -16,6 +16,7 @@ lazy val `neutron-core` = (project in file("core"))
           Libraries.cats,
           Libraries.catsEffect,
           Libraries.fs2,
+          Libraries.monixCatnap,
           Libraries.newtype,
           Libraries.pulsar,
           Libraries.munitCore       % "it,test",

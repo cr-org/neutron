@@ -9,6 +9,7 @@ object Dependencies {
     val catsEffect = "2.2.0"
     val circe      = "0.13.0"
     val fs2        = "2.4.5"
+    val monix      = "3.3.0"
     val munit      = "0.7.17"
     val newtype    = "0.4.4"
     val pulsar     = "2.6.1"
@@ -20,10 +21,11 @@ object Dependencies {
   }
 
   object Libraries {
-    val cats       = "org.typelevel" %% "cats-core"   % V.cats
-    val catsEffect = "org.typelevel" %% "cats-effect" % V.catsEffect
-    val fs2        = "co.fs2"        %% "fs2-core"    % V.fs2
-    val newtype    = "io.estatico"   %% "newtype"     % V.newtype
+    val cats        = "org.typelevel" %% "cats-core"   % V.cats
+    val catsEffect  = "org.typelevel" %% "cats-effect" % V.catsEffect
+    val monixCatnap = "io.monix" %% "monix-catnap"     % V.monix
+    val fs2         = "co.fs2"        %% "fs2-core"    % V.fs2
+    val newtype     = "io.estatico"   %% "newtype"     % V.newtype
 
     val circeCore   = "io.circe" %% "circe-core"   % V.circe
     val circeParser = "io.circe" %% "circe-parser" % V.circe
