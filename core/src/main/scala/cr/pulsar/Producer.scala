@@ -23,7 +23,12 @@ import cr.pulsar.internal.FutureLift._
 import fs2.concurrent.{ Topic => _ }
 import java.util.concurrent.TimeUnit
 
-import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder, TypedMessageBuilder }
+import org.apache.pulsar.client.api.{
+  MessageId,
+  Producer => JProducer,
+  ProducerBuilder,
+  TypedMessageBuilder
+}
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -60,13 +65,14 @@ object Producer {
     * It creates a simple [[Producer]] with the supplied options.
     */
   def withOptions[
+      G[_]: Concurrent: ContextShift,
       F[_]: Concurrent: ContextShift: Parallel,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
       topic: Topic,
       opts: Options[F, E]
-  ): Resource[F, Producer[F, E]] = {
+  ): Resource[G, Producer[F, E]] = {
     def configureBatching(
         batching: Batching,
         producerBuilder: ProducerBuilder[Array[Byte]]
@@ -84,15 +90,19 @@ object Producer {
           producerBuilder.enableBatching(false)
       }
 
+    val acquire =
+      G.delay(
+        configureBatching(
+          opts.batching,
+          client.newProducer.topic(topic.url.value)
+        ).create
+      )
+
+    def release(p: JProducer[Array[Byte]]): G[Unit] =
+      G.delay(p.closeAsync()).futureLift.void
+
     Resource
-      .make {
-        F.delay(
-          configureBatching(
-            opts.batching,
-            client.newProducer.topic(topic.url.value)
-          ).create
-        )
-      }(p => F.delay(p.closeAsync()).futureLift.void)
+      .make(acquire)(release)
       .map { prod =>
         new Producer[F, E] {
           val serialise: E => Array[Byte] = E.inj
@@ -125,26 +135,28 @@ object Producer {
     * It creates a [[Producer]] with default options and the supplied message logger.
     */
   def withLogger[
+      G[_]: ContextShift: Concurrent,
       F[_]: ContextShift: Parallel: Concurrent,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
       topic: Topic,
       logger: E => Topic.URL => F[Unit]
-  ): Resource[F, Producer[F, E]] =
-    withOptions(client, topic, Options[F, E]().withLogger(logger))
+  ): Resource[G, Producer[F, E]] =
+    withOptions[G, F, E](client, topic, Options[F, E]().withLogger(logger))
 
   /**
     * It creates a [[Producer]] with default options (no-op logger).
     */
   def create[
+      G[_]: ContextShift: Concurrent,
       F[_]: ContextShift: Parallel: Concurrent,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
       topic: Topic
-  ): Resource[F, Producer[F, E]] =
-    withOptions(client, topic, Options[F, E]())
+  ): Resource[G, Producer[F, E]] =
+    withOptions[G, F, E](client, topic, Options[F, E]())
 
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {

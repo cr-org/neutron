@@ -35,22 +35,24 @@ object Reader {
 
   case class DecodingFailure(msg: String) extends NoStackTrace
 
-  private def mkReader[F[_]: Concurrent: ContextShift](
+  private def mkReader[
+      G[_]: Concurrent: ContextShift,
+      F[_]: Concurrent: ContextShift
+  ](
       client: Pulsar.T,
       topic: Topic,
       messageId: MessageId
-  ): Resource[F, Reader[F]] =
+  ): Resource[G, Reader[F]] = {
+    val acquire =
+      G.delay {
+        client.newReader
+          .topic(topic.url.value)
+          .startMessageId(messageId)
+          .create()
+      }
+
     Resource
-      .make {
-        F.delay {
-          client.newReader
-            .topic(topic.url.value)
-            .startMessageId(messageId)
-            .create()
-        }
-      }(
-        c => F.delay(c.closeAsync()).void
-      )
+      .make(acquire)(c => G.delay(c.closeAsync()).futureLift.void)
       .map { c =>
         new Reader[F] {
           override def read: Stream[F, Message[Array[Byte]]] =
@@ -59,16 +61,20 @@ object Reader {
             )
         }
       }
+  }
 
   /**
     * It creates a simple [[Reader]].
     */
-  def create[F[_]: Concurrent: ContextShift](
+  def create[
+      G[_]: Concurrent: ContextShift,
+      F[_]: Concurrent: ContextShift
+  ](
       client: Pulsar.T,
       topic: Topic,
       messageId: MessageId
-  ): Resource[F, Reader[F]] =
-    mkReader[F](client, topic, messageId)
+  ): Resource[G, Reader[F]] =
+    mkReader[G, F](client, topic, messageId)
 
   /**
     * A simple message decoder that uses a [[cats.Inject]] instance
