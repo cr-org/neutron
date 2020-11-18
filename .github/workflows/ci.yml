@@ -31,7 +31,7 @@ jobs:
           skip_adding_nixpkgs_channel: true
 
       - name: "Install Cachix ❄️"
-        uses: cachix/cachix-action@v6
+        uses: cachix/cachix-action@v8
         with:
           name: neutron
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
