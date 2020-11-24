@@ -8,14 +8,14 @@ object Dependencies {
     val cats       = "2.2.0"
     val catsEffect = "2.2.0"
     val circe      = "0.13.0"
-    val fs2        = "2.4.5"
-    val munit      = "0.7.17"
+    val fs2        = "2.4.6"
+    val munit      = "0.7.18"
     val newtype    = "0.4.4"
     val pulsar     = "2.6.1"
 
     val betterMonadicFor = "0.3.1"
     val contextApplied   = "0.1.4"
-    val kindProjector    = "0.11.0"
+    val kindProjector    = "0.11.1"
     val macroParadise    = "2.1.1"
   }
 
