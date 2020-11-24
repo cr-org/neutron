@@ -17,9 +17,9 @@
 package cr.pulsar
 
 import cats.effect._
-import cats.effect.concurrent.{ Deferred, Ref }
+import cats.effect.concurrent.{Deferred, Ref}
 import cats.implicits._
-import cr.pulsar.Producer.MessageKey
+import cr.pulsar.Producer.ShardKey
 import cr.pulsar.schema.utf8._
 import fs2.Stream
 import java.util.UUID
@@ -39,7 +39,7 @@ class PulsarSpec extends PulsarSuite {
       .build
 
   val batch = Producer.Batching.Disabled
-  val shard = (_: Event) => Producer.MessageKey.Default
+  val shard = (_: Event) => Producer.ShardKey.Default
 
   withPulsarClient { client =>
     test("A message is published and consumed successfully") {
@@ -64,7 +64,7 @@ class PulsarSpec extends PulsarSuite {
               val produce =
                 Stream(testEvent)
                   .covary[IO]
-                  .evalMap(producer.send)
+                  .evalMap(producer.send(_))
                   .evalMap(_ => latch.get)
 
               produce.concurrently(consume).evalMap { e =>
@@ -101,7 +101,7 @@ class PulsarSpec extends PulsarSuite {
               val produce =
                 Stream(testMessage)
                   .covary[IO]
-                  .evalMap(producer.send)
+                  .evalMap(producer.send(_))
                   .evalMap(_ => latch.get)
 
               produce.concurrently(consume).evalMap { msg =>
@@ -160,16 +160,16 @@ class PulsarSpec extends PulsarSuite {
                     Stream
                       .emits(events)
                       .covary[IO]
-                      .evalMap(producer.send_)
+                      .evalMap(producer.send_(_))
 
                   val interrupter = {
                     val pred1: IO[Boolean] =
                       events1.get.map(
-                        _.forall(_.shardKey === MessageKey.Of(uuids(0).toString))
+                        _.forall(_.shardKey === ShardKey.Of(uuids(0).toString.getBytes(charset)))
                       )
                     val pred2: IO[Boolean] =
                       events2.get.map(
-                        _.forall(_.shardKey === MessageKey.Of(uuids(1).toString))
+                        _.forall(_.shardKey === ShardKey.Of(uuids(1).toString.getBytes(charset)))
                       )
                     Stream.eval((pred1, pred2).mapN { case (p1, p2) => p1 && p2 })
                   }

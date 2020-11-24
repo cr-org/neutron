@@ -19,13 +19,15 @@ package cr.pulsar
 import cats._
 import cats.effect._
 import cats.syntax.all._
+import cr.pulsar.Producer.MessageKey
 import cr.pulsar.internal.FutureLift._
 import fs2._
 import org.apache.pulsar.client.api.{
-  Consumer => JConsumer,
   MessageId,
-  SubscriptionInitialPosition
+  SubscriptionInitialPosition,
+  Consumer => JConsumer
 }
+
 import scala.util.control.NoStackTrace
 
 trait Consumer[F[_], E] {
@@ -64,7 +66,7 @@ trait Consumer[F[_], E] {
 
 object Consumer {
 
-  case class Message[A](id: MessageId, payload: A)
+  case class Message[A](id: MessageId, key: MessageKey, payload: A)
   case class DecodingFailure(bytes: Array[Byte]) extends NoStackTrace
 
   private def mkConsumer[
@@ -84,6 +86,7 @@ object Consumer {
             p => c.topicsPattern(p.url.value.r.pattern),
             t => c.topic(t.url.value)
           )
+          .readCompacted(opts.readCompacted)
           .subscriptionType(sub.`type`.pulsarSubscriptionType)
           .subscriptionName(sub.name.value)
           .subscriptionMode(sub.mode.pulsarSubscriptionMode)
@@ -109,7 +112,7 @@ object Consumer {
                     opts.logger(e)(Topic.URL(m.getTopicName)) >>
                         ack(m.getMessageId)
                           .whenA(autoAck)
-                          .as(Message(m.getMessageId, e))
+                          .as(Message(m.getMessageId, MessageKey(m.getKey), e))
                   case None =>
                     nack(m.getMessageId).whenA(opts.autoNackOnFailure) >>
                         DecodingFailure(data).raiseError[F, Message[E]]
@@ -200,6 +203,7 @@ object Consumer {
     val logger: E => Topic.URL => F[Unit]
     val manualUnsubscribe: Boolean
     val autoNackOnFailure: Boolean
+    val readCompacted: Boolean
 
     /**
       * The Subscription Initial Position. `Latest` by default.
@@ -226,6 +230,18 @@ object Consumer {
       * By default, a `DecodingFailure` will be raised without `nack`ing.
       */
     def withAutoNackOnFailure: Options[F, E]
+
+    /**
+      * If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog
+      * of the topic. This means that, if the topic has been compacted, the consumer will only see the latest value for
+      * each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that
+      * point, the messages will be sent as normal.
+      *
+      * <p>readCompacted can only be enabled subscriptions to persistent topics, which have a single active consumer
+      * (i.e. failure or exclusive subscriptions). Attempting to enable it on subscriptions to a non-persistent topics
+      * or on a shared subscription, will lead to the subscription call throwing a PulsarClientException.
+      */
+    def withReadCompacted: Options[F, E]
   }
 
   /**
@@ -236,7 +252,8 @@ object Consumer {
         initial: SubscriptionInitialPosition,
         logger: E => Topic.URL => F[Unit],
         manualUnsubscribe: Boolean,
-        autoNackOnFailure: Boolean
+        autoNackOnFailure: Boolean,
+        readCompacted: Boolean
     ) extends Options[F, E] {
       override def withInitialPosition(
           _initial: SubscriptionInitialPosition
@@ -251,13 +268,17 @@ object Consumer {
 
       override def withAutoNackOnFailure: Options[F, E] =
         copy(autoNackOnFailure = true)
+
+      override def withReadCompacted: Options[F, E] =
+        copy(readCompacted = true)
     }
 
     def apply[F[_]: Applicative, E](): Options[F, E] = OptionsImpl[F, E](
       SubscriptionInitialPosition.Latest,
       _ => _ => F.unit,
       manualUnsubscribe = false,
-      autoNackOnFailure = false
+      autoNackOnFailure = false,
+      readCompacted = false
     )
   }
 
