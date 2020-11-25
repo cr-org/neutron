@@ -59,9 +59,10 @@ abstract class PulsarSuite extends FunSuite {
       client
     }
 
+  val charset = "UTF-8"
   case class Event(uuid: UUID, value: String) {
-    def shardKey: Producer.MessageKey =
-      Producer.MessageKey.Of(uuid.toString)
+    def shardKey: Producer.ShardKey =
+      Producer.ShardKey.Of(uuid.toString.getBytes(charset))
   }
 
   object Event {
@@ -70,10 +71,10 @@ abstract class PulsarSuite extends FunSuite {
     implicit val inject: Inject[Event, Array[Byte]] =
       new Inject[Event, Array[Byte]] {
         def inj: Event => Array[Byte] =
-          e => s"${e.uuid.toString}".getBytes("UTF-8")
+          e => s"${e.uuid.toString}".getBytes(charset)
         def prj: Array[Byte] => Option[Event] =
           bs =>
-            Try(UUID.fromString(new String(bs, "UTF-8"))).toOption.map { i =>
+            Try(UUID.fromString(new String(bs, charset))).toOption.map { i =>
               Event(i, "foo")
             }
       }

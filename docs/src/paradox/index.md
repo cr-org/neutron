@@ -61,7 +61,7 @@ object Demo extends IOApp {
               .emit("test data")
               .covary[IO]
               .metered(3.seconds)
-              .evalMap(producer.send_)
+              .evalMap(producer.send_(_))
 
           consume.concurrently(produce)
       }.compile.drain.as(ExitCode.Success)

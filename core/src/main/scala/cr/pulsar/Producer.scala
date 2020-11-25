@@ -23,21 +23,33 @@ import cr.pulsar.internal.FutureLift._
 import fs2.concurrent.{ Topic => _ }
 import java.util.concurrent.TimeUnit
 
-import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder, TypedMessageBuilder }
+import cr.pulsar.Producer.MessageKey
+import cr.pulsar.internal.TypedMessageBuilderOps._
+import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder }
 
 import scala.concurrent.duration.FiniteDuration
 
 trait Producer[F[_], E] {
 
   /**
-    * It sends a message asynchronously.
+    * Sends a message asynchronously.
     */
   def send(msg: E): F[MessageId]
+
+  /**
+    * Sends a message associated with a `key` asynchronously.
+    */
+  def send(msg: E, key: MessageKey): F[MessageId]
 
   /**
     * Same as [[send]] but it discards its output.
     */
   def send_(msg: E): F[Unit]
+
+  /**
+    * Same as [[send]] but it discards its output.
+    */
+  def send_(msg: E, key: MessageKey): F[Unit]
 }
 
 object Producer {
@@ -48,10 +60,21 @@ object Producer {
     final case object Disabled extends Batching
   }
 
+  sealed trait ShardKey
+  object ShardKey {
+    final case class Of(value: Array[Byte]) extends ShardKey
+    final case object Default extends ShardKey
+
+    implicit val eq: Eq[ShardKey] = Eq.fromUniversalEquals
+  }
+
   sealed trait MessageKey
   object MessageKey {
     final case class Of(value: String) extends MessageKey
-    final case object Default extends MessageKey
+    final case object Empty extends MessageKey
+
+    def apply(value: String): MessageKey =
+      Option(value).filter(_.trim.nonEmpty).map(Of).getOrElse(Empty)
 
     implicit val eq: Eq[MessageKey] = Eq.fromUniversalEquals
   }
@@ -97,26 +120,21 @@ object Producer {
         new Producer[F, E] {
           val serialise: E => Array[Byte] = E.inj
 
-          private def buildMessage(
-              msg: Array[Byte],
-              key: MessageKey
-          ): TypedMessageBuilder[Array[Byte]] = {
-            val event = prod.newMessage().value(msg)
-            key match {
-              case MessageKey.Of(k) =>
-                event.key(k)
-              case MessageKey.Default =>
-                event
-            }
-          }
-
-          override def send(msg: E): F[MessageId] =
+          override def send(msg: E, key: MessageKey): F[MessageId] =
             opts.logger(msg)(topic.url) &> F.delay {
-                  buildMessage(serialise(msg), opts.shardKey(msg)).sendAsync()
+                  prod
+                    .newMessage()
+                    .value(serialise(msg))
+                    .withShardKey(opts.shardKey(msg))
+                    .withMessageKey(key)
+                    .sendAsync()
                 }.futureLift
 
-          override def send_(msg: E): F[Unit] = send(msg).void
+          override def send_(msg: E, key: MessageKey): F[Unit] = send(msg, key).void
 
+          override def send(msg: E): F[MessageId] = send(msg, MessageKey.Empty)
+
+          override def send_(msg: E): F[Unit] = send(msg, MessageKey.Empty).void
         }
       }
   }
@@ -149,10 +167,10 @@ object Producer {
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {
     val batching: Batching
-    val shardKey: E => MessageKey
+    val shardKey: E => ShardKey
     val logger: E => Topic.URL => F[Unit]
     def withBatching(_batching: Batching): Options[F, E]
-    def withShardKey(_shardKey: E => MessageKey): Options[F, E]
+    def withShardKey(_shardKey: E => ShardKey): Options[F, E]
     def withLogger(_logger: E => Topic.URL => F[Unit]): Options[F, E]
   }
 
@@ -162,12 +180,12 @@ object Producer {
   object Options {
     private case class OptionsImpl[F[_], E](
         batching: Batching,
-        shardKey: E => MessageKey,
+        shardKey: E => ShardKey,
         logger: E => Topic.URL => F[Unit]
     ) extends Options[F, E] {
       override def withBatching(_batching: Batching): Options[F, E] =
         copy(batching = _batching)
-      override def withShardKey(_shardKey: E => MessageKey): Options[F, E] =
+      override def withShardKey(_shardKey: E => ShardKey): Options[F, E] =
         copy(shardKey = _shardKey)
       override def withLogger(_logger: E => (Topic.URL => F[Unit])): Options[F, E] =
         copy(logger = _logger)
@@ -175,7 +193,7 @@ object Producer {
     def apply[F[_]: Applicative, E](): Options[F, E] =
       OptionsImpl[F, E](
         Batching.Disabled,
-        _ => Producer.MessageKey.Default,
+        _ => Producer.ShardKey.Default,
         _ => _ => F.unit
       )
   }
