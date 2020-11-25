@@ -64,7 +64,7 @@ class PulsarSpec extends PulsarSuite {
               val produce =
                 Stream(testEvent)
                   .covary[IO]
-                  .evalMap(producer.send(_))
+                  .evalMap(producer.send)
                   .evalMap(_ => latch.get)
 
               produce.concurrently(consume).evalMap { e =>
@@ -101,7 +101,7 @@ class PulsarSpec extends PulsarSuite {
               val produce =
                 Stream(testMessage)
                   .covary[IO]
-                  .evalMap(producer.send(_))
+                  .evalMap(producer.send)
                   .evalMap(_ => latch.get)
 
               produce.concurrently(consume).evalMap { msg =>
@@ -160,7 +160,7 @@ class PulsarSpec extends PulsarSuite {
                     Stream
                       .emits(events)
                       .covary[IO]
-                      .evalMap(producer.send_(_))
+                      .evalMap(producer.send_)
 
                   val interrupter = {
                     val pred1: IO[Boolean] =

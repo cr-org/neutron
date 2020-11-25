@@ -34,12 +34,22 @@ trait Producer[F[_], E] {
   /**
     * Sends a message asynchronously.
     */
-  def send(msg: E, key: MessageKey = MessageKey.Empty): F[MessageId]
+  def send(msg: E): F[MessageId]
+
+  /**
+    * Sends a message associated with a `key` asynchronously.
+    */
+  def send(msg: E, key: MessageKey): F[MessageId]
 
   /**
     * Same as [[send]] but it discards its output.
     */
-  def send_(msg: E, key: MessageKey = MessageKey.Empty): F[Unit]
+  def send_(msg: E): F[Unit]
+
+  /**
+    * Same as [[send]] but it discards its output.
+    */
+  def send_(msg: E, key: MessageKey): F[Unit]
 }
 
 object Producer {
@@ -120,8 +130,11 @@ object Producer {
                     .sendAsync()
                 }.futureLift
 
-          override def send_(msg: E, key: MessageKey): F[Unit] = send(msg).void
+          override def send_(msg: E, key: MessageKey): F[Unit] = send(msg, key).void
 
+          override def send(msg: E): F[MessageId] = send(msg, MessageKey.Empty)
+
+          override def send_(msg: E): F[Unit] = send(msg, MessageKey.Empty).void
         }
       }
   }
