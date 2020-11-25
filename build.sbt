@@ -82,7 +82,6 @@ lazy val docs = (project in file("docs"))
         ),
     mdocIn := (Paradox / sourceDirectory).value,
     mdocExtraArguments ++= Seq("--no-link-hygiene"),
-    Paradox / sourceManaged := mdocOut.value,
     makeSite := makeSite.dependsOn(mdoc.toTask("")).value,
     ParadoxMaterialThemePlugin.paradoxMaterialThemeSettings(Paradox),
     paradoxMaterialTheme in Paradox := {
