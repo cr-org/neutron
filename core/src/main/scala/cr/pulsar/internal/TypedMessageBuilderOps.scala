@@ -19,8 +19,8 @@ package cr.pulsar.internal
 import cr.pulsar.Producer.{ MessageKey, ShardKey }
 import org.apache.pulsar.client.api.TypedMessageBuilder
 
-object TypedMessageBuilderOps {
-  implicit class TMBOps(value: TypedMessageBuilder[Array[Byte]]) {
+private[pulsar] object TypedMessageBuilderOps {
+  implicit class TMBOps(val value: TypedMessageBuilder[Array[Byte]]) extends AnyVal {
     def withShardKey(shardKey: ShardKey): TypedMessageBuilder[Array[Byte]] =
       shardKey match {
         case ShardKey.Of(k)   => value.orderingKey(k)
