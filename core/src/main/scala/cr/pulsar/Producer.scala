@@ -42,12 +42,12 @@ trait Producer[F[_], E] {
   def send(msg: E, key: MessageKey): F[MessageId]
 
   /**
-    * Same as [[send]] but it discards its output.
+    * Same as [[send(msg:E)*]] but it discards its output.
     */
   def send_(msg: E): F[Unit]
 
   /**
-    * Same as [[send]] but it discards its output.
+    * Same as `send(msg:E,key:MessageKey)` but it discards its output.
     */
   def send_(msg: E, key: MessageKey): F[Unit]
 }
