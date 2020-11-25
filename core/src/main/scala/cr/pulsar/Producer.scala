@@ -23,7 +23,6 @@ import cr.pulsar.internal.FutureLift._
 import fs2.concurrent.{ Topic => _ }
 import java.util.concurrent.TimeUnit
 
-import cr.pulsar.Producer.MessageKey
 import cr.pulsar.internal.TypedMessageBuilderOps._
 import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder }
 
@@ -58,25 +57,6 @@ object Producer {
   object Batching {
     final case class Enabled(maxDelay: FiniteDuration, maxMessages: Int) extends Batching
     final case object Disabled extends Batching
-  }
-
-  sealed trait ShardKey
-  object ShardKey {
-    final case class Of(value: Array[Byte]) extends ShardKey
-    final case object Default extends ShardKey
-
-    implicit val eq: Eq[ShardKey] = Eq.fromUniversalEquals
-  }
-
-  sealed trait MessageKey
-  object MessageKey {
-    final case class Of(value: String) extends MessageKey
-    final case object Empty extends MessageKey
-
-    def apply(value: String): MessageKey =
-      Option(value).filter(_.trim.nonEmpty).map(Of).getOrElse(Empty)
-
-    implicit val eq: Eq[MessageKey] = Eq.fromUniversalEquals
   }
 
   /**
@@ -193,7 +173,7 @@ object Producer {
     def apply[F[_]: Applicative, E](): Options[F, E] =
       OptionsImpl[F, E](
         Batching.Disabled,
-        _ => Producer.ShardKey.Default,
+        _ => ShardKey.Default,
         _ => _ => F.unit
       )
   }

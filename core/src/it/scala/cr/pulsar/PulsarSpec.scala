@@ -19,7 +19,6 @@ package cr.pulsar
 import cats.effect._
 import cats.effect.concurrent.{Deferred, Ref}
 import cats.implicits._
-import cr.pulsar.Producer.ShardKey
 import cr.pulsar.schema.utf8._
 import fs2.Stream
 import java.util.UUID
@@ -39,7 +38,7 @@ class PulsarSpec extends PulsarSuite {
       .build
 
   val batch = Producer.Batching.Disabled
-  val shard = (_: Event) => Producer.ShardKey.Default
+  val shard = (_: Event) => ShardKey.Default
 
   withPulsarClient { client =>
     test("A message is published and consumed successfully") {

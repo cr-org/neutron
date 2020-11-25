@@ -61,8 +61,8 @@ abstract class PulsarSuite extends FunSuite {
 
   val charset = "UTF-8"
   case class Event(uuid: UUID, value: String) {
-    def shardKey: Producer.ShardKey =
-      Producer.ShardKey.Of(uuid.toString.getBytes(charset))
+    def shardKey: ShardKey =
+      ShardKey.Of(uuid.toString.getBytes(charset))
   }
 
   object Event {
