@@ -19,7 +19,6 @@ package cr.pulsar
 import cats._
 import cats.effect._
 import cats.syntax.all._
-import cr.pulsar.Producer.MessageKey
 import cr.pulsar.internal.FutureLift._
 import fs2._
 import org.apache.pulsar.client.api.{

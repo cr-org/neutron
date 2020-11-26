@@ -16,7 +16,7 @@
 
 package cr.pulsar.internal
 
-import cr.pulsar.Producer.{ MessageKey, ShardKey }
+import cr.pulsar.{ MessageKey, ShardKey }
 import org.apache.pulsar.client.api.TypedMessageBuilder
 
 private[pulsar] object TypedMessageBuilderOps {
