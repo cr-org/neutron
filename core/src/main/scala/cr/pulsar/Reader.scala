@@ -69,7 +69,7 @@ object Reader {
           override def read: Stream[F, Message[E]] =
             Stream.repeatEval(
               F.delay(c.readNextAsync()).futureLift.flatMap { m =>
-                val data = m.getData()
+                val data = m.getData
 
                 E.prj(data) match {
                   case Some(e) => F.pure(Message(m.getMessageId, MessageKey(m.getKey), e))
@@ -79,29 +79,34 @@ object Reader {
             )
 
           override def read1: F[Option[Message[E]]] =
-            F.delay(c.hasMessageAvailableAsync).futureLift.map(Boolean.unbox).flatMap {
-              case false => F.pure(None)
-              case true =>
-                F.delay(c.readNextAsync()).futureLift.flatMap { m =>
-                  val data = m.getData()
+            F.delay(c.hasMessageAvailableAsync).futureLift.flatMap { hasAvailable =>
+              val readNext = F.delay(c.readNextAsync()).futureLift.flatMap { m =>
+                val data = m.getData
 
-                  E.prj(data) match {
-                    case Some(e) =>
-                      F.pure(Some(Message(m.getMessageId, MessageKey(m.getKey), e)))
-                    case None => DecodingFailure(data).raiseError[F, Option[Message[E]]]
-                  }
+                E.prj(data) match {
+                  case Some(e) =>
+                    F.pure(Message(m.getMessageId, MessageKey(m.getKey), e))
+                  case None => DecodingFailure(data).raiseError[F, Message[E]]
                 }
+              }
+
+              Option.when(hasAvailable)(readNext).sequence
             }
 
           override def readUntil(timeout: FiniteDuration): F[Option[Message[E]]] =
-            F.delay(c.readNext(timeout.length.toInt, timeout.unit)).flatMap { m =>
-              Option(m).map(_.getData).flatTraverse { data =>
-                E.prj(data) match {
-                  case Some(e) =>
-                    F.pure(Option(Message(m.getMessageId, MessageKey(m.getKey), e)))
-                  case None => DecodingFailure(data).raiseError[F, Option[Message[E]]]
+            F.delay(c.hasMessageAvailableAsync).futureLift.flatMap { hasAvailable =>
+              val readNext =
+                F.delay(c.readNext(timeout.length.toInt, timeout.unit)).flatMap { m =>
+                  Option(m).map(_.getData).traverse { data =>
+                    E.prj(data) match {
+                      case Some(e) =>
+                        F.pure(Message(m.getMessageId, MessageKey(m.getKey), e))
+                      case None => DecodingFailure(data).raiseError[F, Message[E]]
+                    }
+                  }
                 }
-              }
+
+              Option.when(hasAvailable)(readNext).flatSequence
             }
         }
       }
