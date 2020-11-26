@@ -94,14 +94,18 @@ object Reader {
             }
 
           override def readUntil(timeout: FiniteDuration): F[Option[Message[E]]] =
-            F.delay(c.readNext(timeout.length.toInt, timeout.unit)).flatMap { m =>
-              Option(m).map(_.getData).flatTraverse { data =>
-                E.prj(data) match {
-                  case Some(e) =>
-                    F.pure(Option(Message(m.getMessageId, MessageKey(m.getKey), e)))
-                  case None => DecodingFailure(data).raiseError[F, Option[Message[E]]]
+            F.delay(c.hasMessageAvailableAsync).futureLift.map(Boolean.unbox).flatMap {
+              case false => F.pure(None)
+              case true =>
+                F.delay(c.readNext(timeout.length.toInt, timeout.unit)).flatMap { m =>
+                  Option(m).map(_.getData).flatTraverse { data =>
+                    E.prj(data) match {
+                      case Some(e) =>
+                        F.pure(Option(Message(m.getMessageId, MessageKey(m.getKey), e)))
+                      case None => DecodingFailure(data).raiseError[F, Option[Message[E]]]
+                    }
+                  }
                 }
-              }
             }
         }
       }
