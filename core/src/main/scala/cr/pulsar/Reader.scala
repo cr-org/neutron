@@ -31,6 +31,7 @@ import scala.util.control.NoStackTrace
   */
 trait Reader[F[_], E] {
   def read: Stream[F, Message[E]]
+  def read1: F[Option[Message[E]]]
 }
 
 object Reader {
@@ -52,6 +53,7 @@ object Reader {
           client.newReader
             .topic(topic.url.value)
             .startMessageId(opts.startMessageId)
+            .startMessageIdInclusive()
             .readCompacted(opts.readCompacted)
             .create()
         }
@@ -71,6 +73,22 @@ object Reader {
                 }
               }
             )
+
+          override def read1: F[Option[Message[E]]] =
+            F.delay(c.hasMessageAvailableAsync).futureLift.map(Boolean.unbox).flatMap {
+              case false => F.pure(None)
+              case true =>
+                F.delay(c.readNextAsync()).futureLift.flatMap { m =>
+                  val data = m.getData()
+
+                  E.prj(data) match {
+                    case Some(e) =>
+                      F.pure(Some(Message(m.getMessageId, MessageKey(m.getKey), e)))
+                    case None => DecodingFailure(data).raiseError[F, Option[Message[E]]]
+                  }
+                }
+            }
+
         }
       }
 
