@@ -85,23 +85,23 @@ object Reader {
 
                 E.prj(data) match {
                   case Some(e) =>
-                    F.pure(Option(Message(m.getMessageId, MessageKey(m.getKey), e)))
-                  case None => DecodingFailure(data).raiseError[F, Option[Message[E]]]
+                    F.pure(Message(m.getMessageId, MessageKey(m.getKey), e))
+                  case None => DecodingFailure(data).raiseError[F, Message[E]]
                 }
               }
 
-              Option.when(hasAvailable)(readNext).flatSequence
+              Option.when(hasAvailable)(readNext).sequence
             }
 
           override def readUntil(timeout: FiniteDuration): F[Option[Message[E]]] =
             F.delay(c.hasMessageAvailableAsync).futureLift.flatMap { hasAvailable =>
               val readNext =
                 F.delay(c.readNext(timeout.length.toInt, timeout.unit)).flatMap { m =>
-                  Option(m).map(_.getData).flatTraverse { data =>
+                  Option(m).map(_.getData).traverse { data =>
                     E.prj(data) match {
                       case Some(e) =>
-                        F.pure(Option(Message(m.getMessageId, MessageKey(m.getKey), e)))
-                      case None => DecodingFailure(data).raiseError[F, Option[Message[E]]]
+                        F.pure(Message(m.getMessageId, MessageKey(m.getKey), e))
+                      case None => DecodingFailure(data).raiseError[F, Message[E]]
                     }
                   }
                 }
