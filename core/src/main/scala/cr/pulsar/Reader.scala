@@ -26,6 +26,7 @@ import cr.pulsar.internal.FutureLift._
 import fs2._
 import org.apache.pulsar.client.api.MessageId
 
+import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NoStackTrace
 
 /**
@@ -34,7 +35,7 @@ import scala.util.control.NoStackTrace
 trait Reader[F[_], E] {
   def read: Stream[F, Message[E]]
   def read1: F[Option[Message[E]]]
-  def readUntil(timeout: Int, units: TimeUnit): F[Option[Message[E]]]
+  def readUntil(timeout: FiniteDuration): F[Option[Message[E]]]
 }
 
 object Reader {
@@ -92,8 +93,8 @@ object Reader {
                 }
             }
 
-          override def readUntil(timeout: Int, units: TimeUnit): F[Option[Message[E]]] =
-            F.delay(c.readNext(timeout, units)).flatMap { m =>
+          override def readUntil(timeout: FiniteDuration): F[Option[Message[E]]] =
+            F.delay(c.readNext(timeout.length.toInt, timeout.unit)).flatMap { m =>
               Option(m).map(_.getData).flatTraverse { data =>
                 E.prj(data) match {
                   case Some(e) =>
