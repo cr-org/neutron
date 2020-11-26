@@ -16,6 +16,8 @@
 
 package cr.pulsar
 
+import java.util.concurrent.TimeUnit
+
 import cats._
 import cats.effect._
 import cats.syntax.all._
@@ -32,6 +34,7 @@ import scala.util.control.NoStackTrace
 trait Reader[F[_], E] {
   def read: Stream[F, Message[E]]
   def read1: F[Option[Message[E]]]
+  def readUntil(timeout: Int, units: TimeUnit): F[Option[Message[E]]]
 }
 
 object Reader {
@@ -89,6 +92,16 @@ object Reader {
                 }
             }
 
+          override def readUntil(timeout: Int, units: TimeUnit): F[Option[Message[E]]] =
+            F.delay(c.readNext(timeout, units)).flatMap { m =>
+              Option(m).map(_.getData).flatTraverse { data =>
+                E.prj(data) match {
+                  case Some(e) =>
+                    F.pure(Option(Message(m.getMessageId, MessageKey(m.getKey), e)))
+                  case None => DecodingFailure(data).raiseError[F, Option[Message[E]]]
+                }
+              }
+            }
         }
       }
 
