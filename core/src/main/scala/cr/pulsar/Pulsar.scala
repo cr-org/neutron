@@ -19,6 +19,8 @@ package cr.pulsar
 import cats.effect.{ Resource, Sync }
 import org.apache.pulsar.client.api.{ PulsarClient => Underlying }
 
+import scala.concurrent.duration.FiniteDuration
+
 object Pulsar {
   import Config._
 
@@ -30,8 +32,17 @@ object Pulsar {
     * It will be closed once the client is no longer in use or in case of
     * shutdown of the application that makes use of it.
     */
-  def create[F[_]: Sync](url: PulsarURL): Resource[F, T] =
+  def create[F[_]: Sync](
+      url: PulsarURL,
+      timeout: FiniteDuration
+  ): Resource[F, T] =
     Resource.fromAutoCloseable(
-      F.delay(Underlying.builder.serviceUrl(url.value).build)
+      F.delay(
+        Underlying.builder
+          .serviceUrl(url.value)
+          .connectionTimeout(timeout.length.toInt, timeout.unit)
+          .operationTimeout(timeout.length.toInt, timeout.unit)
+          .build
+      )
     )
 }
