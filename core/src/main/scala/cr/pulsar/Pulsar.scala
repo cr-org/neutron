@@ -17,7 +17,10 @@
 package cr.pulsar
 
 import cats.effect.{ Resource, Sync }
+import cr.pulsar.Pulsar.Options.{ ConnectionTimeout, OperationTimeout }
+import io.estatico.newtype.macros.newtype
 import org.apache.pulsar.client.api.{ PulsarClient => Underlying }
+import scala.concurrent.duration._
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -33,16 +36,66 @@ object Pulsar {
     * shutdown of the application that makes use of it.
     */
   def create[F[_]: Sync](
+      url: PulsarURL
+  ): Resource[F, T] = withOptions(url, Options())
+
+  def withOptions[F[_]: Sync](
       url: PulsarURL,
-      timeout: FiniteDuration
-  ): Resource[F, T] =
+      opts: Options
+  ): Resource[F, Underlying] =
     Resource.fromAutoCloseable(
       F.delay(
         Underlying.builder
           .serviceUrl(url.value)
-          .connectionTimeout(timeout.length.toInt, timeout.unit)
-          .operationTimeout(timeout.length.toInt, timeout.unit)
+          .connectionTimeout(
+            opts.connectionTimeout.value.length.toInt,
+            opts.connectionTimeout.value.unit
+          )
+          .operationTimeout(
+            opts.operationTimeout.value.length.toInt,
+            opts.operationTimeout.value.unit
+          )
           .build
       )
     )
+
+  sealed abstract class Options {
+    val connectionTimeout: ConnectionTimeout
+    val operationTimeout: OperationTimeout
+
+    /**
+      * Set the duration of time to wait for a connection to a broker to be established.
+      * If the duration passes without a response from the broker, the connection attempt is dropped.
+      */
+    def withConnectionTimeout(timeout: ConnectionTimeout): Options
+
+    /**
+      * Set the operation timeout <i>(default: 30 seconds)</i>.
+      *
+      * <p>Producer-create, subscribe and unsubscribe operations will be retried until this interval,
+      * after which the operation will be marked as failed
+      */
+    def withOperationTimeout(timeout: OperationTimeout): Options
+  }
+
+  object Options {
+    @newtype case class OperationTimeout(value: FiniteDuration)
+    @newtype case class ConnectionTimeout(value: FiniteDuration)
+
+    private case class OptionsImpl(
+        connectionTimeout: ConnectionTimeout,
+        operationTimeout: OperationTimeout
+    ) extends Options {
+      override def withConnectionTimeout(timeout: ConnectionTimeout): Options =
+        copy(connectionTimeout = timeout)
+
+      override def withOperationTimeout(timeout: OperationTimeout): Options =
+        copy(operationTimeout = timeout)
+    }
+
+    def apply(): Options = OptionsImpl(
+      ConnectionTimeout(30.seconds),
+      OperationTimeout(30.seconds)
+    )
+  }
 }
