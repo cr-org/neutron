@@ -23,7 +23,6 @@ import cats.implicits._
 import java.util.UUID
 import munit.FunSuite
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
 import scala.util.Try
 
 abstract class PulsarSuite extends FunSuite {
@@ -42,7 +41,7 @@ abstract class PulsarSuite extends FunSuite {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val (cli, release) = Pulsar.create[IO](cfg.url, 10.seconds).allocated.unsafeRunSync()
+    val (cli, release) = Pulsar.create[IO](cfg.url).allocated.unsafeRunSync()
     this.client = cli
     this.close = release
     latch.complete(()).unsafeRunSync()

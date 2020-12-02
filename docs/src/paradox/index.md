@@ -41,7 +41,7 @@ object Demo extends IOApp {
 
   val resources: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
     for {
-      pulsar   <- Pulsar.create[IO](config.url, 10.seconds)
+      pulsar   <- Pulsar.create[IO](config.url)
       consumer <- Consumer.create[IO, String](pulsar, topic, subs)
       producer <- Producer.create[IO, String](pulsar, topic)
     } yield (consumer, producer)
