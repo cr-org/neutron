@@ -24,18 +24,27 @@ import cats.syntax.all._
 import cr.pulsar.Reader.Message
 import cr.pulsar.internal.FutureLift._
 import fs2._
-import org.apache.pulsar.client.api.MessageId
+import org.apache.pulsar.client.api.{ MessageId, Reader => JReader }
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NoStackTrace
 
 /**
-  * A Reader can be used to read all the messages currently available in a topic.
+  * A MessageReader can be used to read all the messages currently available in a topic.
   */
-trait Reader[F[_], E] {
+trait MessageReader[F[_], E] {
   def read: Stream[F, Message[E]]
   def read1: F[Option[Message[E]]]
   def readUntil(timeout: FiniteDuration): F[Option[Message[E]]]
+}
+
+/**
+  * A Reader can be used to read all the messages currently available in a topic. Only cares about payloads.
+  */
+trait Reader[F[_], E] {
+  def read: Stream[F, E]
+  def read1: F[Option[E]]
+  def readUntil(timeout: FiniteDuration): F[Option[E]]
 }
 
 object Reader {
@@ -43,14 +52,11 @@ object Reader {
   case class DecodingFailure(bytes: Array[Byte]) extends NoStackTrace
   case class Message[A](id: MessageId, key: MessageKey, payload: A)
 
-  def withOptions[
-      F[_]: Concurrent: ContextShift,
-      E: Inject[*, Array[Byte]]
-  ](
+  private def mkPulsarReader[F[_]: Sync](
       client: Pulsar.T,
       topic: Topic,
       opts: Options
-  ): Resource[F, Reader[F, E]] =
+  ): Resource[F, JReader[Array[Byte]]] =
     Resource
       .make {
         F.delay {
@@ -64,52 +70,77 @@ object Reader {
       }(
         c => F.delay(c.closeAsync()).void
       )
-      .map { c =>
-        new Reader[F, E] {
-          override def read: Stream[F, Message[E]] =
-            Stream.repeatEval(
-              F.delay(c.readNextAsync()).futureLift.flatMap { m =>
-                val data = m.getData
 
-                E.prj(data) match {
-                  case Some(e) => F.pure(Message(m.getMessageId, MessageKey(m.getKey), e))
-                  case None    => DecodingFailure(data).raiseError[F, Message[E]]
-                }
-              }
-            )
+  private def mkMessageReader[
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](c: JReader[Array[Byte]]): MessageReader[F, E] =
+    new MessageReader[F, E] {
+      override def read: Stream[F, Message[E]] =
+        Stream.repeatEval(
+          F.delay(c.readNextAsync()).futureLift.flatMap { m =>
+            val data = m.getData
 
-          override def read1: F[Option[Message[E]]] =
-            F.delay(c.hasMessageAvailableAsync).futureLift.flatMap { hasAvailable =>
-              val readNext = F.delay(c.readNextAsync()).futureLift.flatMap { m =>
-                val data = m.getData
+            E.prj(data) match {
+              case Some(e) => F.pure(Message(m.getMessageId, MessageKey(m.getKey), e))
+              case None    => DecodingFailure(data).raiseError[F, Message[E]]
+            }
+          }
+        )
 
+      override def read1: F[Option[Message[E]]] =
+        F.delay(c.hasMessageAvailableAsync).futureLift.flatMap { hasAvailable =>
+          val readNext = F.delay(c.readNextAsync()).futureLift.flatMap { m =>
+            val data = m.getData
+
+            E.prj(data) match {
+              case Some(e) =>
+                F.pure(Message(m.getMessageId, MessageKey(m.getKey), e))
+              case None => DecodingFailure(data).raiseError[F, Message[E]]
+            }
+          }
+
+          Option.when(hasAvailable)(readNext).sequence
+        }
+
+      override def readUntil(timeout: FiniteDuration): F[Option[Message[E]]] =
+        F.delay(c.hasMessageAvailableAsync).futureLift.flatMap { hasAvailable =>
+          val readNext =
+            F.delay(c.readNext(timeout.length.toInt, timeout.unit)).flatMap { m =>
+              Option(m).map(_.getData).traverse { data =>
                 E.prj(data) match {
                   case Some(e) =>
                     F.pure(Message(m.getMessageId, MessageKey(m.getKey), e))
                   case None => DecodingFailure(data).raiseError[F, Message[E]]
                 }
               }
-
-              Option.when(hasAvailable)(readNext).sequence
             }
 
-          override def readUntil(timeout: FiniteDuration): F[Option[Message[E]]] =
-            F.delay(c.hasMessageAvailableAsync).futureLift.flatMap { hasAvailable =>
-              val readNext =
-                F.delay(c.readNext(timeout.length.toInt, timeout.unit)).flatMap { m =>
-                  Option(m).map(_.getData).traverse { data =>
-                    E.prj(data) match {
-                      case Some(e) =>
-                        F.pure(Message(m.getMessageId, MessageKey(m.getKey), e))
-                      case None => DecodingFailure(data).raiseError[F, Message[E]]
-                    }
-                  }
-                }
-
-              Option.when(hasAvailable)(readNext).flatSequence
-            }
+          Option.when(hasAvailable)(readNext).flatSequence
         }
-      }
+    }
+
+  private def mkPayloadReader[F[_]: Functor, E](m: MessageReader[F, E]): Reader[F, E] =
+    new Reader[F, E] {
+      override def read: Stream[F, E]  = m.read.map(_.payload)
+      override def read1: F[Option[E]] = m.read1.map(_.map(_.payload))
+      override def readUntil(timeout: FiniteDuration): F[Option[E]] =
+        m.readUntil(timeout).map(_.map(_.payload))
+    }
+
+  /**
+    * It creates a [[Reader]] with the supplied [[Options]].
+    */
+  def withOptions[
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topic: Topic,
+      opts: Options
+  ): Resource[F, Reader[F, E]] =
+    mkPulsarReader[F](client, topic, opts)
+      .map(c => mkPayloadReader(mkMessageReader[F, E](c)))
 
   /**
     * It creates a simple [[Reader]].
@@ -122,6 +153,31 @@ object Reader {
       topic: Topic
   ): Resource[F, Reader[F, E]] =
     withOptions[F, E](client, topic, Options())
+
+  /**
+    * It creates a [[MessageReader]] with the supplied [[Options]].
+    */
+  def messageReaderWithOptions[
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topic: Topic,
+      opts: Options
+  ): Resource[F, MessageReader[F, E]] =
+    mkPulsarReader[F](client, topic, opts).map(mkMessageReader[F, E])
+
+  /**
+    * It creates a simple [[MessageReader]].
+    */
+  def messageReader[
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topic: Topic
+  ): Resource[F, MessageReader[F, E]] =
+    messageReaderWithOptions[F, E](client, topic, Options())
 
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options {
