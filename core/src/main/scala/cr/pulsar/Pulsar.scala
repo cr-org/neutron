@@ -16,16 +16,15 @@
 
 package cr.pulsar
 
-import cats.effect.{ Resource, Sync }
-import cr.pulsar.Pulsar.Options.{ ConnectionTimeout, OperationTimeout }
-import io.estatico.newtype.macros.newtype
-import org.apache.pulsar.client.api.{ PulsarClient => Underlying }
 import scala.concurrent.duration._
 
-import scala.concurrent.duration.FiniteDuration
+import cats.effect.{ Resource, Sync }
+import cr.pulsar.Pulsar.Options.{ ConnectionTimeout, OperationTimeout }
+import cr.pulsar.data._
+import io.estatico.newtype.macros.newtype
+import org.apache.pulsar.client.api.{ PulsarClient => Underlying }
 
 object Pulsar {
-  import Config._
 
   type T = Underlying
 

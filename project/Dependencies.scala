@@ -5,10 +5,10 @@ object Dependencies {
   object V {
     val java8Compat = "0.9.1"
 
-    val cats       = "2.3.0"
-    val catsEffect = "2.3.0"
+    val cats       = "2.3.1"
+    val catsEffect = "3.0.0-M4"
     val circe      = "0.13.0"
-    val fs2        = "2.4.6"
+    val fs2        = "3.0.0-M6"
     val munit      = "0.7.20"
     val newtype    = "0.4.4"
     val pulsar     = "2.6.2"

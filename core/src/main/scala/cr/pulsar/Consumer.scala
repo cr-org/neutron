@@ -69,7 +69,7 @@ object Consumer {
   case class DecodingFailure(bytes: Array[Byte]) extends NoStackTrace
 
   private def mkConsumer[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -140,7 +140,7 @@ object Consumer {
     * you can use [[Consumer#subscribe]] for this purpose.
     */
   def multiTopic[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -156,7 +156,7 @@ object Consumer {
     * you can use [[Consumer#subscribe]] for this purpose.
     */
   def create[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -169,7 +169,7 @@ object Consumer {
     * It creates a [[Consumer]] with default options and the supplied message logger.
     */
   def withLogger[
-      F[_]: ContextShift: Parallel: Concurrent,
+      F[_]: Async: Parallel,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -186,7 +186,7 @@ object Consumer {
     * you can use [[Consumer#subscribe]] for this purpose.
     */
   def withOptions[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,

@@ -16,8 +16,6 @@
 
 package cr.pulsar
 
-import java.util.concurrent.TimeUnit
-
 import cats._
 import cats.effect._
 import cats.syntax.all._
@@ -72,7 +70,7 @@ object Reader {
       )
 
   private def mkMessageReader[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async,
       E: Inject[*, Array[Byte]]
   ](c: JReader[Array[Byte]]): MessageReader[F, E] =
     new MessageReader[F, E] {
@@ -132,7 +130,7 @@ object Reader {
     * It creates a [[Reader]] with the supplied [[Options]].
     */
   def withOptions[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -146,7 +144,7 @@ object Reader {
     * It creates a simple [[Reader]].
     */
   def create[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -158,7 +156,7 @@ object Reader {
     * It creates a [[MessageReader]] with the supplied [[Options]].
     */
   def messageReaderWithOptions[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -171,7 +169,7 @@ object Reader {
     * It creates a simple [[MessageReader]].
     */
   def messageReader[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,

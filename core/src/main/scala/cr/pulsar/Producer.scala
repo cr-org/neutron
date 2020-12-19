@@ -63,7 +63,7 @@ object Producer {
     * It creates a simple [[Producer]] with the supplied options.
     */
   def withOptions[
-      F[_]: Concurrent: ContextShift: Parallel,
+      F[_]: Async: Parallel,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -123,7 +123,7 @@ object Producer {
     * It creates a [[Producer]] with default options and the supplied message logger.
     */
   def withLogger[
-      F[_]: ContextShift: Parallel: Concurrent,
+      F[_]: Async: Parallel,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
@@ -136,7 +136,7 @@ object Producer {
     * It creates a [[Producer]] with default options (no-op logger).
     */
   def create[
-      F[_]: ContextShift: Parallel: Concurrent,
+      F[_]: Async: Parallel,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,

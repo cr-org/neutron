@@ -16,8 +16,7 @@
 
 package cr.pulsar
 
-import Config._
-import io.estatico.newtype.macros._
+import cr.pulsar.data._
 import scala.annotation.implicitNotFound
 
 /**
@@ -31,9 +30,6 @@ sealed abstract class Config {
 }
 
 object Config {
-  @newtype case class PulsarTenant(value: String)
-  @newtype case class PulsarNamespace(value: String)
-  @newtype case class PulsarURL(value: String)
 
   /**************** Type-level builder ******************/
   sealed trait Info
