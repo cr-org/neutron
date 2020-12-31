@@ -3,20 +3,16 @@ import sbt._
 object Dependencies {
 
   object V {
-    val java8Compat = "0.9.1"
-
     val cats       = "2.3.1"
     val catsEffect = "2.3.1"
-    val circe      = "0.13.0"
+    val circe      = "0.14.0-M2"
     val fs2        = "2.5.0"
     val munit      = "0.7.20"
     val newtype    = "0.4.4"
     val pulsar     = "2.6.2"
 
     val betterMonadicFor = "0.3.1"
-    val contextApplied   = "0.1.4"
     val kindProjector    = "0.11.3"
-    val macroParadise    = "2.1.1"
   }
 
   object Libraries {
@@ -27,8 +23,6 @@ object Dependencies {
 
     val circeCore   = "io.circe" %% "circe-core"   % V.circe
     val circeParser = "io.circe" %% "circe-parser" % V.circe
-
-    val java8Compat = "org.scala-lang.modules" %% "scala-java8-compat" % V.java8Compat
 
     val pulsar             = "org.apache.pulsar" % "pulsar-client"        % V.pulsar
     val pulsarFunctionsApi = "org.apache.pulsar" % "pulsar-functions-api" % V.pulsar
@@ -42,14 +36,8 @@ object Dependencies {
     val betterMonadicFor = compilerPlugin(
       "com.olegpy" %% "better-monadic-for" % V.betterMonadicFor
     )
-    val contextApplied = compilerPlugin(
-      "org.augustjune" %% "context-applied" % V.contextApplied
-    )
     val kindProjector = compilerPlugin(
       "org.typelevel" %% "kind-projector" % V.kindProjector cross CrossVersion.full
-    )
-    val macroParadise = compilerPlugin(
-      "org.scalamacros" % "paradise" % V.macroParadise cross CrossVersion.full
     )
   }
 

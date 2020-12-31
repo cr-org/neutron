@@ -1,26 +1,34 @@
 import Dependencies._
 import Settings._
 
-scalaVersion in ThisBuild := "2.13.2"
+scalaVersion in ThisBuild := "2.13.4"
+
+def extraDeps(scalaVersion: String): List[ModuleID] =
+  CrossVersion.partialVersion(scalaVersion) match {
+    case Some((2, _)) =>
+      List(
+        CompilerPlugins.betterMonadicFor,
+        CompilerPlugins.kindProjector,
+        Libraries.newtype
+      )
+    case _ => Nil
+  }
 
 lazy val `neutron-core` = (project in file("core"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
+  .settings(scalacOptions ++= compilerFlags(scalaVersion.value))
   .configs(IntegrationTest)
   .settings(
     Defaults.itSettings,
     libraryDependencies ++= List(
-          CompilerPlugins.betterMonadicFor,
-          CompilerPlugins.contextApplied,
-          CompilerPlugins.kindProjector,
           Libraries.cats,
           Libraries.catsEffect,
           Libraries.fs2,
-          Libraries.newtype,
           Libraries.pulsar,
           Libraries.munitCore       % "it,test",
           Libraries.munitScalacheck % "it,test"
-        )
+        ) ++ extraDeps(scalaVersion.value)
   )
 
 lazy val `neutron-circe` = (project in file("circe"))
@@ -40,14 +48,11 @@ lazy val `neutron-function` = (project in file("function"))
   .settings(
     libraryDependencies ++= List(
           Libraries.pulsarFunctionsApi,
-          Libraries.java8Compat,
-          Libraries.newtype,
           Libraries.cats            % Test,
           Libraries.catsEffect      % Test,
           Libraries.munitCore       % Test,
-          Libraries.munitScalacheck % Test,
-          Libraries.cats            % Test
-        )
+          Libraries.munitScalacheck % Test
+        ) ++ extraDeps(scalaVersion.value)
   )
 
 lazy val docs = (project in file("docs"))

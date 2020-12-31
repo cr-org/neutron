@@ -21,18 +21,19 @@ import java.util
 import java.util.Optional
 import java.util.concurrent.CompletableFuture
 
-import cats.syntax.all._
-import cr.pulsar.WindowContext.OutputTopic
-import munit.ScalaCheckSuite
-import org.apache.pulsar.functions.api.{ WindowContext => JavaWindowContext }
-import org.scalacheck.Prop._
-import org.slf4j.Logger
-
 import scala.collection.mutable
 import scala.concurrent.{ Await, Future }
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.compat.java8.FutureConverters._
+import scala.jdk.FutureConverters._
+
+import cr.pulsar.data.OutputTopic
+
+import cats.syntax.all._
+import munit.ScalaCheckSuite
+import org.apache.pulsar.functions.api.{ WindowContext => JavaWindowContext }
+import org.scalacheck.Prop._
+import org.slf4j.Logger
 
 class WindowContextSpec extends ScalaCheckSuite {
   property("WindowContext mapping of fields is correct") {
@@ -313,7 +314,7 @@ class WindowContextSpec extends ScalaCheckSuite {
 
         val ctx = new WindowContext(javaCtx)
 
-        assert(ctx.userConfigValue(key).isEmpty)
+        assert((ctx.userConfigValue(key): Option[Int]).isEmpty)
         assert(ctx.userConfigValueOrElse(key, defaultValue) === defaultValue)
 
         map.put(key, Integer.valueOf(value))
@@ -334,7 +335,7 @@ class WindowContextSpec extends ScalaCheckSuite {
         var i = 0
 
         def publishMessage: CompletableFuture[Void] =
-          Future({ i = i + 1 }).toJava.toCompletableFuture
+          Future({ i = i + 1 }).asJava.toCompletableFuture
             .thenApply(_ => null) // converting to void
 
         val javaCtx = new JavaWindowContext {

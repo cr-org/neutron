@@ -18,14 +18,15 @@ package cr.pulsar
 
 import java.nio.ByteBuffer
 
-import cr.pulsar.WindowContext._
+import scala.jdk.CollectionConverters._
+import scala.jdk.OptionConverters.RichOptional
+import scala.reflect.ClassTag
+
+import cr.pulsar.data._
+
 import org.apache.pulsar.client.api.{ Schema, TypedMessageBuilder }
 import org.apache.pulsar.functions.api.{ Context => JavaContext }
 import org.slf4j.Logger
-
-import cr.pulsar.JavaConversions._
-import scala.compat.java8.OptionConverters._
-import scala.reflect.ClassTag
 
 final case class Context(private val ctx: JavaContext) {
   def tenant: Tenant                     = Tenant(ctx.getTenant)
@@ -49,7 +50,7 @@ final case class Context(private val ctx: JavaContext) {
 
   def userConfigMap: Map[String, AnyRef] = ctx.getUserConfigMap.asScala.toMap
   def userConfigValue[T: ClassTag](key: String): Option[T] =
-    ctx.getUserConfigValue(key).asScala.collect { case x: T => x }
+    ctx.getUserConfigValue(key).toScala.collect { case x: T => x }
 
   def userConfigValueOrElse[T: ClassTag](key: String, defaultValue: T): T =
     userConfigValue[T](key).getOrElse(defaultValue)

@@ -21,7 +21,7 @@ import cats.Eq
 sealed trait ShardKey
 object ShardKey {
   final case class Of(value: Array[Byte]) extends ShardKey
-  final case object Default extends ShardKey
+  case object Default extends ShardKey
 
   implicit val eq: Eq[ShardKey] = Eq.fromUniversalEquals
 }

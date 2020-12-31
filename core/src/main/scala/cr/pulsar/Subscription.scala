@@ -16,12 +16,14 @@
 
 package cr.pulsar
 
-import io.estatico.newtype.macros.newtype
-import org.apache.pulsar.client.api.{ SubscriptionMode, SubscriptionType }
 import scala.annotation.implicitNotFound
 
+import cr.pulsar.data._
+
+import org.apache.pulsar.client.api.{ SubscriptionMode, SubscriptionType }
+
 sealed abstract class Subscription {
-  val name: Subscription.Name
+  val name: SubscriptionName
   val `type`: Subscription.Type
   val mode: Subscription.Mode
 }
@@ -37,8 +39,6 @@ sealed abstract class Subscription {
   * Find out more at [[https://pulsar.apache.org/docs/en/concepts-messaging/#subscriptions]]
   */
 object Subscription {
-  @newtype case class Name(value: String)
-
   sealed trait Mode {
     def pulsarSubscriptionMode: SubscriptionMode
   }
@@ -83,15 +83,15 @@ object Subscription {
   }
 
   case class SubscriptionBuilder[I <: Info] protected (
-      _name: Name = Name(""),
+      _name: SubscriptionName = SubscriptionName(""),
       _type: Type = Type.Exclusive,
       _mode: Mode = Mode.Durable
   ) {
-    def withName(name: Name): SubscriptionBuilder[I with Info.Name] =
-      this.copy(_name = Name(s"${name.value}-subscription"))
+    def withName(name: SubscriptionName): SubscriptionBuilder[I with Info.Name] =
+      this.copy(_name = SubscriptionName(s"${name.value}-subscription"))
 
     def withName(name: String): SubscriptionBuilder[I with Info.Name] =
-      withName(Name(name))
+      withName(SubscriptionName(name))
 
     def withMode(mode: Mode): SubscriptionBuilder[I with Info.Mode] =
       this.copy(_mode = mode)

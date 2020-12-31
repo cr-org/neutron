@@ -16,17 +16,20 @@
 
 package cr.pulsar
 
+import java.util.concurrent.TimeUnit
+
+import scala.concurrent.duration.FiniteDuration
+
+import cr.pulsar.data._
+import cr.pulsar.internal._
+import cr.pulsar.internal.FutureLift._
+import cr.pulsar.internal.TypedMessageBuilderOps._
+
 import cats._
 import cats.effect._
 import cats.syntax.all._
-import cr.pulsar.internal.FutureLift._
 import fs2.concurrent.{ Topic => _ }
-import java.util.concurrent.TimeUnit
-
-import cr.pulsar.internal.TypedMessageBuilderOps._
 import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder }
-
-import scala.concurrent.duration.FiniteDuration
 
 trait Producer[F[_], E] {
 
@@ -56,7 +59,7 @@ object Producer {
   sealed trait Batching
   object Batching {
     final case class Enabled(maxDelay: FiniteDuration, maxMessages: Int) extends Batching
-    final case object Disabled extends Batching
+    case object Disabled extends Batching
   }
 
   /**
@@ -128,7 +131,7 @@ object Producer {
   ](
       client: Pulsar.T,
       topic: Topic,
-      logger: E => Topic.URL => F[Unit]
+      logger: E => TopicURL => F[Unit]
   ): Resource[F, Producer[F, E]] =
     withOptions(client, topic, Options[F, E]().withLogger(logger))
 
@@ -148,10 +151,10 @@ object Producer {
   sealed abstract class Options[F[_], E] {
     val batching: Batching
     val shardKey: E => ShardKey
-    val logger: E => Topic.URL => F[Unit]
+    val logger: E => TopicURL => F[Unit]
     def withBatching(_batching: Batching): Options[F, E]
     def withShardKey(_shardKey: E => ShardKey): Options[F, E]
-    def withLogger(_logger: E => Topic.URL => F[Unit]): Options[F, E]
+    def withLogger(_logger: E => TopicURL => F[Unit]): Options[F, E]
   }
 
   /**
@@ -161,20 +164,20 @@ object Producer {
     private case class OptionsImpl[F[_], E](
         batching: Batching,
         shardKey: E => ShardKey,
-        logger: E => Topic.URL => F[Unit]
+        logger: E => TopicURL => F[Unit]
     ) extends Options[F, E] {
       override def withBatching(_batching: Batching): Options[F, E] =
         copy(batching = _batching)
       override def withShardKey(_shardKey: E => ShardKey): Options[F, E] =
         copy(shardKey = _shardKey)
-      override def withLogger(_logger: E => (Topic.URL => F[Unit])): Options[F, E] =
+      override def withLogger(_logger: E => (TopicURL => F[Unit])): Options[F, E] =
         copy(logger = _logger)
     }
     def apply[F[_]: Applicative, E](): Options[F, E] =
       OptionsImpl[F, E](
         Batching.Disabled,
         _ => ShardKey.Default,
-        _ => _ => F.unit
+        _ => _ => ().pure[F]
       )
   }
 

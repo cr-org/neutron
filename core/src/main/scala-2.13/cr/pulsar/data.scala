@@ -16,22 +16,23 @@
 
 package cr.pulsar
 
-import java.util
+import scala.concurrent.duration.FiniteDuration
+import scala.util.matching.Regex
 
-import scala.jdk.CollectionConverters._
+import io.estatico.newtype.macros._
 
-import org.apache.pulsar.functions.api.{
-  Record => JavaRecord,
-  WindowContext => JavaWindowContext,
-  WindowFunction => JavaWindowFunction
-}
+object data {
+  @newtype case class OperationTimeout(value: FiniteDuration)
+  @newtype case class ConnectionTimeout(value: FiniteDuration)
 
-trait WindowFunction[In, Out] extends JavaWindowFunction[In, Out] {
-  def handle(input: Seq[Record[In]], context: WindowContext): Out
+  @newtype case class PulsarTenant(value: String)
+  @newtype case class PulsarNamespace(value: String)
+  @newtype case class PulsarURL(value: String)
 
-  override def process(
-      input: util.Collection[JavaRecord[In]],
-      context: JavaWindowContext
-  ): Out =
-    handle(input.asScala.toSeq.map(Record(_)), WindowContext(context))
+  @newtype case class SubscriptionName(value: String)
+
+  @newtype case class TopicName(value: String)
+  @newtype case class TopicNamePattern(value: Regex)
+  @newtype case class TopicURL(value: String)
+
 }

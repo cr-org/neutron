@@ -21,10 +21,10 @@ import cats.Eq
 sealed trait MessageKey
 object MessageKey {
   final case class Of(value: String) extends MessageKey
-  final case object Empty extends MessageKey
+  case object Empty extends MessageKey
 
   def apply(value: String): MessageKey =
-    Option(value).filter(_.trim.nonEmpty).map(Of).getOrElse(Empty)
+    Option(value).filter(_.trim.nonEmpty).map(Of(_)).getOrElse(Empty)
 
   implicit val eq: Eq[MessageKey] = Eq.fromUniversalEquals
 }

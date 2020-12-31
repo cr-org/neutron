@@ -16,18 +16,18 @@
 
 package cr.pulsar
 
-import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
+import scala.util.control.NoStackTrace
+
+import cr.pulsar.Reader.Message
+import cr.pulsar.internal._
+import cr.pulsar.internal.FutureLift._
 
 import cats._
 import cats.effect._
 import cats.syntax.all._
-import cr.pulsar.Reader.Message
-import cr.pulsar.internal.FutureLift._
 import fs2._
 import org.apache.pulsar.client.api.{ MessageId, Reader => JReader }
-
-import scala.concurrent.duration.FiniteDuration
-import scala.util.control.NoStackTrace
 
 /**
   * A MessageReader can be used to read all the messages currently available in a topic.

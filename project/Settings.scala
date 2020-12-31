@@ -6,12 +6,10 @@ import Dependencies.CompilerPlugins
 
 object Settings {
   val commonSettings = Seq(
-    scalacOptions ++= compilerFlags(scalaVersion.value),
     scalafmtOnCompile := true,
     autoAPIMappings := true,
     testFrameworks += new TestFramework("munit.Framework"),
-    libraryDependencies ++= macroParadisePlugin(scalaVersion.value),
-    ThisBuild / crossScalaVersions := Seq("2.13.2"),
+    ThisBuild / crossScalaVersions := Seq("2.13.4", "3.0.0-M3"),
     ThisBuild / homepage := Some(url("https://github.com/cr-org/neutron")),
     ThisBuild / organization := "com.chatroulette",
     ThisBuild / organizationName := "Chatroulette",
@@ -61,11 +59,5 @@ object Settings {
     CrossVersion.partialVersion(v) match {
       case Some((2, 13)) => List("-Ymacro-annotations")
       case _             => List.empty
-    }
-
-  def macroParadisePlugin(v: String) =
-    CrossVersion.partialVersion(v) match {
-      case Some((2, 13)) => List.empty
-      case _             => List(CompilerPlugins.macroParadise)
     }
 }

@@ -16,18 +16,21 @@
 
 package cr.pulsar
 
+import scala.util.control.NoStackTrace
+
+import cr.pulsar.data._
+import cr.pulsar.internal._
+import cr.pulsar.internal.FutureLift._
+
 import cats._
 import cats.effect._
 import cats.syntax.all._
-import cr.pulsar.internal.FutureLift._
 import fs2._
 import org.apache.pulsar.client.api.{
   MessageId,
   SubscriptionInitialPosition,
   Consumer => JConsumer
 }
-
-import scala.util.control.NoStackTrace
 
 trait Consumer[F[_], E] {
 
@@ -108,7 +111,7 @@ object Consumer {
 
                 E.prj(data) match {
                   case Some(e) =>
-                    opts.logger(e)(Topic.URL(m.getTopicName)) >>
+                    opts.logger(e)(TopicURL(m.getTopicName)) >>
                         ack(m.getMessageId)
                           .whenA(autoAck)
                           .as(Message(m.getMessageId, MessageKey(m.getKey), e))
@@ -175,7 +178,7 @@ object Consumer {
       client: Pulsar.T,
       topic: Topic,
       sub: Subscription,
-      logger: E => Topic.URL => F[Unit]
+      logger: E => TopicURL => F[Unit]
   ): Resource[F, Consumer[F, E]] =
     withOptions(client, topic, sub, Options[F, E]().withLogger(logger))
 
@@ -199,7 +202,7 @@ object Consumer {
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {
     val initial: SubscriptionInitialPosition
-    val logger: E => Topic.URL => F[Unit]
+    val logger: E => TopicURL => F[Unit]
     val manualUnsubscribe: Boolean
     val autoNackOnFailure: Boolean
     val readCompacted: Boolean
@@ -212,7 +215,7 @@ object Consumer {
     /**
       * The logger action that runs on every message consumed. It does nothing by default.
       */
-    def withLogger(_logger: E => Topic.URL => F[Unit]): Options[F, E]
+    def withLogger(_logger: E => TopicURL => F[Unit]): Options[F, E]
 
     /**
       * Sets unsubscribe mode to `Manual`.
@@ -249,7 +252,7 @@ object Consumer {
   object Options {
     private case class OptionsImpl[F[_], E](
         initial: SubscriptionInitialPosition,
-        logger: E => Topic.URL => F[Unit],
+        logger: E => TopicURL => F[Unit],
         manualUnsubscribe: Boolean,
         autoNackOnFailure: Boolean,
         readCompacted: Boolean
@@ -259,7 +262,7 @@ object Consumer {
       ): Options[F, E] =
         copy(initial = _initial)
 
-      override def withLogger(_logger: E => (Topic.URL => F[Unit])): Options[F, E] =
+      override def withLogger(_logger: E => (TopicURL => F[Unit])): Options[F, E] =
         copy(logger = _logger)
 
       override def withManualUnsubscribe: Options[F, E] =
@@ -274,7 +277,7 @@ object Consumer {
 
     def apply[F[_]: Applicative, E](): Options[F, E] = OptionsImpl[F, E](
       SubscriptionInitialPosition.Latest,
-      _ => _ => F.unit,
+      _ => _ => ().pure[F],
       manualUnsubscribe = false,
       autoNackOnFailure = false,
       readCompacted = false

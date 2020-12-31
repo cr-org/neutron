@@ -54,7 +54,7 @@ object FutureLift {
           F.delay(f.cancel(true)).void
         }
       }
-    lifted.guarantee(F.shift)
+    lifted.guarantee(ContextShift[F].shift)
   }
 
 }

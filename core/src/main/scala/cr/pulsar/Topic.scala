@@ -16,15 +16,17 @@
 
 package cr.pulsar
 
-import cats.Show
-import cats.syntax.all._
-import io.estatico.newtype.macros.newtype
 import scala.annotation.implicitNotFound
 import scala.util.matching.Regex
 
+import cr.pulsar.data._
+
+import cats.Show
+import cats.syntax.all._
+
 sealed abstract class Topic {
-  val name: Topic.Name
-  val url: Topic.URL
+  val name: TopicName
+  val url: TopicURL
 }
 
 /**
@@ -41,29 +43,29 @@ object Topic {
   implicit val showTopic: Show[Topic] =
     Show[String].contramap(_.url.value)
 
-  @newtype case class Name(value: String)
-  @newtype case class NamePattern(value: Regex)
-  @newtype case class URL(value: String)
-
   sealed trait Type
   object Type {
     case object Persistent extends Type
     case object NonPersistent extends Type
-    implicit val showType = Show.show[Type] {
+    implicit val showType: Show[Type] = Show.show[Type] {
       case Persistent    => "persistent"
       case NonPersistent => "non-persistent"
     }
   }
 
-  private def buildUrl(cfg: Config, name: Name, `type`: Type): URL =
-    URL(s"${`type`.show}://${cfg.tenant.value}/${cfg.namespace.value}/${name.value}")
+  private def buildUrl(cfg: Config, name: TopicName, `type`: Type): TopicURL =
+    TopicURL(s"${`type`.show}://${cfg.tenant.value}/${cfg.namespace.value}/${name.value}")
 
   sealed abstract class Pattern {
-    val url: URL
+    val url: TopicURL
   }
 
-  private def buildRegexUrl(cfg: Config, namePattern: NamePattern, `type`: Type): URL =
-    URL(
+  private def buildRegexUrl(
+      cfg: Config,
+      namePattern: TopicNamePattern,
+      `type`: Type
+  ): TopicURL =
+    TopicURL(
       s"${`type`.show}://${cfg.tenant.value}/${cfg.namespace.value}/${namePattern.value.regex}"
     )
 
@@ -81,22 +83,22 @@ object Topic {
   }
 
   case class TopicBuilder[I <: Info] protected (
-      _name: Name = Name(""),
-      _pattern: NamePattern = NamePattern("".r),
+      _name: TopicName = TopicName(""),
+      _pattern: TopicNamePattern = TopicNamePattern("".r),
       _config: Config = Config.Builder.default,
       _type: Type = Type.Persistent
   ) {
-    def withName(name: Name): TopicBuilder[I with Info.Name] =
+    def withName(name: TopicName): TopicBuilder[I with Info.Name] =
       this.copy(_name = name)
 
     def withName(name: String): TopicBuilder[I with Info.Name] =
-      withName(Name(name))
+      withName(TopicName(name))
 
-    def withNamePattern(pattern: NamePattern): TopicBuilder[I with Info.Pattern] =
+    def withNamePattern(pattern: TopicNamePattern): TopicBuilder[I with Info.Pattern] =
       this.copy(_pattern = pattern)
 
     def withNamePattern(regex: Regex): TopicBuilder[I with Info.Pattern] =
-      withNamePattern(NamePattern(regex))
+      withNamePattern(TopicNamePattern(regex))
 
     def withConfig(config: Config): TopicBuilder[I with Info.Config] =
       this.copy(_config = config)

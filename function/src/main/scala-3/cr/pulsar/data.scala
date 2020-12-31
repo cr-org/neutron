@@ -16,6 +16,15 @@
 
 package cr.pulsar
 
-import scala.collection.convert.{ AsJavaExtensions, AsScalaExtensions }
-
-object JavaConversions extends AsJavaExtensions with AsScalaExtensions
+object data {
+  case class Tenant(value: String)
+  case class Namespace(value: String)
+  case class FunctionName(value: String)
+  case class FunctionId(value: String)
+  case class InstanceId(value: Int)
+  case class NumInstances(value: Int)
+  case class FunctionVersion(value: String)
+  case class InputTopic(value: String)
+  case class OutputTopic(value: String)
+  case class OutputSchemaType(value: String)
+}

@@ -16,23 +16,23 @@
 
 package cr.pulsar
 
-import cr.pulsar.JavaConversions._
+import scala.jdk.CollectionConverters._
+import scala.jdk.OptionConverters.RichOptional
+
 import org.apache.pulsar.client.api.Message
 import org.apache.pulsar.functions.api.{ Record => JavaRecord }
-
-import scala.compat.java8.OptionConverters._
 
 final case class Record[T](private val ctx: JavaRecord[T]) {
   def ack(): Unit  = ctx.ack()
   def fail(): Unit = ctx.fail()
 
-  def destinationTopic: Option[String] = ctx.getDestinationTopic.asScala
-  def eventTime: Option[Long]          = ctx.getEventTime.asScala.map(x => x)
-  def key: Option[String]              = ctx.getKey.asScala
-  def message: Option[Message[T]]      = ctx.getMessage.asScala
-  def partitionId: Option[String]      = ctx.getPartitionId.asScala
+  def destinationTopic: Option[String] = ctx.getDestinationTopic.toScala
+  def eventTime: Option[Long]          = ctx.getEventTime.toScala.map(x => x)
+  def key: Option[String]              = ctx.getKey.toScala
+  def message: Option[Message[T]]      = ctx.getMessage.toScala
+  def partitionId: Option[String]      = ctx.getPartitionId.toScala
   def properties: Map[String, String]  = ctx.getProperties.asScala.toMap
-  def recordSequence: Option[Long]     = ctx.getRecordSequence.asScala.map(x => x)
-  def topicName: Option[String]        = ctx.getTopicName.asScala
+  def recordSequence: Option[Long]     = ctx.getRecordSequence.toScala.map(x => x)
+  def topicName: Option[String]        = ctx.getTopicName.toScala
   def value: T                         = ctx.getValue
 }

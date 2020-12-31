@@ -23,7 +23,7 @@ import org.scalacheck.Prop._
 
 class FunctionSpec extends ScalaCheckSuite {
   property("Function can convert numbers to strings") {
-    forAll { n: Int =>
+    forAll { (n: Int) =>
       val f = new Function[Int, String] {
         override def handle(input: Int, ctx: Context): String =
           input.toString
@@ -35,7 +35,7 @@ class FunctionSpec extends ScalaCheckSuite {
   }
 
   property("Function can do side effects") {
-    forAll { n: Int =>
+    forAll { (n: Int) =>
       var i = 0
       val f = new Function[Int, Unit] {
         override def handle(input: Int, ctx: Context): Unit =

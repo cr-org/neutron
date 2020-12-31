@@ -27,8 +27,8 @@ import scala.util.Try
 
 abstract class PulsarSuite extends FunSuite {
 
-  implicit val `⏳` = IO.contextShift(ExecutionContext.global)
-  implicit val `⏰` = IO.timer(ExecutionContext.global)
+  implicit val `⏳` : ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+  implicit val `⏰` : Timer[IO]        = IO.timer(ExecutionContext.global)
 
   private[this] var client: Pulsar.T = null
   private[this] var close: IO[Unit]  = null
@@ -36,7 +36,7 @@ abstract class PulsarSuite extends FunSuite {
 
   override def munitValueTransforms: List[ValueTransform] =
     super.munitValueTransforms :+ new ValueTransform("IO", {
-          case ioa: IO[_] => IO.suspend(ioa).unsafeToFuture
+          case ioa: IO[_] => IO.suspend(ioa).unsafeToFuture()
         })
 
   override def beforeAll(): Unit = {
@@ -55,7 +55,7 @@ abstract class PulsarSuite extends FunSuite {
   def withPulsarClient(f: (=> Pulsar.T) => Unit): Unit =
     f {
       //to ensure the resource has been allocated before any test(...) call
-      latch.get.unsafeRunSync
+      latch.get.unsafeRunSync()
       client
     }
 

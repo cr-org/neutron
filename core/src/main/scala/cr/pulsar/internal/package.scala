@@ -16,6 +16,23 @@
 
 package cr.pulsar
 
-import scala.collection.convert.{ DecorateAsJava, DecorateAsScala }
+import cats.Inject
+import cats.effect.Bracket
 
-object JavaConversions extends DecorateAsJava with DecorateAsScala
+package object internal {
+
+  /**
+    * A convenient dependent summoner for the Cats Effect hierarchy. Inspired by izumi's BIO.
+    * Auto-narrows to the most powerful available class but it does not work below Monad (ambiguous implicits).
+    *
+    * {{{
+    *   import cr.pulsar.internal.summoner.F
+    *
+    *   def program[F[_]: Sync]: F[Unit] =
+    *     F.delay(println("Hello world!"))
+    * }}}
+    */
+  @inline final def F[FR[_]](implicit FR: Bracket[FR, Throwable]): FR.type = FR
+
+  @inline final def E[T](implicit T: Inject[T, Array[Byte]]): T.type = T
+}
