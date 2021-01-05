@@ -17,7 +17,6 @@
 package cr.pulsar
 
 import scala.annotation.implicitNotFound
-import scala.util.matching.Regex
 
 import cr.pulsar.data._
 
@@ -87,18 +86,12 @@ object Topic {
       _pattern: TopicNamePattern = TopicNamePattern("".r),
       _config: Config = Config.Builder.default,
       _type: Type = Type.Persistent
-  ) {
+  ) extends TopicBuilderExtra[I] {
     def withName(name: TopicName): TopicBuilder[I with Info.Name] =
       this.copy(_name = name)
 
-    def withName(name: String): TopicBuilder[I with Info.Name] =
-      withName(TopicName(name))
-
     def withNamePattern(pattern: TopicNamePattern): TopicBuilder[I with Info.Pattern] =
       this.copy(_pattern = pattern)
-
-    def withNamePattern(regex: Regex): TopicBuilder[I with Info.Pattern] =
-      withNamePattern(TopicNamePattern(regex))
 
     def withConfig(config: Config): TopicBuilder[I with Info.Config] =
       this.copy(_config = config)

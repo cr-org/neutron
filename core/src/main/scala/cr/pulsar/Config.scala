@@ -47,24 +47,15 @@ object Config {
       _tenant: PulsarTenant = PulsarTenant(""),
       _namespace: PulsarNamespace = PulsarNamespace(""),
       _url: PulsarURL = PulsarURL("")
-  ) {
+  ) extends ConfigBuilderExtra[I] {
     def withTenant(tenant: PulsarTenant): ConfigBuilder[I with Info.Tenant] =
       this.copy(_tenant = tenant)
-
-    def withTenant(tenant: String): ConfigBuilder[I with Info.Tenant] =
-      withTenant(PulsarTenant(tenant))
 
     def withNameSpace(namespace: PulsarNamespace): ConfigBuilder[I with Info.Namespace] =
       this.copy(_namespace = namespace)
 
-    def withNameSpace(namespace: String): ConfigBuilder[I with Info.Namespace] =
-      withNameSpace(PulsarNamespace(namespace))
-
     def withURL(url: PulsarURL): ConfigBuilder[I with Info.URL] =
       this.copy(_url = url)
-
-    def withURL(url: String): ConfigBuilder[I with Info.URL] =
-      withURL(PulsarURL(url))
 
     /**
       * It creates a new configuration.

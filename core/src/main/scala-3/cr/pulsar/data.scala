@@ -16,27 +16,66 @@
 
 package cr.pulsar
 
+import scala.annotation.targetName
 import scala.concurrent.duration.FiniteDuration
 import scala.util.matching.Regex
 
-object data {
-  //opaque type Bar = Int
-  //opaque type Foo = String
+object data:
+  opaque type OperationTimeout = FiniteDuration
+  def OperationTimeout(v: FiniteDuration): OperationTimeout = v
+  extension (x: OperationTimeout)
+    @targetName("value_OperationTimeout")
+    def value: FiniteDuration = x
 
-  case class OperationTimeout(value: FiniteDuration)
-  case class ConnectionTimeout(value: FiniteDuration)
+  opaque type ConnectionTimeout = FiniteDuration
+  def ConnectionTimeout(v: FiniteDuration): ConnectionTimeout = v
+  extension (x: ConnectionTimeout)
+    @targetName("value_ConnectionTimeout")
+    def value: FiniteDuration = x
 
-  case class PulsarTenant(value: String)
-  case class PulsarNamespace(value: String)
-  case class PulsarURL(value: String)
+  opaque type PulsarTenant = String
+  def PulsarTenant(v: String): PulsarTenant = v
+  extension (x: PulsarTenant)
+    @targetName("value_PulsarTenant")
+    def value: String = x
 
-  case class SubscriptionName(value: String)
+  opaque type PulsarNamespace = String
+  def PulsarNamespace(v: String): PulsarNamespace = v
+  extension (x: PulsarNamespace)
+    @targetName("value_PulsarNamespace")
+    def value: String = x
 
-  case class TopicName(value: String)
-  case class TopicNamePattern(value: Regex)
-  case class TopicURL(value: String)
+  opaque type PulsarURL = String
+  def PulsarURL(v: String): PulsarURL = v
+  extension (x: PulsarURL)
+    @targetName("value_PulsarURL")
+    def value: String = x
 
-  object context {
+  opaque type SubscriptionName = String
+  def SubscriptionName(v: String): SubscriptionName = v
+  extension (x: SubscriptionName)
+    @targetName("value_SubscriptionName")
+    def value: String = x
+
+  opaque type TopicName = String
+  def TopicName(v: String): TopicName = v
+  extension (x: TopicName)
+    @targetName("value_TopicName")
+    def value: String = x
+
+  opaque type TopicNamePattern = Regex
+  def TopicNamePattern(v: Regex): TopicNamePattern = v
+  extension (x: TopicNamePattern)
+    @targetName("value_TopicNamePattern")
+    def value: Regex = x
+
+  opaque type TopicURL = String
+  def TopicURL(v: String): TopicURL = v
+  extension (x: TopicURL)
+    @targetName("value_TopicURL")
+    def value: String = x
+
+  object context:
     final case class Tenant(value: String)
     final case class Namespace(value: String)
     final case class FunctionName(value: String)
@@ -47,18 +86,5 @@ object data {
     final case class InputTopic(value: String)
     final case class OutputTopic(value: String)
     final case class OutputSchemaType(value: String)
-  }
-  //opaque type PulsarTenant = String
-  //opaque type PulsarNamespace = String
-  //opaque type PulsarURL = String
-
-  //extension (x: PulsarTenant) {
-  //def value: String = x
-  //}
-  //extension (x: PulsarNamespace) {
-  //def value: String = x
-  //}
-  //extension (x: PulsarURL) {
-  //def value: String = x
-  //}
-}
+  end context
+end data

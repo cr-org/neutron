@@ -86,12 +86,9 @@ object Subscription {
       _name: SubscriptionName = SubscriptionName(""),
       _type: Type = Type.Exclusive,
       _mode: Mode = Mode.Durable
-  ) {
+  ) extends SubscriptionBuilderExtra[I] {
     def withName(name: SubscriptionName): SubscriptionBuilder[I with Info.Name] =
       this.copy(_name = SubscriptionName(s"${name.value}-subscription"))
-
-    def withName(name: String): SubscriptionBuilder[I with Info.Name] =
-      withName(SubscriptionName(name))
 
     def withMode(mode: Mode): SubscriptionBuilder[I with Info.Mode] =
       this.copy(_mode = mode)
