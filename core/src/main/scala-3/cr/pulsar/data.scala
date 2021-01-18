@@ -20,59 +20,32 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.matching.Regex
 
 object data:
-  opaque type OperationTimeout = FiniteDuration
-  object OperationTimeout {
-    def apply(v: FiniteDuration): OperationTimeout = v
-    extension (x: OperationTimeout) def value: FiniteDuration = x
-  }
+  val OperationTimeout = NewType.of[FiniteDuration]
+  type OperationTimeout = OperationTimeout.Type
 
-  opaque type ConnectionTimeout = FiniteDuration
-  object ConnectionTimeout {
-    def apply(v: FiniteDuration): ConnectionTimeout = v
-    extension (x: ConnectionTimeout) def value: FiniteDuration = x
-  }
+  val ConnectionTimeout = NewType.of[FiniteDuration]
+  type ConnectionTimeout = ConnectionTimeout.Type
 
-  opaque type PulsarTenant = String
-  object PulsarTenant {
-    def apply(v: String): PulsarTenant = v
-    extension (x: PulsarTenant) def value: String = x
-  }
+  val PulsarTenant = NewType.of[String]
+  type PulsarTenant = PulsarTenant.Type
 
-  opaque type PulsarNamespace = String
-  object PulsarNamespace {
-    def apply(v: String): PulsarNamespace = v
-    extension (x: PulsarNamespace) def value: String = x
-  }
+  val PulsarNamespace = NewType.of[String]
+  type PulsarNamespace = PulsarNamespace.Type
 
-  opaque type PulsarURL = String
-  object PulsarURL {
-    def apply(v: String): PulsarURL = v
-    extension (x: PulsarURL) def value: String = x
-  }
+  val PulsarURL = NewType.of[String]
+  type PulsarURL = PulsarURL.Type
 
-  opaque type SubscriptionName = String
-  object SubscriptionName {
-    def apply(v: String): SubscriptionName = v
-    extension (x: SubscriptionName) def value: String = x
-  }
+  val SubscriptionName = NewType.of[String]
+  type SubscriptionName = SubscriptionName.Type
 
-  opaque type TopicName = String
-  object TopicName {
-    def apply(v: String): TopicName = v
-    extension (x: TopicName) def value: String = x
-  }
+  val TopicName = NewType.of[String]
+  type TopicName = TopicName.Type
 
-  opaque type TopicNamePattern = Regex
-  object TopicNamePattern {
-    def apply(v: Regex): TopicNamePattern = v
-    extension (x: TopicNamePattern) def value: Regex = x
-  }
+  val TopicNamePattern = NewType.of[Regex]
+  type TopicNamePattern = TopicNamePattern.Type
 
-  opaque type TopicURL = String
-  object TopicURL {
-    def apply(v: String): TopicURL = v
-    extension (x: TopicURL) def value: String = x
-  }
+  val TopicURL = NewType.of[String]
+  type TopicURL = TopicURL.Type
 
   object context:
     final case class Tenant(value: String)
