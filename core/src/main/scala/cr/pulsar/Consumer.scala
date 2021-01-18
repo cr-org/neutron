@@ -68,6 +68,13 @@ object Consumer {
   case class Message[A](id: MessageId, key: MessageKey, payload: A)
   case class DecodingFailure(bytes: Array[Byte]) extends NoStackTrace
 
+  sealed trait OnFailure[+F[_]]
+  object OnFailure {
+    case class Ack[F[_]](f: DecodingFailure => F[Unit]) extends OnFailure[F]
+    case class Nack[F[_]](f: DecodingFailure => F[Unit]) extends OnFailure[F]
+    case object NoAction extends OnFailure[Nothing]
+  }
+
   private def mkConsumer[
       F[_]: Concurrent: ContextShift,
       E: Inject[*, Array[Byte]]
@@ -102,8 +109,8 @@ object Consumer {
       .map { c =>
         new Consumer[F, E] {
           private def subscribeInternal(autoAck: Boolean): Stream[F, Message[E]] =
-            Stream.repeatEval(
-              F.delay(c.receiveAsync()).futureLift.flatMap { m =>
+            Stream.repeatEval {
+              def go: F[Message[E]] = F.delay(c.receiveAsync()).futureLift.flatMap { m =>
                 val data = m.getData()
 
                 E.prj(data) match {
@@ -113,11 +120,16 @@ object Consumer {
                           .whenA(autoAck)
                           .as(Message(m.getMessageId, MessageKey(m.getKey), e))
                   case None =>
-                    nack(m.getMessageId).whenA(opts.autoNackOnFailure) >>
-                        DecodingFailure(data).raiseError[F, Message[E]]
+                    val error = DecodingFailure(data)
+                    opts.onFailure match {
+                      case OnFailure.Ack(f)   => ack(m.getMessageId) >> f(error) >> go
+                      case OnFailure.Nack(f)  => nack(m.getMessageId) >> f(error) >> go
+                      case OnFailure.NoAction => error.raiseError[F, Message[E]]
+                    }
                 }
               }
-            )
+              go
+            }
 
           override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
           override def nack(id: MessageId): F[Unit] = F.delay(c.negativeAcknowledge(id))
@@ -201,7 +213,7 @@ object Consumer {
     val initial: SubscriptionInitialPosition
     val logger: E => Topic.URL => F[Unit]
     val manualUnsubscribe: Boolean
-    val autoNackOnFailure: Boolean
+    val onFailure: OnFailure[F]
     val readCompacted: Boolean
 
     /**
@@ -228,6 +240,17 @@ object Consumer {
       *
       * By default, a `DecodingFailure` will be raised without `nack`ing.
       */
+    def withOnFailure(_onFailure: OnFailure[F]): Options[F, E]
+
+    /**
+      * Automatically `nack` when a message fails to be decoded, then raise a `DecodingFailure` error.
+      *
+      * By default, a `DecodingFailure` will be raised without `nack`ing.
+      */
+    @deprecated(
+      "Use withOnFailure instead which also allows to perform an action",
+      "Since 0.0.4"
+    )
     def withAutoNackOnFailure: Options[F, E]
 
     /**
@@ -247,11 +270,11 @@ object Consumer {
     * Consumer options such as subscription initial position and message logger.
     */
   object Options {
-    private case class OptionsImpl[F[_], E](
+    private case class OptionsImpl[F[_]: Applicative, E](
         initial: SubscriptionInitialPosition,
         logger: E => Topic.URL => F[Unit],
         manualUnsubscribe: Boolean,
-        autoNackOnFailure: Boolean,
+        onFailure: OnFailure[F],
         readCompacted: Boolean
     ) extends Options[F, E] {
       override def withInitialPosition(
@@ -265,8 +288,11 @@ object Consumer {
       override def withManualUnsubscribe: Options[F, E] =
         copy(manualUnsubscribe = true)
 
+      override def withOnFailure(_onFailure: OnFailure[F]): Options[F, E] =
+        copy(onFailure = _onFailure)
+
       override def withAutoNackOnFailure: Options[F, E] =
-        copy(autoNackOnFailure = true)
+        copy(onFailure = OnFailure.Nack(_ => F.unit))
 
       override def withReadCompacted: Options[F, E] =
         copy(readCompacted = true)
@@ -276,7 +302,7 @@ object Consumer {
       SubscriptionInitialPosition.Latest,
       _ => _ => F.unit,
       manualUnsubscribe = false,
-      autoNackOnFailure = false,
+      onFailure = OnFailure.NoAction,
       readCompacted = false
     )
   }
