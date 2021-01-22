@@ -33,12 +33,18 @@ import org.apache.pulsar.client.api.schema.{
   SchemaReader,
   SchemaWriter
 }
+import java.io.DataInputStream
+import java.io.ByteArrayInputStream
+import java.nio.ByteBuffer
+import java.io.BufferedReader
 
 object Circe {
   def of[T: ClassTag: Encoder: Decoder]: Schema[T] = {
     val reader = new SchemaReader[T] {
-      override def read(inputStream: InputStream): T =
-        read(inputStream.readAllBytes(), 0, 0)
+      override def read(inputStream: InputStream): T = {
+        val bytes = new Array[Byte](inputStream.available())
+        read(bytes, 0, 0)
+      }
 
       override def read(bytes: Array[Byte], offset: Int, length: Int): T =
         decode[T](new String(bytes, UTF_8)).fold[T](
