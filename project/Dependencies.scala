@@ -25,8 +25,9 @@ object Dependencies {
     val fs2        = "co.fs2"        %% "fs2-core"    % V.fs2
     val newtype    = "io.estatico"   %% "newtype"     % V.newtype
 
-    val circeCore   = "io.circe" %% "circe-core"   % V.circe
-    val circeParser = "io.circe" %% "circe-parser" % V.circe
+    val circeCore    = "io.circe" %% "circe-core"    % V.circe
+    val circeGeneric = "io.circe" %% "circe-generic" % V.circe
+    val circeParser  = "io.circe" %% "circe-parser"  % V.circe
 
     val java8Compat = "org.scala-lang.modules" %% "scala-java8-compat" % V.java8Compat
 

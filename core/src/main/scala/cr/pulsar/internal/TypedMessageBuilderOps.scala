@@ -20,14 +20,14 @@ import cr.pulsar.{ MessageKey, ShardKey }
 import org.apache.pulsar.client.api.TypedMessageBuilder
 
 private[pulsar] object TypedMessageBuilderOps {
-  implicit class TMBOps(val value: TypedMessageBuilder[Array[Byte]]) extends AnyVal {
-    def withShardKey(shardKey: ShardKey): TypedMessageBuilder[Array[Byte]] =
+  implicit class TMBOps[A](val value: TypedMessageBuilder[A]) extends AnyVal {
+    def withShardKey(shardKey: ShardKey): TypedMessageBuilder[A] =
       shardKey match {
         case ShardKey.Of(k)   => value.orderingKey(k)
         case ShardKey.Default => value
       }
 
-    def withMessageKey(msgKey: MessageKey): TypedMessageBuilder[Array[Byte]] =
+    def withMessageKey(msgKey: MessageKey): TypedMessageBuilder[A] =
       msgKey match {
         case MessageKey.Of(k) => value.key(k)
         case MessageKey.Empty => value

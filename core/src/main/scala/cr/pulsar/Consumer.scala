@@ -16,18 +16,22 @@
 
 package cr.pulsar
 
+import scala.util.control.NoStackTrace
+
+import cr.pulsar.internal.FutureLift._
+import cr.pulsar.schema.Schemas
+
 import cats._
 import cats.effect._
 import cats.syntax.all._
-import cr.pulsar.internal.FutureLift._
 import fs2._
 import org.apache.pulsar.client.api.{
+  Message,
   MessageId,
+  Schema,
   SubscriptionInitialPosition,
   Consumer => JConsumer
 }
-
-import scala.util.control.NoStackTrace
 
 trait Consumer[F[_], E] {
 
@@ -66,27 +70,18 @@ trait Consumer[F[_], E] {
 object Consumer {
 
   case class Message[A](id: MessageId, key: MessageKey, payload: A)
-  case class DecodingFailure(bytes: Array[Byte]) extends NoStackTrace
+  case class DecodingFailure(msg: String) extends Exception(msg) with NoStackTrace
 
-  sealed trait OnFailure[+F[_]]
-  object OnFailure {
-    case class Ack[F[_]](f: DecodingFailure => F[Unit]) extends OnFailure[F]
-    case class Nack[F[_]](f: DecodingFailure => F[Unit]) extends OnFailure[F]
-    case object NoAction extends OnFailure[Nothing]
-  }
-
-  private def mkConsumer[
-      F[_]: Concurrent: ContextShift,
-      E: Inject[*, Array[Byte]]
-  ](
+  private def mkConsumer[F[_]: Concurrent: ContextShift, E](
       client: Pulsar.T,
       sub: Subscription,
       topicType: Either[Topic.Pattern, Topic],
+      schema: Schema[E],
       opts: Options[F, E]
   ): Resource[F, Consumer[F, E]] = {
     val acquire =
       F.delay {
-        val c = client.newConsumer
+        val c = client.newConsumer(schema)
         topicType
           .fold(
             p => c.topicsPattern(p.url.value.r.pattern),
@@ -100,7 +95,7 @@ object Consumer {
           .subscribeAsync
       }.futureLift
 
-    def release(c: JConsumer[Array[Byte]]): F[Unit] =
+    def release(c: JConsumer[E]): F[Unit] =
       F.delay(c.unsubscribeAsync()).futureLift.attempt.unlessA(opts.manualUnsubscribe) >>
           F.delay(c.closeAsync()).futureLift.void
 
@@ -110,25 +105,14 @@ object Consumer {
         new Consumer[F, E] {
           private def subscribeInternal(autoAck: Boolean): Stream[F, Message[E]] =
             Stream.repeatEval {
-              def go: F[Message[E]] = F.delay(c.receiveAsync()).futureLift.flatMap { m =>
-                val data = m.getData()
+              F.delay(c.receiveAsync()).futureLift.flatMap { m =>
+                val e = m.getValue()
 
-                E.prj(data) match {
-                  case Some(e) =>
-                    opts.logger(e)(Topic.URL(m.getTopicName)) >>
-                        ack(m.getMessageId)
-                          .whenA(autoAck)
-                          .as(Message(m.getMessageId, MessageKey(m.getKey), e))
-                  case None =>
-                    val error = DecodingFailure(data)
-                    opts.onFailure match {
-                      case OnFailure.Ack(f)   => ack(m.getMessageId) >> f(error) >> go
-                      case OnFailure.Nack(f)  => nack(m.getMessageId) >> f(error) >> go
-                      case OnFailure.NoAction => error.raiseError[F, Message[E]]
-                    }
-                }
+                opts.logger(e)(Topic.URL(m.getTopicName)) >>
+                  ack(m.getMessageId)
+                    .whenA(autoAck)
+                    .as(Message(m.getMessageId, MessageKey(m.getKey), e))
               }
-              go
             }
 
           override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
@@ -151,15 +135,13 @@ object Consumer {
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
     */
-  def multiTopic[
-      F[_]: Concurrent: ContextShift,
-      E: Inject[*, Array[Byte]]
-  ](
+  def multiTopic[F[_]: Concurrent: ContextShift, E](
       client: Pulsar.T,
       topicPattern: Topic.Pattern,
-      sub: Subscription
+      sub: Subscription,
+      schema: Schema[E]
   ): Resource[F, Consumer[F, E]] =
-    mkConsumer(client, sub, topicPattern.asLeft, Options[F, E]())
+    mkConsumer(client, sub, topicPattern.asLeft, schema, Options[F, E]())
 
   /**
     * It creates a [[Consumer]] with default options.
@@ -167,29 +149,25 @@ object Consumer {
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
     */
-  def create[
-      F[_]: Concurrent: ContextShift,
-      E: Inject[*, Array[Byte]]
-  ](
+  def create[F[_]: Concurrent: ContextShift, E](
       client: Pulsar.T,
       topic: Topic,
-      sub: Subscription
+      sub: Subscription,
+      schema: Schema[E]
   ): Resource[F, Consumer[F, E]] =
-    withOptions(client, topic, sub, Options[F, E]())
+    withOptions(client, topic, sub, schema, Options[F, E]())
 
   /**
     * It creates a [[Consumer]] with default options and the supplied message logger.
     */
-  def withLogger[
-      F[_]: ContextShift: Parallel: Concurrent,
-      E: Inject[*, Array[Byte]]
-  ](
+  def withLogger[F[_]: ContextShift: Parallel: Concurrent, E](
       client: Pulsar.T,
       topic: Topic,
       sub: Subscription,
+      schema: Schema[E],
       logger: E => Topic.URL => F[Unit]
   ): Resource[F, Consumer[F, E]] =
-    withOptions(client, topic, sub, Options[F, E]().withLogger(logger))
+    withOptions(client, topic, sub, schema, Options[F, E]().withLogger(logger))
 
   /**
     * It creates a [[Consumer]] with the supplied options.
@@ -197,7 +175,23 @@ object Consumer {
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
     */
-  def withOptions[
+  def withOptions[F[_]: Concurrent: ContextShift, E](
+      client: Pulsar.T,
+      topic: Topic,
+      sub: Subscription,
+      schema: Schema[E],
+      opts: Options[F, E]
+  ): Resource[F, Consumer[F, E]] =
+    mkConsumer(client, sub, topic.asRight, schema, opts)
+
+  /**
+    * It creates a [[Consumer]] with the supplied options with a Schema.BYTES based
+    * on the Inject instance.
+    *
+    * Note that this does not create a subscription to any Topic,
+    * you can use [[Consumer#subscribe]] for this purpose.
+    */
+  def fromInject[
       F[_]: Concurrent: ContextShift,
       E: Inject[*, Array[Byte]]
   ](
@@ -206,14 +200,13 @@ object Consumer {
       sub: Subscription,
       opts: Options[F, E]
   ): Resource[F, Consumer[F, E]] =
-    mkConsumer(client, sub, topic.asRight, opts)
+    mkConsumer(client, sub, topic.asRight, Schemas.fromInject[E], opts)
 
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {
     val initial: SubscriptionInitialPosition
     val logger: E => Topic.URL => F[Unit]
     val manualUnsubscribe: Boolean
-    val onFailure: OnFailure[F]
     val readCompacted: Boolean
 
     /**
@@ -236,24 +229,6 @@ object Consumer {
     def withManualUnsubscribe: Options[F, E]
 
     /**
-      * Automatically `nack` when a message fails to be decoded, then raise a `DecodingFailure` error.
-      *
-      * By default, a `DecodingFailure` will be raised without `nack`ing.
-      */
-    def withOnFailure(_onFailure: OnFailure[F]): Options[F, E]
-
-    /**
-      * Automatically `nack` when a message fails to be decoded, then raise a `DecodingFailure` error.
-      *
-      * By default, a `DecodingFailure` will be raised without `nack`ing.
-      */
-    @deprecated(
-      "Use withOnFailure instead which also allows to perform an action",
-      "Since 0.0.4"
-    )
-    def withAutoNackOnFailure: Options[F, E]
-
-    /**
       * If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog
       * of the topic. This means that, if the topic has been compacted, the consumer will only see the latest value for
       * each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that
@@ -274,7 +249,6 @@ object Consumer {
         initial: SubscriptionInitialPosition,
         logger: E => Topic.URL => F[Unit],
         manualUnsubscribe: Boolean,
-        onFailure: OnFailure[F],
         readCompacted: Boolean
     ) extends Options[F, E] {
       override def withInitialPosition(
@@ -288,12 +262,6 @@ object Consumer {
       override def withManualUnsubscribe: Options[F, E] =
         copy(manualUnsubscribe = true)
 
-      override def withOnFailure(_onFailure: OnFailure[F]): Options[F, E] =
-        copy(onFailure = _onFailure)
-
-      override def withAutoNackOnFailure: Options[F, E] =
-        copy(onFailure = OnFailure.Nack(_ => F.unit))
-
       override def withReadCompacted: Options[F, E] =
         copy(readCompacted = true)
     }
@@ -302,7 +270,6 @@ object Consumer {
       SubscriptionInitialPosition.Latest,
       _ => _ => F.unit,
       manualUnsubscribe = false,
-      onFailure = OnFailure.NoAction,
       readCompacted = false
     )
   }

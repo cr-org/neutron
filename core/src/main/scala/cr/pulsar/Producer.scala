@@ -16,17 +16,19 @@
 
 package cr.pulsar
 
+import java.util.concurrent.TimeUnit
+
+import scala.concurrent.duration.FiniteDuration
+
 import cats._
 import cats.effect._
 import cats.syntax.all._
-import cr.pulsar.internal.FutureLift._
 import fs2.concurrent.{ Topic => _ }
-import java.util.concurrent.TimeUnit
 
+import cr.pulsar.internal.FutureLift._
 import cr.pulsar.internal.TypedMessageBuilderOps._
-import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder }
-
-import scala.concurrent.duration.FiniteDuration
+import cr.pulsar.schema.Schemas
+import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder, Schema }
 
 trait Producer[F[_], E] {
 
@@ -62,17 +64,15 @@ object Producer {
   /**
     * It creates a simple [[Producer]] with the supplied options.
     */
-  def withOptions[
-      F[_]: Concurrent: ContextShift: Parallel,
-      E: Inject[*, Array[Byte]]
-  ](
+  def withOptions[F[_]: Concurrent: ContextShift: Parallel, E](
       client: Pulsar.T,
       topic: Topic,
+      schema: Schema[E],
       opts: Options[F, E]
   ): Resource[F, Producer[F, E]] = {
     def configureBatching(
         batching: Batching,
-        producerBuilder: ProducerBuilder[Array[Byte]]
+        producerBuilder: ProducerBuilder[E]
     ) =
       batching match {
         case Batching.Enabled(delay, _) =>
@@ -92,19 +92,17 @@ object Producer {
         F.delay(
           configureBatching(
             opts.batching,
-            client.newProducer.topic(topic.url.value)
+            client.newProducer(schema).topic(topic.url.value)
           ).create
         )
       }(p => F.delay(p.closeAsync()).futureLift.void)
       .map { prod =>
         new Producer[F, E] {
-          val serialise: E => Array[Byte] = E.inj
-
           override def send(msg: E, key: MessageKey): F[MessageId] =
             opts.logger(msg)(topic.url) &> F.delay {
                   prod
                     .newMessage()
-                    .value(serialise(msg))
+                    .value(msg)
                     .withShardKey(opts.shardKey(msg))
                     .withMessageKey(key)
                     .sendAsync()
@@ -122,27 +120,37 @@ object Producer {
   /**
     * It creates a [[Producer]] with default options and the supplied message logger.
     */
-  def withLogger[
+  def withLogger[F[_]: ContextShift: Parallel: Concurrent, E](
+      client: Pulsar.T,
+      topic: Topic,
+      schema: Schema[E],
+      logger: E => Topic.URL => F[Unit]
+  ): Resource[F, Producer[F, E]] =
+    withOptions(client, topic, schema, Options[F, E]().withLogger(logger))
+
+  /**
+    * It creates a [[Producer]] with default options (no-op logger).
+    */
+  def create[F[_]: ContextShift: Parallel: Concurrent, E](
+      client: Pulsar.T,
+      topic: Topic,
+      schema: Schema[E]
+  ): Resource[F, Producer[F, E]] =
+    withOptions(client, topic, schema, Options[F, E]())
+
+  /**
+    * It creates a [[Producer]] with the given options and a Schema.BYTES
+    * based on the Inject instance.
+    */
+  def fromInject[
       F[_]: ContextShift: Parallel: Concurrent,
       E: Inject[*, Array[Byte]]
   ](
       client: Pulsar.T,
       topic: Topic,
-      logger: E => Topic.URL => F[Unit]
+      opts: Options[F, E]
   ): Resource[F, Producer[F, E]] =
-    withOptions(client, topic, Options[F, E]().withLogger(logger))
-
-  /**
-    * It creates a [[Producer]] with default options (no-op logger).
-    */
-  def create[
-      F[_]: ContextShift: Parallel: Concurrent,
-      E: Inject[*, Array[Byte]]
-  ](
-      client: Pulsar.T,
-      topic: Topic
-  ): Resource[F, Producer[F, E]] =
-    withOptions(client, topic, Options[F, E]())
+    withOptions(client, topic, Schemas.fromInject[E], opts)
 
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {

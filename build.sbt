@@ -6,9 +6,7 @@ scalaVersion in ThisBuild := "2.13.2"
 lazy val `neutron-core` = (project in file("core"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
-  .configs(IntegrationTest)
   .settings(
-    Defaults.itSettings,
     libraryDependencies ++= List(
           CompilerPlugins.betterMonadicFor,
           CompilerPlugins.contextApplied,
@@ -18,8 +16,8 @@ lazy val `neutron-core` = (project in file("core"))
           Libraries.fs2,
           Libraries.newtype,
           Libraries.pulsar,
-          Libraries.munitCore       % "it,test",
-          Libraries.munitScalacheck % "it,test"
+          Libraries.munitCore       % Test,
+          Libraries.munitScalacheck % Test
         )
   )
 
@@ -49,6 +47,25 @@ lazy val `neutron-function` = (project in file("function"))
           Libraries.cats            % Test
         )
   )
+
+lazy val tests = (project in file("tests"))
+  .enablePlugins(AutomateHeaderPlugin)
+  .settings(commonSettings)
+  .configs(IntegrationTest)
+  .settings(
+    Defaults.itSettings,
+    libraryDependencies ++= List(
+          CompilerPlugins.betterMonadicFor,
+          CompilerPlugins.contextApplied,
+          CompilerPlugins.kindProjector,
+          Libraries.circeCore       % "it,test",
+          Libraries.circeGeneric    % "it,test",
+          Libraries.circeParser     % "it,test",
+          Libraries.munitCore       % "it,test",
+          Libraries.munitScalacheck % "it,test"
+        )
+  )
+  .dependsOn(`neutron-circe`)
 
 lazy val docs = (project in file("docs"))
   .dependsOn(`neutron-core`)
@@ -100,5 +117,6 @@ lazy val root = (project in file("."))
     `neutron-function`,
     `neutron-circe`,
     `neutron-core`,
-    docs
+    docs,
+    tests
   )

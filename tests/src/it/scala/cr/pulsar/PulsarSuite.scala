@@ -16,14 +16,17 @@
 
 package cr.pulsar
 
+import java.util.UUID
+
+import scala.concurrent.ExecutionContext
+
 import cats._
 import cats.effect._
 import cats.effect.concurrent.Deferred
 import cats.implicits._
-import java.util.UUID
+import io.circe._
+import io.circe.generic.semiauto._
 import munit.FunSuite
-import scala.concurrent.ExecutionContext
-import scala.util.Try
 
 abstract class PulsarSuite extends FunSuite {
 
@@ -68,16 +71,8 @@ abstract class PulsarSuite extends FunSuite {
   object Event {
     implicit val eq: Eq[Event] = Eq.by(_.uuid)
 
-    implicit val inject: Inject[Event, Array[Byte]] =
-      new Inject[Event, Array[Byte]] {
-        def inj: Event => Array[Byte] =
-          e => s"${e.uuid.toString}".getBytes(charset)
-        def prj: Array[Byte] => Option[Event] =
-          bs =>
-            Try(UUID.fromString(new String(bs, charset))).toOption.map { i =>
-              Event(i, "foo")
-            }
-      }
+    implicit val jsonEncoder: Encoder[Event] = deriveEncoder
+    implicit val jsonDecoder: Decoder[Event] = deriveDecoder
   }
 
   lazy val cfg = Config.Builder.default

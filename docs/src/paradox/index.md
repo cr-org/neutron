@@ -15,12 +15,14 @@ It is published for Scala $scala-versions$. You can include it in your project b
 Here's a quick consumer / producer example using Neutron. Note: both are fully asynchronous.
 
 ```scala mdoc:compile-only
+import scala.concurrent.duration._
+
 import cats.effect._
 import cats.implicits._
 import fs2.Stream
+
 import cr.pulsar._
-import cr.pulsar.schema.utf8._
-import scala.concurrent.duration._
+import cr.pulsar.schema.Schemas
 
 object Demo extends IOApp {
 
@@ -39,11 +41,13 @@ object Demo extends IOApp {
       .withType(Subscription.Type.Shared)
       .build
 
+  val schema = Schemas.utf8
+
   val resources: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
     for {
       pulsar   <- Pulsar.create[IO](config.url)
-      consumer <- Consumer.create[IO, String](pulsar, topic, subs)
-      producer <- Producer.create[IO, String](pulsar, topic)
+      consumer <- Consumer.create[IO, String](pulsar, topic, subs, schema)
+      producer <- Producer.create[IO, String](pulsar, topic, schema)
     } yield (consumer, producer)
 
   def run(args: List[String]): IO[ExitCode] =

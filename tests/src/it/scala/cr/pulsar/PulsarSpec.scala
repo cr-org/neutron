@@ -18,12 +18,13 @@ package cr.pulsar
 
 import java.util.UUID
 
-import cr.pulsar.schema.utf8._
+import cr.pulsar.schema.{ Circe, Schemas }
 
 import cats.effect._
 import cats.effect.concurrent.{ Deferred, Ref }
 import cats.implicits._
 import fs2.Stream
+import io.circe.syntax._
 
 class PulsarSpec extends PulsarSuite {
 
@@ -39,17 +40,18 @@ class PulsarSpec extends PulsarSuite {
       .withConfig(cfg)
       .build
 
-  val batch = Producer.Batching.Disabled
-  val shard = (_: Event) => ShardKey.Default
+  val batch  = Producer.Batching.Disabled
+  val shard  = (_: Event) => ShardKey.Default
+  val schema = Circe.of[Event]
 
   withPulsarClient { client =>
-    test("A message is published and consumed successfully") {
-      val hpTopic = topic("happy-path")
+    test("A message is published and consumed successfully using Schema.JSON via Circe") {
+      val hpTopic = topic("happy-path-json")
 
       val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event])] =
         for {
-          consumer <- Consumer.create[IO, Event](client, hpTopic, sub("happy-path"))
-          producer <- Producer.create[IO, Event](client, hpTopic)
+          consumer <- Consumer.create[IO, Event](client, hpTopic, sub("hp-circe"), schema)
+          producer <- Producer.create[IO, Event](client, hpTopic, schema)
         } yield consumer -> producer
 
       Deferred[IO, Event].flatMap { latch =>
@@ -78,16 +80,54 @@ class PulsarSpec extends PulsarSuite {
       }
     }
 
+    test("A message is published and consumed successfully using Schema.BYTES via Inject") {
+      val hpTopic = topic("happy-path-bytes")
+
+      val utf8 = Schemas.utf8
+
+      val res: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
+        for {
+          consumer <- Consumer.create[IO, String](client, hpTopic, sub("hp-bytes"), utf8)
+          producer <- Producer.create[IO, String](client, hpTopic, utf8)
+        } yield consumer -> producer
+
+      Deferred[IO, String].flatMap { latch =>
+        Stream
+          .resource(res)
+          .flatMap {
+            case (consumer, producer) =>
+              val consume =
+                consumer.subscribe
+                  .evalMap(msg => consumer.ack(msg.id) >> latch.complete(msg.payload))
+
+              val testMessage = "Hello Neutron!"
+
+              val produce =
+                Stream(testMessage)
+                  .covary[IO]
+                  .evalMap(producer.send)
+                  .evalMap(_ => latch.get)
+
+              produce.concurrently(consume).evalMap { e =>
+                IO(assertEquals(e, testMessage))
+              }
+          }
+          .compile
+          .drain
+      }
+    }
+
     test("A consumer fails to decode a message") {
       val dfTopic = topic("decoding-failure")
 
       val res: Resource[IO, (Consumer[IO, Event], Producer[IO, String])] =
         for {
-          consumer <- Consumer.create[IO, Event](client, dfTopic, sub("decoding-failure"))
-          producer <- Producer.create[IO, String](client, dfTopic)
+          consumer <- Consumer
+                       .create[IO, Event](client, dfTopic, sub("decoding-err"), schema)
+          producer <- Producer.create[IO, String](client, dfTopic, Schemas.utf8)
         } yield consumer -> producer
 
-      Deferred[IO, Array[Byte]].flatMap { latch =>
+      Deferred[IO, String].flatMap { latch =>
         Stream
           .resource(res)
           .flatMap {
@@ -108,65 +148,12 @@ class PulsarSpec extends PulsarSuite {
                   .evalMap(_ => latch.get)
 
               produce.concurrently(consume).evalMap { msg =>
-                IO(assert(stringBytesInject.prj(msg).contains(testMessage)))
+                IO(assert(msg.contains("expected json value")))
               }
           }
           .compile
           .drain
       }
-    }
-
-    test(
-      "A consumer fails to decode first message, which is acked and logged via onFailure, and continue to process more messages"
-    ) {
-      (
-        Deferred[IO, Either[Throwable, Unit]],
-        Ref.of[IO, Option[Event]](None),
-        Ref.of[IO, Option[Consumer.DecodingFailure]](None)
-      ).tupled
-        .flatMap {
-          case (latch, ref, logger) =>
-            val dfaTopic = topic("decoding-failure-acked-logged")
-
-            val opts = Consumer
-              .Options[IO, Event]()
-              .withOnFailure(
-                Consumer.OnFailure.Ack(e => logger.set(e.some))
-              )
-
-            val res: Resource[IO, (Consumer[IO, Event], Producer[IO, String])] =
-              for {
-                consumer <- Consumer.withOptions(client, dfaTopic, sub("err-acked"), opts)
-                producer <- Producer.create[IO, String](client, dfaTopic)
-              } yield consumer -> producer
-
-            Stream
-              .resource(res)
-              .flatMap {
-                case (consumer, producer) =>
-                  val consume: Stream[IO, Event] =
-                    consumer.autoSubscribe
-                      .evalTap(e => ref.set(e.some) >> latch.complete(().asRight))
-                      .interruptWhen(latch.get)
-
-                  val badMessage = "Consumer will fail to decode this message"
-                  val testEvent  = Event(UUID.randomUUID(), "test")
-
-                  val goodMessage = new String(Event.inject.inj(testEvent), "UTF-8")
-
-                  val produce =
-                    Stream(badMessage, goodMessage)
-                      .covary[IO]
-                      .evalMap(producer.send)
-
-                  consume.concurrently(produce).evalMap { _ =>
-                    logger.get.map(e => assert(e.nonEmpty)) >>
-                      ref.get.map(e => assertEquals(e, Some(testEvent)))
-                  }
-              }
-              .compile
-              .drain
-        }
     }
 
     test(
@@ -187,9 +174,9 @@ class PulsarSpec extends PulsarSuite {
         (Consumer[IO, Event], Consumer[IO, Event], Producer[IO, Event])
       ] =
         for {
-          c1 <- Consumer.create[IO, Event](client, topic("shared"), makeSub("s1"))
-          c2 <- Consumer.create[IO, Event](client, topic("shared"), makeSub("s2"))
-          producer <- Producer.withOptions(client, topic("shared"), opts)
+          c1 <- Consumer.create[IO, Event](client, topic("shared"), makeSub("s1"), schema)
+          c2 <- Consumer.create[IO, Event](client, topic("shared"), makeSub("s2"), schema)
+          producer <- Producer.withOptions(client, topic("shared"), schema, opts)
         } yield (c1, c2, producer)
 
       (Ref.of[IO, List[Event]](List.empty), Ref.of[IO, List[Event]](List.empty)).tupled
