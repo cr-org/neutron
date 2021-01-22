@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cr.pulsar.schema
+package cr.pulsar.schema.circe
 
 import java.io.InputStream
 import java.nio.charset.StandardCharsets.UTF_8
@@ -33,14 +33,11 @@ import org.apache.pulsar.client.api.schema.{
   SchemaReader,
   SchemaWriter
 }
-import java.io.DataInputStream
-import java.io.ByteArrayInputStream
-import java.nio.ByteBuffer
-import java.io.BufferedReader
 
-object Circe {
-  def of[T: ClassTag: Encoder: Decoder]: Schema[T] = {
+object JsonSchema {
+  def apply[T: ClassTag: Encoder: Decoder]: Schema[T] = {
     val reader = new SchemaReader[T] {
+      // FIXME: This implementation is wrong (should read the IS)
       override def read(inputStream: InputStream): T = {
         val bytes = new Array[Byte](inputStream.available())
         read(bytes, 0, 0)

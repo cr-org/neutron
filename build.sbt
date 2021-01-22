@@ -68,13 +68,14 @@ lazy val tests = (project in file("tests"))
   .dependsOn(`neutron-circe`)
 
 lazy val docs = (project in file("docs"))
-  .dependsOn(`neutron-core`)
+  .dependsOn(`neutron-circe`)
   .enablePlugins(ParadoxSitePlugin)
   .enablePlugins(ParadoxMaterialThemePlugin)
   .enablePlugins(GhpagesPlugin)
   .enablePlugins(MdocPlugin)
   .settings(
     noPublish,
+    libraryDependencies += Libraries.circeGeneric,
     scmInfo := Some(
           ScmInfo(
             url("https://github.com/cr-org/neutron"),

@@ -75,14 +75,33 @@ object Demo extends IOApp {
 
 ### Schema
 
-Neutron relies on `cats.Inject[A, Array[Byte]]` instances to be able to decode & encode messages from & to raw bytes instead of using the [native schema solution](https://pulsar.apache.org/docs/en/schema-get-started/). As functional programmers, we believe this has certain benefits. In the example above, we are using a standard "UTF-8" encoding `String <=> Array[Byte]`, brought by `import cr.pulsar.schema.utf8._`.
+As of version `0.0.5`, Neutron ships with support for [Pulsar Schema](https://pulsar.apache.org/docs/en/schema-get-started/). The simplest way to get started is to use the given UTF-8 encoding, which makes use of the native `Schema.BYTES`.
 
-At Chatroulette, we use JSON-serialised data for which we define an `Inject` instance based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` extra dependency (available since `v0.0.2`).
+```scala mdoc:compile-only
+import cr.pulsar.schema.Schemas
 
-Once you added the dependency, you are an import away from having JSON schema based on Circe.
+val schema = Schemas.utf8
+```
 
-```scala
-import cr.pulsar.schema.circe._
+It is also possible to derive a `Schema.BYTES` for a given `cats.Inject[A, Array[Byte]]` instance.
+
+At Chatroulette, we use JSON-serialised data for which we derive a `Schema.JSON` based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` dependency.
+
+Once you have it, you are an import away from having JSON schema support.
+
+```scala mdoc:compile-only
+import cr.pulsar.schema.circe.JsonSchema
+
+import io.circe.{Decoder, Encoder}
+import io.circe.generic.semiauto._
+
+case class Event(id: Long, name: String)
+object Event {
+  implicit val jsonEncoder: Encoder[Event] = deriveEncoder
+  implicit val jsonDecoder: Decoder[Event] = deriveDecoder
+}
+
+val schema = JsonSchema[Event]
 ```
 
 Be aware that your datatype needs to provide instances of `io.circe.Encoder` and `io.circe.Decoder` for this instance to become available.

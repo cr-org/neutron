@@ -18,7 +18,8 @@ package cr.pulsar
 
 import java.util.UUID
 
-import cr.pulsar.schema.{ Circe, Schemas }
+import cr.pulsar.schema.Schemas
+import cr.pulsar.schema.circe.JsonSchema
 
 import cats.effect._
 import cats.effect.concurrent.{ Deferred, Ref }
@@ -42,7 +43,7 @@ class PulsarSpec extends PulsarSuite {
 
   val batch  = Producer.Batching.Disabled
   val shard  = (_: Event) => ShardKey.Default
-  val schema = Circe.of[Event]
+  val schema = JsonSchema[Event]
 
   withPulsarClient { client =>
     test("A message is published and consumed successfully using Schema.JSON via Circe") {
