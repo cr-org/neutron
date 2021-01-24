@@ -18,12 +18,12 @@ package cr.pulsar.schema
 
 import java.nio.charset.StandardCharsets.UTF_8
 
+import cr.pulsar.Consumer.DecodingFailure
+
 import cats.Inject
 import cats.implicits._
-
 import org.apache.pulsar.client.api.Schema
 import org.apache.pulsar.common.schema.SchemaInfo
-import cr.pulsar.Consumer.DecodingFailure
 
 object Schemas {
   def fromInject[E: Inject[*, Array[Byte]]]: Schema[E] =
@@ -32,8 +32,6 @@ object Schemas {
       override def decode(bytes: Array[Byte]): E =
         E.prj(bytes)
           .getOrElse(throw new DecodingFailure(s"Could not decode bytes: $bytes"))
-      // this one is needed if versioned schemas are supported
-      //override <defaultmethod> def decode(bytes: Array[Byte], schemaVersion: Array[Byte]): E = ???
       override def getSchemaInfo(): SchemaInfo = Schema.BYTES.getSchemaInfo()
     }
 

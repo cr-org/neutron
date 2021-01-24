@@ -64,8 +64,8 @@ abstract class PulsarSuite extends FunSuite {
 
   val charset = "UTF-8"
   case class Event(uuid: UUID, value: String) {
-    def shardKey: ShardKey =
-      ShardKey.Of(uuid.toString.getBytes(charset))
+    def shardKey: ShardKey = ShardKey.Of(uuid.toString.getBytes(charset))
+    def toV2: Event_V2     = Event_V2(uuid, value, 0)
   }
 
   object Event {
@@ -73,6 +73,16 @@ abstract class PulsarSuite extends FunSuite {
 
     implicit val jsonEncoder: Encoder[Event] = deriveEncoder
     implicit val jsonDecoder: Decoder[Event] = deriveDecoder
+  }
+
+  case class Event_V2(uuid: UUID, value: String, code: Int)
+
+  object Event_V2 {
+    implicit val eq: Eq[Event_V2] = Eq.by(_.uuid)
+
+    implicit val jsonEncoder: Encoder[Event_V2] = deriveEncoder
+    implicit val jsonDecoder: Decoder[Event_V2] =
+      deriveDecoder[Event_V2] or Event.jsonDecoder.map(_.toV2)
   }
 
   lazy val cfg = Config.Builder.default

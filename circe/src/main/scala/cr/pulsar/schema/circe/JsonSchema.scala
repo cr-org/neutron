@@ -16,7 +16,7 @@
 
 package cr.pulsar.schema.circe
 
-import java.io.InputStream
+import java.io.{ ByteArrayOutputStream, InputStream }
 import java.nio.charset.StandardCharsets.UTF_8
 
 import scala.reflect.ClassTag
@@ -26,7 +26,6 @@ import cr.pulsar.Consumer.DecodingFailure
 import io.circe._
 import io.circe.parser.decode
 import io.circe.syntax._
-
 import org.apache.pulsar.client.api.Schema
 import org.apache.pulsar.client.api.schema.{
   SchemaDefinition,
@@ -37,10 +36,17 @@ import org.apache.pulsar.client.api.schema.{
 object JsonSchema {
   def apply[T: ClassTag: Encoder: Decoder]: Schema[T] = {
     val reader = new SchemaReader[T] {
-      // FIXME: This implementation is wrong (should read the IS)
-      override def read(inputStream: InputStream): T = {
-        val bytes = new Array[Byte](inputStream.available())
-        read(bytes, 0, 0)
+      override def read(is: InputStream): T = {
+        val bos  = new ByteArrayOutputStream
+        val data = new Array[Byte](1024 * 4) // default used by Apache Common's IOUtils
+
+        var nRead: Int = -1
+
+        while ({ nRead = is.read(data, 0, data.length); nRead != -1 }) {
+          bos.write(data, 0, nRead)
+        }
+
+        read(bos.toByteArray(), 0, 0)
       }
 
       override def read(bytes: Array[Byte], offset: Int, length: Int): T =
@@ -61,6 +67,7 @@ object JsonSchema {
         .withPojo(implicitly[ClassTag[T]].getClass)
         .withSchemaReader(reader)
         .withSchemaWriter(writer)
+        .withSupportSchemaVersioning(true)
         .build()
     )
   }

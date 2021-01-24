@@ -81,6 +81,46 @@ class PulsarSpec extends PulsarSuite {
       }
     }
 
+    test("Schema versioning: producer sends old Event, Consumer expects Event_V2") {
+      val vTopic = topic("versioning-json")
+
+      val res: Resource[IO, (Consumer[IO, Event_V2], Producer[IO, Event])] =
+        for {
+          consumer <- Consumer.create[IO, Event_V2](
+                       client,
+                       vTopic,
+                       sub("v-circe"),
+                       JsonSchema[Event_V2]
+                     )
+          producer <- Producer.create(client, vTopic, JsonSchema[Event])
+        } yield consumer -> producer
+
+      Deferred[IO, Event_V2].flatMap { latch =>
+        Stream
+          .resource(res)
+          .flatMap {
+            case (consumer, producer) =>
+              val consume =
+                consumer.subscribe
+                  .evalMap(msg => consumer.ack(msg.id) >> latch.complete(msg.payload))
+
+              val testEvent = Event(UUID.randomUUID(), "test")
+
+              val produce =
+                Stream(testEvent)
+                  .covary[IO]
+                  .evalMap(producer.send)
+                  .evalMap(_ => latch.get)
+
+              produce.concurrently(consume).evalMap { e =>
+                IO(assert(e === testEvent.toV2))
+              }
+          }
+          .compile
+          .drain
+      }
+    }
+
     test("A message is published and consumed successfully using Schema.BYTES via Inject") {
       val hpTopic = topic("happy-path-bytes")
 
