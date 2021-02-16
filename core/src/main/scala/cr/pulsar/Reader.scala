@@ -16,8 +16,6 @@
 
 package cr.pulsar
 
-import java.util.concurrent.TimeUnit
-
 import cats._
 import cats.effect._
 import cats.syntax.all._
@@ -139,7 +137,18 @@ object Reader {
       topic: Topic,
       opts: Options
   ): Resource[F, Reader[F, E]] =
-    mkPulsarReader[F](client, topic, opts)
+    withOptionsIn[F, F, E](client, topic, opts)
+
+  def withOptionsIn[
+      G[_]: Sync,
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topic: Topic,
+      opts: Options
+  ): Resource[G, Reader[F, E]] =
+    mkPulsarReader[G](client, topic, opts)
       .map(c => mkPayloadReader(mkMessageReader[F, E](c)))
 
   /**
@@ -152,7 +161,17 @@ object Reader {
       client: Pulsar.T,
       topic: Topic
   ): Resource[F, Reader[F, E]] =
-    withOptions[F, E](client, topic, Options())
+    createIn[F, F, E](client, topic)
+
+  def createIn[
+      G[_]: Sync,
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topic: Topic
+  ): Resource[G, Reader[F, E]] =
+    withOptionsIn[G, F, E](client, topic, Options())
 
   /**
     * It creates a [[MessageReader]] with the supplied [[Options]].
@@ -165,7 +184,18 @@ object Reader {
       topic: Topic,
       opts: Options
   ): Resource[F, MessageReader[F, E]] =
-    mkPulsarReader[F](client, topic, opts).map(mkMessageReader[F, E])
+    messageReaderWithOptionsIn[F, F, E](client, topic, opts)
+
+  def messageReaderWithOptionsIn[
+      G[_]: Sync,
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topic: Topic,
+      opts: Options
+  ): Resource[G, MessageReader[F, E]] =
+    mkPulsarReader[G](client, topic, opts).map(mkMessageReader[F, E])
 
   /**
     * It creates a simple [[MessageReader]].
@@ -177,7 +207,17 @@ object Reader {
       client: Pulsar.T,
       topic: Topic
   ): Resource[F, MessageReader[F, E]] =
-    messageReaderWithOptions[F, E](client, topic, Options())
+    messageReader[F, F, E](client, topic)
+
+  def messageReader[
+      G[_]: Sync,
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topic: Topic
+  ): Resource[G, MessageReader[F, E]] =
+    messageReaderWithOptionsIn[G, F, E](client, topic, Options())
 
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options {

@@ -76,6 +76,7 @@ object Consumer {
   }
 
   private def mkConsumer[
+      G[_]: Concurrent: ContextShift,
       F[_]: Concurrent: ContextShift,
       E: Inject[*, Array[Byte]]
   ](
@@ -83,9 +84,9 @@ object Consumer {
       sub: Subscription,
       topicType: Either[Topic.Pattern, Topic],
       opts: Options[F, E]
-  ): Resource[F, Consumer[F, E]] = {
+  ): Resource[G, Consumer[F, E]] = {
     val acquire =
-      F.delay {
+      G.delay {
         val c = client.newConsumer
         topicType
           .fold(
@@ -100,9 +101,9 @@ object Consumer {
           .subscribeAsync
       }.futureLift
 
-    def release(c: JConsumer[Array[Byte]]): F[Unit] =
-      F.delay(c.unsubscribeAsync()).futureLift.attempt.unlessA(opts.manualUnsubscribe) >>
-          F.delay(c.closeAsync()).futureLift.void
+    def release(c: JConsumer[Array[Byte]]): G[Unit] =
+      G.delay(c.unsubscribeAsync()).futureLift.attempt.unlessA(opts.manualUnsubscribe) >>
+          G.delay(c.closeAsync()).futureLift.void
 
     Resource
       .make(acquire)(release)
@@ -159,7 +160,18 @@ object Consumer {
       topicPattern: Topic.Pattern,
       sub: Subscription
   ): Resource[F, Consumer[F, E]] =
-    mkConsumer(client, sub, topicPattern.asLeft, Options[F, E]())
+    multiTopic[F, F, E](client, topicPattern, sub)
+
+  def multiTopic[
+      G[_]: Concurrent: ContextShift,
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topicPattern: Topic.Pattern,
+      sub: Subscription
+  ): Resource[G, Consumer[F, E]] =
+    mkConsumer[G, F, E](client, sub, topicPattern.asLeft, Options[F, E]())
 
   /**
     * It creates a [[Consumer]] with default options.
@@ -175,7 +187,18 @@ object Consumer {
       topic: Topic,
       sub: Subscription
   ): Resource[F, Consumer[F, E]] =
-    withOptions(client, topic, sub, Options[F, E]())
+    createIn[F, F, E](client, topic, sub)
+
+  def createIn[
+      G[_]: Concurrent: ContextShift,
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topic: Topic,
+      sub: Subscription
+  ): Resource[G, Consumer[F, E]] =
+    withOptionsIn[G, F, E](client, topic, sub, Options[F, E]())
 
   /**
     * It creates a [[Consumer]] with default options and the supplied message logger.
@@ -189,7 +212,19 @@ object Consumer {
       sub: Subscription,
       logger: E => Topic.URL => F[Unit]
   ): Resource[F, Consumer[F, E]] =
-    withOptions(client, topic, sub, Options[F, E]().withLogger(logger))
+    withLoggerIn[F, F, E](client, topic, sub, logger)
+
+  def withLoggerIn[
+      G[_]: ContextShift: Parallel: Concurrent,
+      F[_]: ContextShift: Parallel: Concurrent,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topic: Topic,
+      sub: Subscription,
+      logger: E => Topic.URL => F[Unit]
+  ): Resource[G, Consumer[F, E]] =
+    withOptionsIn[G, F, E](client, topic, sub, Options[F, E]().withLogger(logger))
 
   /**
     * It creates a [[Consumer]] with the supplied options.
@@ -206,7 +241,19 @@ object Consumer {
       sub: Subscription,
       opts: Options[F, E]
   ): Resource[F, Consumer[F, E]] =
-    mkConsumer(client, sub, topic.asRight, opts)
+    withOptionsIn[F, F, E](client, topic, sub, opts)
+
+  def withOptionsIn[
+      G[_]: Concurrent: ContextShift,
+      F[_]: Concurrent: ContextShift,
+      E: Inject[*, Array[Byte]]
+  ](
+      client: Pulsar.T,
+      topic: Topic,
+      sub: Subscription,
+      opts: Options[F, E]
+  ): Resource[G, Consumer[F, E]] =
+    mkConsumer[G, F, E](client, sub, topic.asRight, opts)
 
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {
