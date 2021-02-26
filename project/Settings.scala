@@ -11,7 +11,7 @@ object Settings {
     autoAPIMappings := true,
     testFrameworks += new TestFramework("munit.Framework"),
     libraryDependencies ++= macroParadisePlugin(scalaVersion.value),
-    ThisBuild / crossScalaVersions := Seq("2.13.2"),
+    ThisBuild / crossScalaVersions := Seq("2.13.5"),
     ThisBuild / homepage := Some(url("https://github.com/cr-org/neutron")),
     ThisBuild / organization := "com.chatroulette",
     ThisBuild / organizationName := "Chatroulette",
