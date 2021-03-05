@@ -11,7 +11,7 @@ object Dependencies {
     val fs2        = "2.5.3"
     val munit      = "0.7.22"
     val newtype    = "0.4.4"
-    val pulsar     = "2.6.2"
+    val pulsar     = "2.7.0"
 
     val betterMonadicFor = "0.3.1"
     val contextApplied   = "0.1.4"
