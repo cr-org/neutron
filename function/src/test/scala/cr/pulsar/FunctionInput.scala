@@ -20,9 +20,9 @@ import java.nio.ByteBuffer
 import java.{ lang, util }
 import java.util.Optional
 import java.util.concurrent.CompletableFuture
-
 import org.apache.pulsar.client.api.{ ConsumerBuilder, Schema, TypedMessageBuilder }
 import org.apache.pulsar.functions.api.{
+  StateStore,
   Context => JavaContext,
   Record => JavaRecord,
   WindowContext => JavaWindowContext
@@ -104,6 +104,17 @@ object FunctionInput {
         schema: Schema[O]
     ): TypedMessageBuilder[O]                                                 = ???
     override def newConsumerBuilder[O](schema: Schema[O]): ConsumerBuilder[O] = ???
+    override def getStateStore[S <: StateStore](name: String): S              = ???
+    override def getStateStore[S <: StateStore](
+        tenant: String,
+        ns: String,
+        name: String
+    ): S = ???
+    override def newOutputMessage[O](
+        clusterName: String,
+        topicName: String,
+        schema: Schema[O]
+    ): TypedMessageBuilder[O] = ???
   }
 
   def input[A](seq: Seq[A]): util.Collection[JavaRecord[A]] = {
