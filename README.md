@@ -32,16 +32,10 @@ If you are a `nix` user, make sure you enter a `Nix Shell` by running `nix-shell
 sbt +test
 ```
 
-Remember to first start Pulsar.
+Remember to first start Pulsar and its configuration via the provided shell script.
 
 ```
-docker-compose up -d
-```
-
-And run the setup.
-
-```
-./setup.sh
+./run.sh
 ```
 
 ### Schemas

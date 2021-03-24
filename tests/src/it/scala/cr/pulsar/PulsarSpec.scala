@@ -55,7 +55,7 @@ class PulsarSpec extends PulsarSuite {
 
     Pulsar.create[IO](neutronCfg.url).use { client =>
       val _topic = Topic.Builder
-        .withName("json")
+        .withName("json-backward")
         .withConfig(neutronCfg)
         .build
 
@@ -112,7 +112,7 @@ class PulsarSpec extends PulsarSuite {
 
     Pulsar.create[IO](nopeCfg.url).use { client =>
       val _topic = Topic.Builder
-        .withName("json")
+        .withName("json-always-incompatible")
         .withConfig(nopeCfg)
         .build
 
