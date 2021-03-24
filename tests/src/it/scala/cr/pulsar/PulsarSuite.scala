@@ -16,16 +16,10 @@
 
 package cr.pulsar
 
-import java.util.UUID
-
 import scala.concurrent.ExecutionContext
 
-import cats._
 import cats.effect._
 import cats.effect.concurrent.Deferred
-import cats.implicits._
-import io.circe._
-import io.circe.generic.semiauto._
 import munit.FunSuite
 
 abstract class PulsarSuite extends FunSuite {
@@ -39,7 +33,7 @@ abstract class PulsarSuite extends FunSuite {
 
   override def munitValueTransforms: List[ValueTransform] =
     super.munitValueTransforms :+ new ValueTransform("IO", {
-          case ioa: IO[_] => IO.suspend(ioa).unsafeToFuture
+          case ioa: IO[_] => IO.suspend(ioa).unsafeToFuture()
         })
 
   override def beforeAll(): Unit = {
@@ -58,32 +52,9 @@ abstract class PulsarSuite extends FunSuite {
   def withPulsarClient(f: (=> Pulsar.T) => Unit): Unit =
     f {
       //to ensure the resource has been allocated before any test(...) call
-      latch.get.unsafeRunSync
+      latch.get.unsafeRunSync()
       client
     }
-
-  val charset = "UTF-8"
-  case class Event(uuid: UUID, value: String) {
-    def shardKey: ShardKey = ShardKey.Of(uuid.toString.getBytes(charset))
-    def toV2: Event_V2     = Event_V2(uuid, value, 0)
-  }
-
-  object Event {
-    implicit val eq: Eq[Event] = Eq.by(_.uuid)
-
-    implicit val jsonEncoder: Encoder[Event] = deriveEncoder
-    implicit val jsonDecoder: Decoder[Event] = deriveDecoder
-  }
-
-  case class Event_V2(uuid: UUID, value: String, code: Int)
-
-  object Event_V2 {
-    implicit val eq: Eq[Event_V2] = Eq.by(_.uuid)
-
-    implicit val jsonEncoder: Encoder[Event_V2] = deriveEncoder
-    implicit val jsonDecoder: Decoder[Event_V2] =
-      deriveDecoder[Event_V2] or Event.jsonDecoder.map(_.toV2)
-  }
 
   lazy val cfg = Config.Builder.default
 

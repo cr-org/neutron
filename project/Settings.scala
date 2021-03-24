@@ -7,6 +7,7 @@ import Dependencies.CompilerPlugins
 object Settings {
   val commonSettings = Seq(
     scalacOptions ++= compilerFlags(scalaVersion.value),
+    scalacOptions -= "-Wunused:params", // so many false-positives :(
     scalafmtOnCompile := true,
     autoAPIMappings := true,
     testFrameworks += new TestFramework("munit.Framework"),

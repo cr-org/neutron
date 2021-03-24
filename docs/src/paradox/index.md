@@ -22,7 +22,7 @@ import cats.implicits._
 import fs2.Stream
 
 import cr.pulsar._
-import cr.pulsar.schema.Schemas
+import cr.pulsar.schema.utf8._
 
 object Demo extends IOApp {
 
@@ -41,13 +41,11 @@ object Demo extends IOApp {
       .withType(Subscription.Type.Shared)
       .build
 
-  val schema = Schemas.utf8
-
   val resources: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
     for {
       pulsar   <- Pulsar.create[IO](config.url)
-      consumer <- Consumer.create[IO, String](pulsar, topic, subs, schema)
-      producer <- Producer.create[IO, String](pulsar, topic, schema)
+      consumer <- Consumer.create[IO, String](pulsar, topic, subs)
+      producer <- Producer.create[IO, String](pulsar, topic)
     } yield (consumer, producer)
 
   def run(args: List[String]): IO[ExitCode] =
@@ -75,22 +73,21 @@ object Demo extends IOApp {
 
 ### Schema
 
-As of version `0.0.5`, Neutron ships with support for [Pulsar Schema](https://pulsar.apache.org/docs/en/schema-get-started/). The simplest way to get started is to use the given UTF-8 encoding, which makes use of the native `Schema.BYTES`.
+As of version `0.0.6`, Neutron ships with support for [Pulsar Schema](https://pulsar.apache.org/docs/en/schema-get-started/). The simplest way to get started is to use the given UTF-8 encoding, which makes use of the native `Schema.BYTES`.
 
 ```scala mdoc:compile-only
-import cr.pulsar.schema.Schemas
-
-val schema = Schemas.utf8
+import cr.pulsar.schema.utf8._
 ```
 
-It is also possible to derive a `Schema.BYTES` for a given `cats.Inject[A, Array[Byte]]` instance.
+This brings into scope an *implicit* `Schema[String]`, required to initialize consumers and producers. There's also a default instance `Schema[A]`, for any `cats.Inject[A, Array[Byte]]` instance (based on `Schema.BYTES` as well).
 
 At Chatroulette, we use JSON-serialised data for which we derive a `Schema.JSON` based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` dependency.
 
 Once you have it, you are an import away from having JSON schema support.
 
 ```scala mdoc:compile-only
-import cr.pulsar.schema.circe.JsonSchema
+import cr.pulsar.schema.Schema
+import cr.pulsar.schema.circe._
 
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto._
@@ -101,7 +98,7 @@ object Event {
   implicit val jsonDecoder: Decoder[Event] = deriveDecoder
 }
 
-val schema = JsonSchema[Event]
+val schema = Schema[Event] // summon an instance
 ```
 
 Be aware that your datatype needs to provide instances of `io.circe.Encoder` and `io.circe.Decoder` for this instance to become available.

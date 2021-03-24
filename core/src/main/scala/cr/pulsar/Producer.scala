@@ -27,8 +27,8 @@ import fs2.concurrent.{ Topic => _ }
 
 import cr.pulsar.internal.FutureLift._
 import cr.pulsar.internal.TypedMessageBuilderOps._
-import cr.pulsar.schema.Schemas
-import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder, Schema }
+import cr.pulsar.schema.Schema
+import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder }
 
 trait Producer[F[_], E] {
 
@@ -64,10 +64,9 @@ object Producer {
   /**
     * It creates a simple [[Producer]] with the supplied options.
     */
-  def withOptions[F[_]: Concurrent: ContextShift: Parallel, E](
+  def withOptions[F[_]: Concurrent: ContextShift: Parallel, E: Schema](
       client: Pulsar.T,
       topic: Topic,
-      schema: Schema[E],
       opts: Options[F, E]
   ): Resource[F, Producer[F, E]] = {
     def configureBatching(
@@ -92,7 +91,7 @@ object Producer {
         F.delay(
           configureBatching(
             opts.batching,
-            client.newProducer(schema).topic(topic.url.value)
+            client.newProducer(E.get).topic(topic.url.value)
           ).create
         )
       }(p => F.delay(p.closeAsync()).futureLift.void)
@@ -120,37 +119,21 @@ object Producer {
   /**
     * It creates a [[Producer]] with default options and the supplied message logger.
     */
-  def withLogger[F[_]: ContextShift: Parallel: Concurrent, E](
+  def withLogger[F[_]: ContextShift: Parallel: Concurrent, E: Schema](
       client: Pulsar.T,
       topic: Topic,
-      schema: Schema[E],
       logger: E => Topic.URL => F[Unit]
   ): Resource[F, Producer[F, E]] =
-    withOptions(client, topic, schema, Options[F, E]().withLogger(logger))
+    withOptions(client, topic, Options[F, E]().withLogger(logger))
 
   /**
     * It creates a [[Producer]] with default options (no-op logger).
     */
-  def create[F[_]: ContextShift: Parallel: Concurrent, E](
+  def create[F[_]: ContextShift: Parallel: Concurrent, E: Schema](
       client: Pulsar.T,
-      topic: Topic,
-      schema: Schema[E]
+      topic: Topic
   ): Resource[F, Producer[F, E]] =
-    withOptions(client, topic, schema, Options[F, E]())
-
-  /**
-    * It creates a [[Producer]] with the given options and a Schema.BYTES
-    * based on the Inject instance.
-    */
-  def fromInject[
-      F[_]: ContextShift: Parallel: Concurrent,
-      E: Inject[*, Array[Byte]]
-  ](
-      client: Pulsar.T,
-      topic: Topic,
-      opts: Options[F, E]
-  ): Resource[F, Producer[F, E]] =
-    withOptions(client, topic, Schemas.fromInject[E], opts)
+    withOptions(client, topic, Options[F, E]())
 
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {

@@ -19,16 +19,14 @@ package cr.pulsar
 import scala.util.control.NoStackTrace
 
 import cr.pulsar.internal.FutureLift._
-import cr.pulsar.schema.Schemas
+import cr.pulsar.schema.Schema
 
 import cats._
 import cats.effect._
 import cats.syntax.all._
 import fs2._
 import org.apache.pulsar.client.api.{
-  Message,
   MessageId,
-  Schema,
   SubscriptionInitialPosition,
   Consumer => JConsumer
 }
@@ -72,16 +70,15 @@ object Consumer {
   case class Message[A](id: MessageId, key: MessageKey, payload: A)
   case class DecodingFailure(msg: String) extends Exception(msg) with NoStackTrace
 
-  private def mkConsumer[F[_]: Concurrent: ContextShift, E](
+  private def mkConsumer[F[_]: Concurrent: ContextShift, E: Schema](
       client: Pulsar.T,
       sub: Subscription,
       topicType: Either[Topic.Pattern, Topic],
-      schema: Schema[E],
       opts: Options[F, E]
   ): Resource[F, Consumer[F, E]] = {
     val acquire =
       F.delay {
-        val c = client.newConsumer(schema)
+        val c = client.newConsumer(E.get)
         topicType
           .fold(
             p => c.topicsPattern(p.url.value.r.pattern),
@@ -135,13 +132,12 @@ object Consumer {
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
     */
-  def multiTopic[F[_]: Concurrent: ContextShift, E](
+  def multiTopic[F[_]: Concurrent: ContextShift, E: Schema](
       client: Pulsar.T,
       topicPattern: Topic.Pattern,
-      sub: Subscription,
-      schema: Schema[E]
+      sub: Subscription
   ): Resource[F, Consumer[F, E]] =
-    mkConsumer(client, sub, topicPattern.asLeft, schema, Options[F, E]())
+    mkConsumer(client, sub, topicPattern.asLeft, Options[F, E]())
 
   /**
     * It creates a [[Consumer]] with default options.
@@ -149,25 +145,23 @@ object Consumer {
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
     */
-  def create[F[_]: Concurrent: ContextShift, E](
+  def create[F[_]: Concurrent: ContextShift, E: Schema](
       client: Pulsar.T,
       topic: Topic,
-      sub: Subscription,
-      schema: Schema[E]
+      sub: Subscription
   ): Resource[F, Consumer[F, E]] =
-    withOptions(client, topic, sub, schema, Options[F, E]())
+    withOptions(client, topic, sub, Options[F, E]())
 
   /**
     * It creates a [[Consumer]] with default options and the supplied message logger.
     */
-  def withLogger[F[_]: ContextShift: Parallel: Concurrent, E](
+  def withLogger[F[_]: ContextShift: Concurrent, E: Schema](
       client: Pulsar.T,
       topic: Topic,
       sub: Subscription,
-      schema: Schema[E],
       logger: E => Topic.URL => F[Unit]
   ): Resource[F, Consumer[F, E]] =
-    withOptions(client, topic, sub, schema, Options[F, E]().withLogger(logger))
+    withOptions(client, topic, sub, Options[F, E]().withLogger(logger))
 
   /**
     * It creates a [[Consumer]] with the supplied options.
@@ -175,32 +169,13 @@ object Consumer {
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
     */
-  def withOptions[F[_]: Concurrent: ContextShift, E](
-      client: Pulsar.T,
-      topic: Topic,
-      sub: Subscription,
-      schema: Schema[E],
-      opts: Options[F, E]
-  ): Resource[F, Consumer[F, E]] =
-    mkConsumer(client, sub, topic.asRight, schema, opts)
-
-  /**
-    * It creates a [[Consumer]] with the supplied options with a Schema.BYTES based
-    * on the Inject instance.
-    *
-    * Note that this does not create a subscription to any Topic,
-    * you can use [[Consumer#subscribe]] for this purpose.
-    */
-  def fromInject[
-      F[_]: Concurrent: ContextShift,
-      E: Inject[*, Array[Byte]]
-  ](
+  def withOptions[F[_]: Concurrent: ContextShift, E: Schema](
       client: Pulsar.T,
       topic: Topic,
       sub: Subscription,
       opts: Options[F, E]
   ): Resource[F, Consumer[F, E]] =
-    mkConsumer(client, sub, topic.asRight, Schemas.fromInject[E], opts)
+    mkConsumer(client, sub, topic.asRight, opts)
 
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {

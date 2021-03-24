@@ -16,16 +16,18 @@
 
 package cr.pulsar
 
+import java.nio.charset.StandardCharsets.UTF_8
 import java.util.UUID
 
-import cr.pulsar.schema.Schemas
-import cr.pulsar.schema.circe.JsonSchema
+import cr.pulsar.domain._
+import cr.pulsar.schema.circe._
+import cr.pulsar.schema.utf8._
 
 import cats.effect._
 import cats.effect.concurrent.{ Deferred, Ref }
 import cats.implicits._
 import fs2.Stream
-import io.circe.syntax._
+import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException
 
 class PulsarSpec extends PulsarSuite {
 
@@ -41,9 +43,91 @@ class PulsarSpec extends PulsarSuite {
       .withConfig(cfg)
       .build
 
-  val batch  = Producer.Batching.Disabled
-  val shard  = (_: Event) => ShardKey.Default
-  val schema = JsonSchema[Event]
+  val batch = Producer.Batching.Disabled
+  val shard = (_: Event) => ShardKey.Default
+
+  test("BACKWARD compatibility: producer sends old Event, Consumer expects Event_V2") {
+    val neutronCfg = Config.Builder
+      .withTenant("public")
+      .withNameSpace("neutron")
+      .withURL("pulsar://localhost:6650")
+      .build
+
+    Pulsar.create[IO](neutronCfg.url).use { client =>
+      val _topic = Topic.Builder
+        .withName("json")
+        .withConfig(neutronCfg)
+        .build
+
+      val res: Resource[IO, (Consumer[IO, Event_V2], Producer[IO, Event])] =
+        for {
+          consumer <- Consumer.create[IO, Event_V2](client, _topic, sub("circe"))
+          producer <- Producer.create[IO, Event](client, _topic)
+        } yield consumer -> producer
+
+      (Ref.of[IO, Int](0), Deferred[IO, Event_V2]).tupled.flatMap {
+        case (counter, latch) =>
+          Stream
+            .resource(res)
+            .flatMap {
+              case (consumer, producer) =>
+                val consume =
+                  consumer.subscribe
+                    .evalMap { msg =>
+                      consumer.ack(msg.id) >>
+                        counter.update(_ + 1) >>
+                        counter.get.flatMap {
+                          case n if n === 5 => latch.complete(msg.payload)
+                          case _            => IO.unit
+                        }
+                    }
+
+                val testEvent = Event(UUID.randomUUID(), "test")
+
+                val events = List.fill(5)(testEvent)
+
+                val produce =
+                  Stream.eval {
+                    events.traverse_(producer.send_) >> latch.get
+                  }
+
+                produce.concurrently(consume).evalMap { e =>
+                  IO(assertEquals(e, testEvent.toV2))
+                }
+            }
+            .compile
+            .drain
+      }
+    }
+  }
+
+  test(
+    "ALWAYS_INCOMPATIBLE schemas: producer sends new Event_V2, Consumer expects old Event"
+  ) {
+    val nopeCfg = Config.Builder
+      .withTenant("public")
+      .withNameSpace("nope")
+      .withURL("pulsar://localhost:6650")
+      .build
+
+    Pulsar.create[IO](nopeCfg.url).use { client =>
+      val _topic = Topic.Builder
+        .withName("json")
+        .withConfig(nopeCfg)
+        .build
+
+      val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event_V2])] =
+        for {
+          consumer <- Consumer.create[IO, Event](client, _topic, sub("circe"))
+          producer <- Producer.create[IO, Event_V2](client, _topic)
+        } yield consumer -> producer
+
+      res.attempt.use {
+        case Left(_: IncompatibleSchemaException) => IO.unit
+        case _                                    => IO(fail("Expecting IncompatibleSchemaException"))
+      }
+    }
+  }
 
   withPulsarClient { client =>
     test("A message is published and consumed successfully using Schema.JSON via Circe") {
@@ -51,8 +135,8 @@ class PulsarSpec extends PulsarSuite {
 
       val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event])] =
         for {
-          consumer <- Consumer.create[IO, Event](client, hpTopic, sub("hp-circe"), schema)
-          producer <- Producer.create[IO, Event](client, hpTopic, schema)
+          consumer <- Consumer.create[IO, Event](client, hpTopic, sub("hp-circe"))
+          producer <- Producer.create[IO, Event](client, hpTopic)
         } yield consumer -> producer
 
       Deferred[IO, Event].flatMap { latch =>
@@ -73,7 +157,7 @@ class PulsarSpec extends PulsarSuite {
                   .evalMap(_ => latch.get)
 
               produce.concurrently(consume).evalMap { e =>
-                IO(assert(e === testEvent))
+                IO(assertEquals(e, testEvent))
               }
           }
           .compile
@@ -81,55 +165,28 @@ class PulsarSpec extends PulsarSuite {
       }
     }
 
-    test("Schema versioning: producer sends old Event, Consumer expects Event_V2") {
-      val vTopic = topic("versioning-json")
+    test("Incompatible Schemas: producer sends old Event, Consumer expects Event_V2") {
+      val vTopic = topic("incompat-json")
 
       val res: Resource[IO, (Consumer[IO, Event_V2], Producer[IO, Event])] =
         for {
-          consumer <- Consumer.create[IO, Event_V2](
-                       client,
-                       vTopic,
-                       sub("v-circe"),
-                       JsonSchema[Event_V2]
-                     )
-          producer <- Producer.create(client, vTopic, JsonSchema[Event])
+          consumer <- Consumer.create[IO, Event_V2](client, vTopic, sub("v-circe"))
+          producer <- Producer.create[IO, Event](client, vTopic)
         } yield consumer -> producer
 
-      Deferred[IO, Event_V2].flatMap { latch =>
-        Stream
-          .resource(res)
-          .flatMap {
-            case (consumer, producer) =>
-              val consume =
-                consumer.subscribe
-                  .evalMap(msg => consumer.ack(msg.id) >> latch.complete(msg.payload))
-
-              val testEvent = Event(UUID.randomUUID(), "test")
-
-              val produce =
-                Stream(testEvent)
-                  .covary[IO]
-                  .evalMap(producer.send)
-                  .evalMap(_ => latch.get)
-
-              produce.concurrently(consume).evalMap { e =>
-                IO(assert(e === testEvent.toV2))
-              }
-          }
-          .compile
-          .drain
+      res.attempt.use {
+        case Left(_: IncompatibleSchemaException) => IO.unit
+        case _                                    => IO(fail("Expecting IncompatibleSchemaException"))
       }
     }
 
     test("A message is published and consumed successfully using Schema.BYTES via Inject") {
       val hpTopic = topic("happy-path-bytes")
 
-      val utf8 = Schemas.utf8
-
       val res: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
         for {
-          consumer <- Consumer.create[IO, String](client, hpTopic, sub("hp-bytes"), utf8)
-          producer <- Producer.create[IO, String](client, hpTopic, utf8)
+          consumer <- Consumer.create[IO, String](client, hpTopic, sub("hp-bytes"))
+          producer <- Producer.create[IO, String](client, hpTopic)
         } yield consumer -> producer
 
       Deferred[IO, String].flatMap { latch =>
@@ -163,9 +220,8 @@ class PulsarSpec extends PulsarSuite {
 
       val res: Resource[IO, (Consumer[IO, Event], Producer[IO, String])] =
         for {
-          consumer <- Consumer
-                       .create[IO, Event](client, dfTopic, sub("decoding-err"), schema)
-          producer <- Producer.create[IO, String](client, dfTopic, Schemas.utf8)
+          consumer <- Consumer.create[IO, Event](client, dfTopic, sub("decoding-err"))
+          producer <- Producer.create[IO, String](client, dfTopic)
         } yield consumer -> producer
 
       Deferred[IO, String].flatMap { latch =>
@@ -175,7 +231,7 @@ class PulsarSpec extends PulsarSuite {
             case (consumer, producer) =>
               val consume =
                 consumer.autoSubscribe
-                  .handleErrorWith {
+                  .onError {
                     case Consumer.DecodingFailure(data) =>
                       Stream.eval(latch.complete(data))
                   }
@@ -188,7 +244,7 @@ class PulsarSpec extends PulsarSuite {
                   .evalMap(producer.send)
                   .evalMap(_ => latch.get)
 
-              produce.concurrently(consume).evalMap { msg =>
+              produce.concurrently(consume.attempt).evalMap { msg =>
                 IO(assert(msg.contains("expected json value")))
               }
           }
@@ -215,10 +271,10 @@ class PulsarSpec extends PulsarSuite {
         (Consumer[IO, Event], Consumer[IO, Event], Producer[IO, Event])
       ] =
         for {
-          c1 <- Consumer.create[IO, Event](client, topic("shared"), makeSub("s1"), schema)
-          c2 <- Consumer.create[IO, Event](client, topic("shared"), makeSub("s2"), schema)
-          producer <- Producer.withOptions(client, topic("shared"), schema, opts)
-        } yield (c1, c2, producer)
+          c1 <- Consumer.create[IO, Event](client, topic("shared"), makeSub("s1"))
+          c2 <- Consumer.create[IO, Event](client, topic("shared"), makeSub("s2"))
+          p1 <- Producer.withOptions(client, topic("shared"), opts)
+        } yield (c1, c2, p1)
 
       (Ref.of[IO, List[Event]](List.empty), Ref.of[IO, List[Event]](List.empty)).tupled
         .flatMap {
@@ -250,13 +306,13 @@ class PulsarSpec extends PulsarSuite {
                     val pred1: IO[Boolean] =
                       events1.get.map(
                         _.forall(
-                          _.shardKey === ShardKey.Of(uuids(0).toString.getBytes(charset))
+                          _.shardKey === ShardKey.Of(uuids(0).toString.getBytes(UTF_8))
                         )
                       )
                     val pred2: IO[Boolean] =
                       events2.get.map(
                         _.forall(
-                          _.shardKey === ShardKey.Of(uuids(1).toString.getBytes(charset))
+                          _.shardKey === ShardKey.Of(uuids(1).toString.getBytes(UTF_8))
                         )
                       )
                     Stream.eval((pred1, pred2).mapN { case (p1, p2) => p1 && p2 })

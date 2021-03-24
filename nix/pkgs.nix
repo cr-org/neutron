@@ -1,10 +1,10 @@
 { java }:
 
 let
-  nixpkgs = fetchTarball {
-    name   = "nixos-unstable-2020-09-25";
-    url    = "https://github.com/NixOS/nixpkgs-channels/archive/72b9660dc18b.tar.gz";
-    sha256 = "1cqgpw263bz261bgz34j6hiawi4hi6smwp6981yz375fx0g6kmss";
+  nixpkgs = builtins.fetchTarball {
+    name   = "nixos-unstable-2021-01-03";
+    url    = "https://github.com/NixOS/nixpkgs/archive/56bb1b0f7a3.tar.gz";
+    sha256 = "1wl5yglgj3ajbf2j4dzgsxmgz7iqydfs514w73fs9a6x253wzjbs";
   };
 
   config = {

@@ -1,7 +1,7 @@
 import Dependencies._
 import Settings._
 
-scalaVersion in ThisBuild := "2.13.2"
+scalaVersion in ThisBuild := "2.13.5"
 
 lazy val `neutron-core` = (project in file("core"))
   .enablePlugins(AutomateHeaderPlugin)
@@ -76,6 +76,7 @@ lazy val docs = (project in file("docs"))
   .settings(
     noPublish,
     libraryDependencies += Libraries.circeGeneric,
+    scalacOptions -= "-Xfatal-warnings",
     scmInfo := Some(
           ScmInfo(
             url("https://github.com/cr-org/neutron"),
