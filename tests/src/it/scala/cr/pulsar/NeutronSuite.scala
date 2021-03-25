@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.util.UUID
 
 import cr.pulsar.domain._
+import cr.pulsar.domain.Outer.Inner
 import cr.pulsar.schema.circe._
 import cr.pulsar.schema.utf8._
 
@@ -27,7 +28,6 @@ import cats.effect._
 import cats.effect.concurrent.{ Deferred, Ref }
 import cats.implicits._
 import fs2.Stream
-import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException
 import weaver.IOSuite
 
 object NeutronSuite extends IOSuite {
@@ -51,89 +51,6 @@ object NeutronSuite extends IOSuite {
 
   val batch = Producer.Batching.Disabled
   val shard = (_: Event) => ShardKey.Default
-
-  test("BACKWARD compatibility: producer sends old Event, Consumer expects Event_V2") {
-    val neutronCfg = Config.Builder
-      .withTenant("public")
-      .withNameSpace("neutron")
-      .withURL("pulsar://localhost:6650")
-      .build
-
-    Pulsar.create[IO](neutronCfg.url).use { client =>
-      val _topic = Topic.Builder
-        .withName("json-backward")
-        .withConfig(neutronCfg)
-        .build
-
-      val res: Resource[IO, (Consumer[IO, Event_V2], Producer[IO, Event])] =
-        for {
-          consumer <- Consumer.create[IO, Event_V2](client, _topic, sub("circe"))
-          producer <- Producer.create[IO, Event](client, _topic)
-        } yield consumer -> producer
-
-      (Ref.of[IO, Int](0), Deferred[IO, Event_V2]).tupled.flatMap {
-        case (counter, latch) =>
-          Stream
-            .resource(res)
-            .flatMap {
-              case (consumer, producer) =>
-                val consume =
-                  consumer.subscribe
-                    .evalMap { msg =>
-                      consumer.ack(msg.id) >>
-                        counter.update(_ + 1) >>
-                        counter.get.flatMap {
-                          case n if n === 5 => latch.complete(msg.payload)
-                          case _            => IO.unit
-                        }
-                    }
-
-                val testEvent = Event(UUID.randomUUID(), "test")
-
-                val events = List.fill(5)(testEvent)
-
-                val produce =
-                  Stream.eval {
-                    events.traverse_(producer.send_) >> latch.get
-                  }
-
-                produce.concurrently(consume).evalMap { e =>
-                  IO(expect.same(e, testEvent.toV2))
-                }
-            }
-            .compile
-            .lastOrError
-      }
-    }
-  }
-
-  test(
-    "ALWAYS_INCOMPATIBLE schemas: producer sends new Event_V2, Consumer expects old Event"
-  ) {
-    val nopeCfg = Config.Builder
-      .withTenant("public")
-      .withNameSpace("nope")
-      .withURL("pulsar://localhost:6650")
-      .build
-
-    Pulsar.create[IO](nopeCfg.url).use { client =>
-      val _topic = Topic.Builder
-        .withName("json-always-incompatible")
-        .withConfig(nopeCfg)
-        .build
-
-      val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event_V2])] =
-        for {
-          consumer <- Consumer.create[IO, Event](client, _topic, sub("circe"))
-          producer <- Producer.create[IO, Event_V2](client, _topic)
-        } yield consumer -> producer
-
-      res.attempt.use {
-        case Left(_: IncompatibleSchemaException) => IO.pure(expect(true))
-        case _                                    => IO(failure("Expecting IncompatibleSchemaException"))
-      }
-    }
-  }
 
   test("A message is published and consumed successfully using Schema.JSON via Circe") {
     client =>
@@ -168,22 +85,6 @@ object NeutronSuite extends IOSuite {
           }
           .compile
           .lastOrError
-      }
-  }
-
-  test("Incompatible Schemas: producer sends old Event, Consumer expects Event_V2") {
-    client =>
-      val vTopic = topic("incompat-json")
-
-      val res: Resource[IO, (Consumer[IO, Event_V2], Producer[IO, Event])] =
-        for {
-          consumer <- Consumer.create[IO, Event_V2](client, vTopic, sub("v-circe"))
-          producer <- Producer.create[IO, Event](client, vTopic)
-        } yield consumer -> producer
-
-      res.attempt.use {
-        case Left(_: IncompatibleSchemaException) => IO.pure(expect(true))
-        case _                                    => IO(failure("Expecting IncompatibleSchemaException"))
       }
   }
 
@@ -333,6 +234,30 @@ object NeutronSuite extends IOSuite {
               .drain
               .as(expect(true))
         }
+  }
+
+  test("Support for JSONSchema with ADTs") { client =>
+    val vTopic = topic("fruits-adt")
+
+    val res: Resource[IO, (Consumer[IO, Fruit], Producer[IO, Fruit])] =
+      for {
+        consumer <- Consumer.create[IO, Fruit](client, vTopic, sub("fruits"))
+        producer <- Producer.create[IO, Fruit](client, vTopic)
+      } yield consumer -> producer
+
+    res.use(_ => IO.pure(expect(true)))
+  }
+
+  test("Support for JSONSchema with class defined within an object") { client =>
+    val vTopic = topic("not-today")
+
+    val res: Resource[IO, (Consumer[IO, Inner], Producer[IO, Inner])] =
+      for {
+        consumer <- Consumer.create[IO, Inner](client, vTopic, sub("outer-inner"))
+        producer <- Producer.create[IO, Inner](client, vTopic)
+      } yield consumer -> producer
+
+    res.use(_ => IO.pure(expect(true)))
   }
 
 }

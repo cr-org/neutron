@@ -7,12 +7,11 @@ import cats.Eq
 import io.circe._
 import io.circe.generic.semiauto._
 
-case class Event_V2(uuid: UUID, value: String, code: Int)
+case class Event_V2(uuid: UUID, value: String, code: Option[Int])
 
 object Event_V2 {
   implicit val eq: Eq[Event_V2] = Eq.by(_.uuid)
 
   implicit val jsonEncoder: Encoder[Event_V2] = deriveEncoder
-  implicit val jsonDecoder: Decoder[Event_V2] =
-    deriveDecoder[Event_V2] or Event.jsonDecoder.map(_.toV2)
+  implicit val jsonDecoder: Decoder[Event_V2] = deriveDecoder[Event_V2]
 }

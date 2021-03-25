@@ -10,7 +10,7 @@ import io.circe.generic.semiauto._
 
 case class Event(uuid: UUID, value: String) {
   def shardKey: ShardKey = ShardKey.Of(uuid.toString.getBytes(UTF_8))
-  def toV2: Event_V2     = Event_V2(uuid, value, 0)
+  def toV2: Event_V2     = Event_V2(uuid, value, None)
 }
 
 object Event {
