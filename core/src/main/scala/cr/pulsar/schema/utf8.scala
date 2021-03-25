@@ -27,7 +27,7 @@ import org.apache.pulsar.common.schema.SchemaInfo
 object utf8 {
   implicit val utf8Instance: Schema[String] =
     new Schema[String] {
-      def get: JSchema[String] = new JSchema[String] {
+      def schema: JSchema[String] = new JSchema[String] {
         override def encode(message: String): Array[Byte] = message.getBytes(UTF_8)
         override def decode(bytes: Array[Byte]): String =
           Either

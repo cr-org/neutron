@@ -23,7 +23,7 @@ import org.apache.pulsar.client.api.{ Schema => JSchema }
 import org.apache.pulsar.common.schema.SchemaInfo
 
 trait Schema[A] {
-  def get: JSchema[A]
+  def schema: JSchema[A]
 }
 
 object Schema {
@@ -31,7 +31,7 @@ object Schema {
 
   implicit def fromInject[E: Inject[*, Array[Byte]]]: Schema[E] =
     new Schema[E] {
-      def get: JSchema[E] =
+      def schema: JSchema[E] =
         new JSchema[E] {
           override def encode(message: E): Array[Byte] = E.inj(message)
           override def decode(bytes: Array[Byte]): E =

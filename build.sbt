@@ -53,6 +53,7 @@ lazy val tests = (project in file("tests"))
   .settings(commonSettings)
   .configs(IntegrationTest)
   .settings(
+    noPublish,
     Defaults.itSettings,
     libraryDependencies ++= List(
           CompilerPlugins.betterMonadicFor,

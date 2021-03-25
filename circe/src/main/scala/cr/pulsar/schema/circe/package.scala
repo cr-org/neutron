@@ -38,7 +38,7 @@ package object circe {
 
   implicit def circeInstance[T: ClassTag: Encoder: Decoder]: Schema[T] =
     new Schema[T] {
-      def get: JSchema[T] = {
+      def schema: JSchema[T] = {
         val reader = new SchemaReader[T] {
           override def read(is: InputStream): T = {
             val bos  = new ByteArrayOutputStream

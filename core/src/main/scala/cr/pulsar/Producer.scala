@@ -91,7 +91,7 @@ object Producer {
         F.delay(
           configureBatching(
             opts.batching,
-            client.newProducer(E.get).topic(topic.url.value)
+            client.newProducer(E.schema).topic(topic.url.value)
           ).create
         )
       }(p => F.delay(p.closeAsync()).futureLift.void)

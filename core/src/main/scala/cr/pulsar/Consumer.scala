@@ -78,7 +78,7 @@ object Consumer {
   ): Resource[F, Consumer[F, E]] = {
     val acquire =
       F.delay {
-        val c = client.newConsumer(E.get)
+        val c = client.newConsumer(E.schema)
         topicType
           .fold(
             p => c.topicsPattern(p.url.value.r.pattern),
