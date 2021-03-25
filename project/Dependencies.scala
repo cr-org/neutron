@@ -9,9 +9,9 @@ object Dependencies {
     val catsEffect = "2.4.0"
     val circe      = "0.13.0"
     val fs2        = "2.5.3"
-    val munit      = "0.7.22"
     val newtype    = "0.4.4"
     val pulsar     = "2.7.0"
+    val weaver     = "0.6.0-M6"
 
     val betterMonadicFor = "0.3.1"
     val contextApplied   = "0.1.4"
@@ -25,8 +25,9 @@ object Dependencies {
     val fs2        = "co.fs2"        %% "fs2-core"    % V.fs2
     val newtype    = "io.estatico"   %% "newtype"     % V.newtype
 
-    val circeCore   = "io.circe" %% "circe-core"   % V.circe
-    val circeParser = "io.circe" %% "circe-parser" % V.circe
+    val circeCore    = "io.circe" %% "circe-core"    % V.circe
+    val circeGeneric = "io.circe" %% "circe-generic" % V.circe
+    val circeParser  = "io.circe" %% "circe-parser"  % V.circe
 
     val java8Compat = "org.scala-lang.modules" %% "scala-java8-compat" % V.java8Compat
 
@@ -34,8 +35,8 @@ object Dependencies {
     val pulsarFunctionsApi = "org.apache.pulsar" % "pulsar-functions-api" % V.pulsar
 
     // Testing
-    val munitCore       = "org.scalameta" %% "munit"            % V.munit
-    val munitScalacheck = "org.scalameta" %% "munit-scalacheck" % V.munit
+    val weaverCats       = "com.disneystreaming" %% "weaver-cats"       % V.weaver
+    val weaverScalaCheck = "com.disneystreaming" %% "weaver-scalacheck" % V.weaver
   }
 
   object CompilerPlugins {

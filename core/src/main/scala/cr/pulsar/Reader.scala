@@ -16,8 +16,6 @@
 
 package cr.pulsar
 
-import java.util.concurrent.TimeUnit
-
 import cats._
 import cats.effect._
 import cats.syntax.all._

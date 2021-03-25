@@ -1,14 +1,12 @@
 import Dependencies._
 import Settings._
 
-scalaVersion in ThisBuild := "2.13.2"
+scalaVersion in ThisBuild := "2.13.5"
 
 lazy val `neutron-core` = (project in file("core"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
-  .configs(IntegrationTest)
   .settings(
-    Defaults.itSettings,
     libraryDependencies ++= List(
           CompilerPlugins.betterMonadicFor,
           CompilerPlugins.contextApplied,
@@ -18,8 +16,7 @@ lazy val `neutron-core` = (project in file("core"))
           Libraries.fs2,
           Libraries.newtype,
           Libraries.pulsar,
-          Libraries.munitCore       % "it,test",
-          Libraries.munitScalacheck % "it,test"
+          Libraries.weaverCats % Test
         )
   )
 
@@ -42,22 +39,43 @@ lazy val `neutron-function` = (project in file("function"))
           Libraries.pulsarFunctionsApi,
           Libraries.java8Compat,
           Libraries.newtype,
-          Libraries.cats            % Test,
-          Libraries.catsEffect      % Test,
-          Libraries.munitCore       % Test,
-          Libraries.munitScalacheck % Test,
-          Libraries.cats            % Test
+          Libraries.cats             % Test,
+          Libraries.catsEffect       % Test,
+          Libraries.cats             % Test,
+          Libraries.weaverCats       % Test,
+          Libraries.weaverScalaCheck % Test
         )
   )
 
+lazy val tests = (project in file("tests"))
+  .enablePlugins(AutomateHeaderPlugin)
+  .settings(commonSettings)
+  .configs(IntegrationTest)
+  .settings(
+    noPublish,
+    Defaults.itSettings,
+    libraryDependencies ++= List(
+          CompilerPlugins.betterMonadicFor,
+          CompilerPlugins.contextApplied,
+          CompilerPlugins.kindProjector,
+          Libraries.circeCore    % "it,test",
+          Libraries.circeGeneric % "it,test",
+          Libraries.circeParser  % "it,test",
+          Libraries.weaverCats   % "it,test"
+        )
+  )
+  .dependsOn(`neutron-circe`)
+
 lazy val docs = (project in file("docs"))
-  .dependsOn(`neutron-core`)
+  .dependsOn(`neutron-circe`)
   .enablePlugins(ParadoxSitePlugin)
   .enablePlugins(ParadoxMaterialThemePlugin)
   .enablePlugins(GhpagesPlugin)
   .enablePlugins(MdocPlugin)
   .settings(
     noPublish,
+    libraryDependencies += Libraries.circeGeneric,
+    scalacOptions -= "-Xfatal-warnings",
     scmInfo := Some(
           ScmInfo(
             url("https://github.com/cr-org/neutron"),
@@ -100,5 +118,6 @@ lazy val root = (project in file("."))
     `neutron-function`,
     `neutron-circe`,
     `neutron-core`,
-    docs
+    docs,
+    tests
   )

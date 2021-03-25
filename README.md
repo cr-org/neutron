@@ -31,3 +31,26 @@ If you are a `nix` user, make sure you enter a `Nix Shell` by running `nix-shell
 ```
 sbt +test
 ```
+
+Remember to first start Pulsar and its configuration via the provided shell script.
+
+```
+./run.sh
+```
+
+### Schemas
+
+Working with schemas when using our Pulsar `docker-compose` configuration.
+
+Get [schema compatibility strategy](https://pulsar.apache.org/docs/en/schema-evolution-compatibility/#schema-compatibility-check-strategy):
+
+```
+$ docker-compose exec pulsar bin/pulsar-admin namespaces get-schema-compatibility-strategy public/default
+FULL
+```
+
+Set schema compatibility strategy:
+
+```
+$ docker-compose exec pulsar bin/pulsar-admin namespaces set-schema-compatibility-strategy -c BACKWARD public/default
+```

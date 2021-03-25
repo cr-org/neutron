@@ -15,12 +15,14 @@ It is published for Scala $scala-versions$. You can include it in your project b
 Here's a quick consumer / producer example using Neutron. Note: both are fully asynchronous.
 
 ```scala mdoc:compile-only
+import scala.concurrent.duration._
+
 import cats.effect._
 import cats.implicits._
 import fs2.Stream
+
 import cr.pulsar._
 import cr.pulsar.schema.utf8._
-import scala.concurrent.duration._
 
 object Demo extends IOApp {
 
@@ -71,14 +73,61 @@ object Demo extends IOApp {
 
 ### Schema
 
-Neutron relies on `cats.Inject[A, Array[Byte]]` instances to be able to decode & encode messages from & to raw bytes instead of using the [native schema solution](https://pulsar.apache.org/docs/en/schema-get-started/). As functional programmers, we believe this has certain benefits. In the example above, we are using a standard "UTF-8" encoding `String <=> Array[Byte]`, brought by `import cr.pulsar.schema.utf8._`.
+As of version `0.0.6`, Neutron ships with support for [Pulsar Schema](https://pulsar.apache.org/docs/en/schema-get-started/). The simplest way to get started is to use the given UTF-8 encoding, which makes use of the native `Schema.BYTES`.
 
-At Chatroulette, we use JSON-serialised data for which we define an `Inject` instance based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` extra dependency (available since `v0.0.2`).
+```scala mdoc:compile-only
+import cr.pulsar.schema.utf8._
+```
 
-Once you added the dependency, you are an import away from having JSON schema based on Circe.
+This brings into scope an `Schema[String]` instance, required to initialize consumers and producers. There's also a default instance `Schema[A]`, for any `cats.Inject[A, Array[Byte]]` instance (based on `Schema.BYTES` as well).
 
-```scala
+At Chatroulette, we use JSON-serialised data for which we derive a `Schema.JSON` based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` dependency.
+
+Once you have it, you are an import away from having JSON schema support.
+
+```scala mdoc:compile-only
+import cr.pulsar.schema.Schema
 import cr.pulsar.schema.circe._
+
+import io.circe.{Decoder, Encoder}
+import io.circe.generic.semiauto._
+
+case class Event(id: Long, name: String)
+object Event {
+  implicit val jsonEncoder: Encoder[Event] = deriveEncoder
+  implicit val jsonDecoder: Decoder[Event] = deriveDecoder
+}
+
+val schema = Schema[Event] // summon an instance
 ```
 
 Be aware that your datatype needs to provide instances of `io.circe.Encoder` and `io.circe.Decoder` for this instance to become available.
+
+#### Schema Compatibility Check Strategy
+
+Whenever using schemas, make sure you fully understand the different [strategies](https://pulsar.apache.org/docs/en/schema-evolution-compatibility/#schema-compatibility-check-strategy), which only operate at the namespace level (e.g. see how integration tests are set up in the [run.sh](./run.sh) shell script).
+
+For instance, when using the `BACKWARD` mode, a producer and consumer will fail to initialize if the schemas are incompatible, even if your custom JSON decoder can deserialize the previous model, the Pulsar broker doesn't know about it. E.g. say we have this model in our new application.
+
+```scala
+case class Event(uuid: UUID, value: String)
+```
+
+And later on, we introduce a breaking change in the model, adding a new **mandatory** field.
+
+```scala
+case class Event(uuid: UUID, value: String, code: Int)
+```
+
+This will be rejected at runtime, validated by Pulsar Schemas, when using the BACKWARD mode. The only changes allowed in this mode are:
+
+- Add optional fields
+- Delete fields
+
+Instead, we should make the new field optional for this to work.
+
+```scala
+case class Event(uuid: UUID, value: String, code: Option[Int])
+```
+
+This is now accepted by Pulsar since any previous `Event` still not consumed from a Pulsar topic can still be processed by the new consumers expecting the new schema.
