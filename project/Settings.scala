@@ -10,7 +10,10 @@ object Settings {
     scalacOptions -= "-Wunused:params", // so many false-positives :(
     scalafmtOnCompile := true,
     autoAPIMappings := true,
-    testFrameworks += new TestFramework("munit.Framework"),
+    testFrameworks ++= List(
+      new TestFramework("munit.Framework"),
+      new TestFramework("weaver.framework.CatsEffect")
+    ),
     libraryDependencies ++= macroParadisePlugin(scalaVersion.value),
     ThisBuild / crossScalaVersions := Seq("2.13.2"),
     ThisBuild / homepage := Some(url("https://github.com/cr-org/neutron")),
@@ -37,7 +40,7 @@ object Settings {
         "gvolpe",
         "Gabriel Volpe",
         "gabriel.volpe@chatroulette.com",
-        url("https://gvolpe.github.io")
+        url("https://gvolpe.com")
       ),
       Developer(
         "psisoyev",
@@ -49,7 +52,7 @@ object Settings {
         "tabdulazim",
         "Tamer Abdulazim",
         "tamer.abdulazim@chatroulette.com",
-        url("https://github.com/tabdulazim")
+        url("https://bitspire.ca/")
       )
     )
   )

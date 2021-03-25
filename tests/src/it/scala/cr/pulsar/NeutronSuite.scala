@@ -28,8 +28,14 @@ import cats.effect.concurrent.{ Deferred, Ref }
 import cats.implicits._
 import fs2.Stream
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException
+import weaver.IOSuite
 
-class PulsarSpec extends PulsarSuite {
+object NeutronSuite extends IOSuite {
+
+  val cfg = Config.Builder.default
+
+  override type Res = Pulsar.T
+  override def sharedResource: Resource[IO, Res] = Pulsar.create[IO](cfg.url)
 
   val sub = (s: String) =>
     Subscription.Builder
@@ -92,11 +98,11 @@ class PulsarSpec extends PulsarSuite {
                   }
 
                 produce.concurrently(consume).evalMap { e =>
-                  IO(assertEquals(e, testEvent.toV2))
+                  IO(expect.same(e, testEvent.toV2))
                 }
             }
             .compile
-            .drain
+            .lastOrError
       }
     }
   }
@@ -123,14 +129,14 @@ class PulsarSpec extends PulsarSuite {
         } yield consumer -> producer
 
       res.attempt.use {
-        case Left(_: IncompatibleSchemaException) => IO.unit
-        case _                                    => IO(fail("Expecting IncompatibleSchemaException"))
+        case Left(_: IncompatibleSchemaException) => IO.pure(expect(true))
+        case _                                    => IO(failure("Expecting IncompatibleSchemaException"))
       }
     }
   }
 
-  withPulsarClient { client =>
-    test("A message is published and consumed successfully using Schema.JSON via Circe") {
+  test("A message is published and consumed successfully using Schema.JSON via Circe") {
+    client =>
       val hpTopic = topic("happy-path-json")
 
       val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event])] =
@@ -157,15 +163,16 @@ class PulsarSpec extends PulsarSuite {
                   .evalMap(_ => latch.get)
 
               produce.concurrently(consume).evalMap { e =>
-                IO(assertEquals(e, testEvent))
+                IO(expect.same(e, testEvent))
               }
           }
           .compile
-          .drain
+          .lastOrError
       }
-    }
+  }
 
-    test("Incompatible Schemas: producer sends old Event, Consumer expects Event_V2") {
+  test("Incompatible Schemas: producer sends old Event, Consumer expects Event_V2") {
+    client =>
       val vTopic = topic("incompat-json")
 
       val res: Resource[IO, (Consumer[IO, Event_V2], Producer[IO, Event])] =
@@ -175,12 +182,13 @@ class PulsarSpec extends PulsarSuite {
         } yield consumer -> producer
 
       res.attempt.use {
-        case Left(_: IncompatibleSchemaException) => IO.unit
-        case _                                    => IO(fail("Expecting IncompatibleSchemaException"))
+        case Left(_: IncompatibleSchemaException) => IO.pure(expect(true))
+        case _                                    => IO(failure("Expecting IncompatibleSchemaException"))
       }
-    }
+  }
 
-    test("A message is published and consumed successfully using Schema.BYTES via Inject") {
+  test("A message is published and consumed successfully using Schema.BYTES via Inject") {
+    client =>
       val hpTopic = topic("happy-path-bytes")
 
       val res: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
@@ -207,55 +215,54 @@ class PulsarSpec extends PulsarSuite {
                   .evalMap(_ => latch.get)
 
               produce.concurrently(consume).evalMap { e =>
-                IO(assertEquals(e, testMessage))
+                IO(expect.same(e, testMessage))
               }
           }
           .compile
-          .drain
+          .lastOrError
       }
+  }
+
+  test("A consumer fails to decode a message") { client =>
+    val dfTopic = topic("decoding-failure")
+
+    val res: Resource[IO, (Consumer[IO, Event], Producer[IO, String])] =
+      for {
+        consumer <- Consumer.create[IO, Event](client, dfTopic, sub("decoding-err"))
+        producer <- Producer.create[IO, String](client, dfTopic)
+      } yield consumer -> producer
+
+    Deferred[IO, String].flatMap { latch =>
+      Stream
+        .resource(res)
+        .flatMap {
+          case (consumer, producer) =>
+            val consume =
+              consumer.autoSubscribe
+                .onError {
+                  case Consumer.DecodingFailure(data) =>
+                    Stream.eval(latch.complete(data))
+                }
+
+            val testMessage = "Consumer will fail to decode this message"
+
+            val produce =
+              Stream(testMessage)
+                .covary[IO]
+                .evalMap(producer.send)
+                .evalMap(_ => latch.get)
+
+            produce.concurrently(consume.attempt).evalMap { msg =>
+              IO(expect(msg.contains("expected json value")))
+            }
+        }
+        .compile
+        .lastOrError
     }
+  }
 
-    test("A consumer fails to decode a message") {
-      val dfTopic = topic("decoding-failure")
-
-      val res: Resource[IO, (Consumer[IO, Event], Producer[IO, String])] =
-        for {
-          consumer <- Consumer.create[IO, Event](client, dfTopic, sub("decoding-err"))
-          producer <- Producer.create[IO, String](client, dfTopic)
-        } yield consumer -> producer
-
-      Deferred[IO, String].flatMap { latch =>
-        Stream
-          .resource(res)
-          .flatMap {
-            case (consumer, producer) =>
-              val consume =
-                consumer.autoSubscribe
-                  .onError {
-                    case Consumer.DecodingFailure(data) =>
-                      Stream.eval(latch.complete(data))
-                  }
-
-              val testMessage = "Consumer will fail to decode this message"
-
-              val produce =
-                Stream(testMessage)
-                  .covary[IO]
-                  .evalMap(producer.send)
-                  .evalMap(_ => latch.get)
-
-              produce.concurrently(consume.attempt).evalMap { msg =>
-                IO(assert(msg.contains("expected json value")))
-              }
-          }
-          .compile
-          .drain
-      }
-    }
-
-    test(
-      "A message with key is published and consumed successfully by the right consumer"
-    ) {
+  test("A message with key is published and consumed successfully by the right consumer") {
+    client =>
       val makeSub =
         (n: String) =>
           Subscription.Builder
@@ -324,8 +331,8 @@ class PulsarSpec extends PulsarSuite {
               }
               .compile
               .drain
+              .as(expect(true))
         }
-    }
   }
 
 }

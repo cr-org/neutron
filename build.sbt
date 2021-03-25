@@ -63,7 +63,8 @@ lazy val tests = (project in file("tests"))
           Libraries.circeGeneric    % "it,test",
           Libraries.circeParser     % "it,test",
           Libraries.munitCore       % "it,test",
-          Libraries.munitScalacheck % "it,test"
+          Libraries.munitScalacheck % "it,test",
+          Libraries.weaverCats      % "it,test"
         )
   )
   .dependsOn(`neutron-circe`)

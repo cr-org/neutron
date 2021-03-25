@@ -12,6 +12,7 @@ object Dependencies {
     val munit      = "0.7.22"
     val newtype    = "0.4.4"
     val pulsar     = "2.7.0"
+    val weaver     = "0.6.0-M6"
 
     val betterMonadicFor = "0.3.1"
     val contextApplied   = "0.1.4"
@@ -35,8 +36,9 @@ object Dependencies {
     val pulsarFunctionsApi = "org.apache.pulsar" % "pulsar-functions-api" % V.pulsar
 
     // Testing
-    val munitCore       = "org.scalameta" %% "munit"            % V.munit
-    val munitScalacheck = "org.scalameta" %% "munit-scalacheck" % V.munit
+    val munitCore       = "org.scalameta"       %% "munit"            % V.munit
+    val munitScalacheck = "org.scalameta"       %% "munit-scalacheck" % V.munit
+    val weaverCats      = "com.disneystreaming" %% "weaver-cats"      % V.weaver
   }
 
   object CompilerPlugins {

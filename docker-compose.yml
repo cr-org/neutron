@@ -5,4 +5,4 @@ pulsar:
     - "6650:6650"
     - "8080:8080"
   command: >
-    /bin/bash -c "bin/pulsar standalone" &
+    /bin/bash -c "bin/pulsar standalone"

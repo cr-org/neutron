@@ -79,7 +79,7 @@ As of version `0.0.6`, Neutron ships with support for [Pulsar Schema](https://pu
 import cr.pulsar.schema.utf8._
 ```
 
-This brings into scope an *implicit* `Schema[String]`, required to initialize consumers and producers. There's also a default instance `Schema[A]`, for any `cats.Inject[A, Array[Byte]]` instance (based on `Schema.BYTES` as well).
+This brings into scope an `Schema[String]` instance, required to initialize consumers and producers. There's also a default instance `Schema[A]`, for any `cats.Inject[A, Array[Byte]]` instance (based on `Schema.BYTES` as well).
 
 At Chatroulette, we use JSON-serialised data for which we derive a `Schema.JSON` based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` dependency.
 

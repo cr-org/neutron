@@ -3,7 +3,7 @@
 docker-compose up -d
 
 # wait for a container to be healthy
-MAX_HEALTH_CHECK_TRIES=15
+MAX_HEALTH_CHECK_TRIES=20
 
 wait_for_pulsar(){
   for (( i=1 ; i <= MAX_HEALTH_CHECK_TRIES; i++ )); do
@@ -13,9 +13,9 @@ wait_for_pulsar(){
       echo -e "$1 is healthy!\n"
       break
     else
-      echo "$1 not healthy.  Trying $i of ${MAX_HEALTH_CHECK_TRIES}. Sleeping 10 seconds."
+      echo "$1 not healthy.  Trying $i of ${MAX_HEALTH_CHECK_TRIES}. Sleeping 5 seconds."
       if [[ "$i" != "${MAX_HEALTH_CHECK_TRIES}" ]]; then
-          sleep 10
+          sleep 5
       fi
     fi
 
