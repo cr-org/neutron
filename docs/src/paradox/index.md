@@ -102,3 +102,32 @@ val schema = Schema[Event] // summon an instance
 ```
 
 Be aware that your datatype needs to provide instances of `io.circe.Encoder` and `io.circe.Decoder` for this instance to become available.
+
+#### Schema Compatibility Check Strategy
+
+Whenever using schemas, make sure you fully understand the different [strategies](https://pulsar.apache.org/docs/en/schema-evolution-compatibility/#schema-compatibility-check-strategy), which only operate at the namespace level (e.g. see how integration tests are set up in the [run.sh](./run.sh) shell script).
+
+For instance, when using the `BACKWARD` mode, a producer and consumer will fail to initialize if the schemas are incompatible, even if your custom JSON decoder can deserialize the previous model, the Pulsar broker doesn't know about it. E.g. say we have this model in our new application.
+
+```scala
+case class Event(uuid: UUID, value: String)
+```
+
+And later on, we introduce a breaking change in the model, adding a new **mandatory** field.
+
+```scala
+case class Event(uuid: UUID, value: String, code: Int)
+```
+
+This will be rejected at runtime, validated by Pulsar Schemas, when using the BACKWARD mode. The only changes allowed in this mode are:
+
+- Add optional fields
+- Delete fields
+
+Instead, we should make the new field optional for this to work.
+
+```scala
+case class Event(uuid: UUID, value: String, code: Option[Int])
+```
+
+This is now accepted by Pulsar since any previous `Event` still not consumed from a Pulsar topic can still be processed by the new consumers expecting the new schema.
