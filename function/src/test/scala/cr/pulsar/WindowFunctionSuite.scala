@@ -17,25 +17,25 @@
 package cr.pulsar
 
 import cr.pulsar.FunctionInput._
-import munit.ScalaCheckSuite
-import org.scalacheck.Prop._
-import cats.syntax.all._
 
-class WindowFunctionSpec extends ScalaCheckSuite {
-  property("WindowFunction can convert numbers to strings") {
-    forAll { (n1: Int, n2: Int) =>
+import weaver.SimpleIOSuite
+import weaver.scalacheck.Checkers
+
+object WindowFunctionSuite extends SimpleIOSuite with Checkers {
+  test("WindowFunction can convert numbers to strings") {
+    forall { (n1: Int, n2: Int) =>
       val f = new WindowFunction[Int, String] {
         override def handle(input: Seq[Record[Int]], ctx: WindowContext): String =
           input.map(_.value).sum.toString
       }
 
       val result = f.process(input(Seq(n1, n2)), emptyWindowCtx)
-      assert(result === (n1 + n2).toString)
+      expect.same(result, (n1 + n2).toString)
     }
   }
 
-  property("WindowFunction can do side effects") {
-    forAll { (n1: Int, n2: Int) =>
+  test("WindowFunction can do side effects") {
+    forall { (n1: Int, n2: Int) =>
       var i = 0
       val f = new WindowFunction[Int, Unit] {
         override def handle(input: Seq[Record[Int]], ctx: WindowContext): Unit =
@@ -43,7 +43,7 @@ class WindowFunctionSpec extends ScalaCheckSuite {
       }
 
       f.process(input(Seq(n1, n2)), emptyWindowCtx)
-      assert(i === 2)
+      expect.same(i, 2)
     }
   }
 }

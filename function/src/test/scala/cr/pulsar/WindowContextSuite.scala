@@ -23,10 +23,10 @@ import java.util.concurrent.CompletableFuture
 
 import cats.syntax.all._
 import cr.pulsar.WindowContext.OutputTopic
-import munit.ScalaCheckSuite
 import org.apache.pulsar.functions.api.{ WindowContext => JavaWindowContext }
-import org.scalacheck.Prop._
 import org.slf4j.Logger
+import weaver.SimpleIOSuite
+import weaver.scalacheck.Checkers
 
 import scala.collection.mutable
 import scala.concurrent.{ Await, Future }
@@ -34,18 +34,20 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.compat.java8.FutureConverters._
 
-class WindowContextSpec extends ScalaCheckSuite {
-  property("WindowContext mapping of fields is correct") {
-    forAll {
+object WindowContextSuite extends SimpleIOSuite with Checkers {
+  test("WindowContext mapping of fields is correct") {
+    forall {
       (
-          t: String,
-          ns: String,
+          t_ns: (String, String),
           fn: String,
           fid: String,
           iid: Int,
           ni: Int,
           fv: String
       ) =>
+        val t  = t_ns._1
+        val ns = t_ns._2
+
         val javaCtx = new JavaWindowContext {
           override def getTenant: String                                 = t
           override def getNamespace: String                              = ns
@@ -83,18 +85,20 @@ class WindowContextSpec extends ScalaCheckSuite {
 
         val ctx = new WindowContext(javaCtx)
 
-        assert(ctx.tenant.value === t)
-        assert(ctx.namespace.value === ns)
-        assert(ctx.functionName.value === fn)
-        assert(ctx.functionId.value === fid)
-        assert(ctx.instanceId.value === iid)
-        assert(ctx.numInstances.value === ni)
-        assert(ctx.functionVersion.value === fv)
+        expect.all(
+          ctx.tenant.value === t,
+          ctx.namespace.value === ns,
+          ctx.functionName.value === fn,
+          ctx.functionId.value === fid,
+          ctx.instanceId.value === iid,
+          ctx.numInstances.value === ni,
+          ctx.functionVersion.value === fv
+        )
     }
   }
 
-  property("WindowContext mapping of in and out topics is correct") {
-    forAll {
+  test("WindowContext mapping of in and out topics is correct") {
+    forall {
       (
           it1: String,
           it2: String,
@@ -142,15 +146,18 @@ class WindowContextSpec extends ScalaCheckSuite {
         }
 
         val ctx = new WindowContext(javaCtx)
-        assert(ctx.inputTopics.map(_.value).contains(it1))
-        assert(ctx.inputTopics.map(_.value).contains(it2))
-        assert(ctx.outputTopic.value === ot)
-        assert(ctx.outputSchemaType.value === ost)
+
+        expect.all(
+          ctx.inputTopics.map(_.value).contains(it1),
+          ctx.inputTopics.map(_.value).contains(it2),
+          ctx.outputTopic.value === ot,
+          ctx.outputSchemaType.value === ost
+        )
     }
   }
 
-  property("WindowContext mapping of counter methods is correct") {
-    forAll {
+  test("WindowContext mapping of counter methods is correct") {
+    forall {
       (
           key: String,
           amount: Long
@@ -197,19 +204,25 @@ class WindowContextSpec extends ScalaCheckSuite {
             ???
         }
 
-        val ctx = new WindowContext(javaCtx)
-        assert(ctx.getCounter(key) === 0)
+        val ctx  = new WindowContext(javaCtx)
+        val res1 = ctx.getCounter(key)
 
         ctx.incrCounter(key, amount)
-        assert(ctx.getCounter(key) === amount)
+        val res2 = ctx.getCounter(key)
 
         ctx.incrCounter(key, amount)
-        assert(ctx.getCounter(key) === amount + amount)
+        val res3 = ctx.getCounter(key)
+
+        expect.all(
+          res1 === 0,
+          res2 === amount,
+          res3 === amount * 2
+        )
     }
   }
 
-  property("WindowContext mapping of state is correct") {
-    forAll {
+  test("WindowContext mapping of state is correct") {
+    forall {
       (
           key: String,
           value: String
@@ -254,18 +267,23 @@ class WindowContextSpec extends ScalaCheckSuite {
             ???
         }
 
-        val ctx = new WindowContext(javaCtx)
-        assert(ctx.getState(key).isEmpty)
+        val ctx  = new WindowContext(javaCtx)
+        val res1 = ctx.getState(key)
 
         val bytes = ByteBuffer.wrap(value.getBytes)
         ctx.putState(key, bytes)
 
-        assert(ctx.getState(key).contains(bytes))
+        val res2 = ctx.getState(key)
+
+        expect.all(
+          res1.isEmpty,
+          res2.contains(bytes)
+        )
     }
   }
 
-  property("WindowContext mapping of user config is correct") {
-    forAll {
+  test("WindowContext mapping of user config is correct") {
+    forall {
       (
           key: String,
           value: Int,
@@ -313,19 +331,23 @@ class WindowContextSpec extends ScalaCheckSuite {
 
         val ctx = new WindowContext(javaCtx)
 
-        assert(ctx.userConfigValue(key).isEmpty)
-        assert(ctx.userConfigValueOrElse(key, defaultValue) === defaultValue)
+        val res1 = ctx.userConfigValue(key)
+        val res2 = ctx.userConfigValueOrElse(key, defaultValue)
 
         map.put(key, Integer.valueOf(value))
 
-        assert(ctx.userConfigMap.size === 1)
-        assert(ctx.userConfigMap.get(key).contains(value))
-        assert(ctx.userConfigValue[Int](key).contains(value))
+        expect.all(
+          res1.isEmpty,
+          res2 === defaultValue,
+          ctx.userConfigMap.size === 1,
+          ctx.userConfigMap.get(key).contains(value),
+          ctx.userConfigValue[Int](key).contains(value)
+        )
     }
   }
 
-  property("WindowContext can publish messages") {
-    forAll {
+  test("WindowContext can publish messages") {
+    forall {
       (
           ot: String,
           sc: String,
@@ -376,10 +398,15 @@ class WindowContextSpec extends ScalaCheckSuite {
 
         val ctx = new WindowContext(javaCtx)
         Await.result(ctx.publish[Int](OutputTopic(ot), value), 5.seconds)
-        assert(i === 1)
+        val res1 = i
 
         Await.result(ctx.publish[Int](OutputTopic(ot), value, sc), 5.seconds)
-        assert(i === 2)
+        val res2 = i
+
+        expect.all(
+          res1 === 1,
+          res2 === 2
+        )
     }
   }
 }

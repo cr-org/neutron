@@ -16,26 +16,25 @@
 
 package cr.pulsar
 
-import cats.syntax.all._
 import cr.pulsar.FunctionInput._
-import munit.ScalaCheckSuite
-import org.scalacheck.Prop._
+import weaver.SimpleIOSuite
+import weaver.scalacheck.Checkers
 
-class FunctionSpec extends ScalaCheckSuite {
-  property("Function can convert numbers to strings") {
-    forAll { n: Int =>
+object FunctionSuite extends SimpleIOSuite with Checkers {
+  test("Function can convert numbers to strings") {
+    forall { n: Int =>
       val f = new Function[Int, String] {
         override def handle(input: Int, ctx: Context): String =
           input.toString
       }
 
       val result = f.process(n, emptyCtx)
-      assert(result === n.toString)
+      expect.same(result, n.toString)
     }
   }
 
-  property("Function can do side effects") {
-    forAll { n: Int =>
+  test("Function can do side effects") {
+    forall { n: Int =>
       var i = 0
       val f = new Function[Int, Unit] {
         override def handle(input: Int, ctx: Context): Unit =
@@ -43,7 +42,7 @@ class FunctionSpec extends ScalaCheckSuite {
       }
 
       f.process(n, emptyCtx)
-      assert(i === n)
+      expect.same(i, n)
     }
   }
 }

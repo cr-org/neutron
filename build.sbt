@@ -16,8 +16,7 @@ lazy val `neutron-core` = (project in file("core"))
           Libraries.fs2,
           Libraries.newtype,
           Libraries.pulsar,
-          Libraries.munitCore       % Test,
-          Libraries.munitScalacheck % Test
+          Libraries.weaverCats % Test
         )
   )
 
@@ -40,11 +39,11 @@ lazy val `neutron-function` = (project in file("function"))
           Libraries.pulsarFunctionsApi,
           Libraries.java8Compat,
           Libraries.newtype,
-          Libraries.cats            % Test,
-          Libraries.catsEffect      % Test,
-          Libraries.munitCore       % Test,
-          Libraries.munitScalacheck % Test,
-          Libraries.cats            % Test
+          Libraries.cats             % Test,
+          Libraries.catsEffect       % Test,
+          Libraries.cats             % Test,
+          Libraries.weaverCats       % Test,
+          Libraries.weaverScalaCheck % Test
         )
   )
 
@@ -59,12 +58,10 @@ lazy val tests = (project in file("tests"))
           CompilerPlugins.betterMonadicFor,
           CompilerPlugins.contextApplied,
           CompilerPlugins.kindProjector,
-          Libraries.circeCore       % "it,test",
-          Libraries.circeGeneric    % "it,test",
-          Libraries.circeParser     % "it,test",
-          Libraries.munitCore       % "it,test",
-          Libraries.munitScalacheck % "it,test",
-          Libraries.weaverCats      % "it,test"
+          Libraries.circeCore    % "it,test",
+          Libraries.circeGeneric % "it,test",
+          Libraries.circeParser  % "it,test",
+          Libraries.weaverCats   % "it,test"
         )
   )
   .dependsOn(`neutron-circe`)

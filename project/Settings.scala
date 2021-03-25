@@ -10,10 +10,7 @@ object Settings {
     scalacOptions -= "-Wunused:params", // so many false-positives :(
     scalafmtOnCompile := true,
     autoAPIMappings := true,
-    testFrameworks ++= List(
-      new TestFramework("munit.Framework"),
-      new TestFramework("weaver.framework.CatsEffect")
-    ),
+    testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
     libraryDependencies ++= macroParadisePlugin(scalaVersion.value),
     ThisBuild / crossScalaVersions := Seq("2.13.2"),
     ThisBuild / homepage := Some(url("https://github.com/cr-org/neutron")),
