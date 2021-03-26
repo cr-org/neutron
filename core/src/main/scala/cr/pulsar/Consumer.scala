@@ -70,13 +70,6 @@ object Consumer {
   case class Message[A](id: MessageId, key: MessageKey, payload: A)
   case class DecodingFailure(msg: String) extends Exception(msg) with NoStackTrace
 
-  sealed trait OnFailure[+F[_]]
-  object OnFailure {
-    case class Ack[F[_]](f: DecodingFailure => F[Unit]) extends OnFailure[F]
-    case class Nack[F[_]](f: DecodingFailure => F[Unit]) extends OnFailure[F]
-    case object LetItCrash extends OnFailure[Nothing]
-  }
-
   private def mkConsumer[F[_]: Concurrent: ContextShift, E: Schema](
       client: Pulsar.T,
       sub: Subscription,
@@ -109,27 +102,14 @@ object Consumer {
         new Consumer[F, E] {
           private def subscribeInternal(autoAck: Boolean): Stream[F, Message[E]] =
             Stream.repeatEval {
-              def onDecodingFailure(e: DecodingFailure): F[Unit] =
-                opts.onFailure match {
-                  case OnFailure.Ack(f)     => f(e)
-                  case OnFailure.Nack(f)    => f(e)
-                  case OnFailure.LetItCrash => F.unit
-                }
+              F.delay(c.receiveAsync()).futureLift.flatMap { m =>
+                val e = m.getValue()
 
-              F.delay(c.receiveAsync())
-                .futureLift
-                .flatMap { m =>
-                  val e = m.getValue()
-
-                  opts.logger(e)(Topic.URL(m.getTopicName)) >>
-                    ack(m.getMessageId)
-                      .whenA(autoAck)
-                      .as(Message(m.getMessageId, MessageKey(m.getKey), e))
-                }
-                .recoverWith {
-                  case e: DecodingFailure =>
-                    onDecodingFailure(e) >> F.raiseError(e)
-                }
+                opts.logger(e)(Topic.URL(m.getTopicName)) >>
+                  ack(m.getMessageId)
+                    .whenA(autoAck)
+                    .as(Message(m.getMessageId, MessageKey(m.getKey), e))
+              }
             }
 
           override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
@@ -203,7 +183,6 @@ object Consumer {
     val logger: E => Topic.URL => F[Unit]
     val manualUnsubscribe: Boolean
     val readCompacted: Boolean
-    val onFailure: OnFailure[F]
 
     /**
       * The Subscription Initial Position. `Latest` by default.
@@ -235,12 +214,6 @@ object Consumer {
       * or on a shared subscription, will lead to the subscription call throwing a PulsarClientException.
       */
     def withReadCompacted: Options[F, E]
-
-    /**
-      * Automatically `ack` or `nack` when a message fails to be decoded. By default it does nothing (LetItCrash)
-      * and in all cases the `DecodingFailure` error is rethrown.
-      */
-    def withOnFailure(_onFailure: OnFailure[F]): Options[F, E]
   }
 
   /**
@@ -251,8 +224,7 @@ object Consumer {
         initial: SubscriptionInitialPosition,
         logger: E => Topic.URL => F[Unit],
         manualUnsubscribe: Boolean,
-        readCompacted: Boolean,
-        onFailure: OnFailure[F]
+        readCompacted: Boolean
     ) extends Options[F, E] {
       override def withInitialPosition(
           _initial: SubscriptionInitialPosition
@@ -267,17 +239,13 @@ object Consumer {
 
       override def withReadCompacted: Options[F, E] =
         copy(readCompacted = true)
-
-      override def withOnFailure(_onFailure: OnFailure[F]): Options[F, E] =
-        copy(onFailure = _onFailure)
     }
 
     def apply[F[_]: Applicative, E](): Options[F, E] = OptionsImpl[F, E](
       SubscriptionInitialPosition.Latest,
       _ => _ => F.unit,
       manualUnsubscribe = false,
-      readCompacted = false,
-      onFailure = OnFailure.LetItCrash
+      readCompacted = false
     )
   }
 
