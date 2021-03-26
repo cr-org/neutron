@@ -116,7 +116,7 @@ object Topic {
       */
     def build(
         implicit @implicitNotFound(
-          "Topic.Name or Topic.Pattern, and Config are mandatory. By default Type=Persistent."
+          "Topic.Name and Config are mandatory. By default Type=Persistent."
         ) ev: I =:= Info.SingleMandatory
     ): Topic.Single = {
       val t = _name.swap.toOption.get
@@ -131,14 +131,12 @@ object Topic {
       */
     def buildMulti(
         implicit @implicitNotFound(
-          "Topic.Pattern, and Config are mandatory. By default Type=Persistent."
+          "Topic.Pattern and Config are mandatory. By default Type=Persistent."
         ) ev: I =:= Info.MultiMandatory
-    ): Topic.Multi = {
-      val m = _name.toOption.get
+    ): Topic.Multi =
       new Multi {
-        val url = buildRegexUrl(_config, m, _type)
+        val url = buildRegexUrl(_config, _name.toOption.get, _type)
       }
-    }
 
   }
 
