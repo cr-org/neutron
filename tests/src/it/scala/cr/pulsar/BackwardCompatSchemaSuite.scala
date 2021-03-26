@@ -20,7 +20,7 @@ object BackwardCompatSchemaSuite extends IOSuite {
     .build
 
   override type Res = Pulsar.T
-  override def sharedResource: Resource[IO, Res] = Pulsar.create[IO](cfg.url)
+  override def sharedResource: Resource[IO, Res] = Pulsar.make[IO](cfg.url)
 
   val sub = (s: String) =>
     Subscription.Builder
@@ -40,8 +40,8 @@ object BackwardCompatSchemaSuite extends IOSuite {
     client =>
       val res: Resource[IO, (Consumer[IO, Event_V2], Producer[IO, Event])] =
         for {
-          consumer <- Consumer.create[IO, Event_V2](client, topic, sub("circe"))
-          producer <- Producer.create[IO, Event](client, topic)
+          consumer <- Consumer.make[IO, Event_V2](client, topic, sub("circe"))
+          producer <- Producer.make[IO, Event](client, topic)
         } yield consumer -> producer
 
       (Ref.of[IO, Int](0), Deferred[IO, Event_V2]).tupled.flatMap {

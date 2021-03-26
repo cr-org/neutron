@@ -73,18 +73,17 @@ object Consumer {
   private def mkConsumer[F[_]: Concurrent: ContextShift, E: Schema](
       client: Pulsar.T,
       sub: Subscription,
-      topicType: Either[Topic.Pattern, Topic],
+      topic: Topic,
       opts: Options[F, E]
   ): Resource[F, Consumer[F, E]] = {
     val acquire =
       F.delay {
         val c = client.newConsumer(E.schema)
-        topicType
-          .fold(
-            p => c.topicsPattern(p.url.value.r.pattern),
-            t => c.topic(t.url.value)
-          )
-          .readCompacted(opts.readCompacted)
+        val z = topic match {
+          case s: Topic.Single => c.topic(s.url.value)
+          case m: Topic.Multi  => c.topicsPattern(m.url.value.r.pattern)
+        }
+        z.readCompacted(opts.readCompacted)
           .subscriptionType(sub.`type`.pulsarSubscriptionType)
           .subscriptionName(sub.name.value)
           .subscriptionMode(sub.mode.pulsarSubscriptionMode)
@@ -125,57 +124,22 @@ object Consumer {
   }
 
   /**
-    * It creates a [[Consumer]] for a multi-topic subscription.
+    * It creates a [[Consumer]] with the supplied options, or a default value otherwise.
     *
-    * Find out more at [[https://pulsar.apache.org/docs/en/concepts-messaging/#multi-topic-subscriptions]]
-    *
-    * Note that this does not create a subscription to any Topic,
-    * you can use [[Consumer#subscribe]] for this purpose.
-    */
-  def multiTopic[F[_]: Concurrent: ContextShift, E: Schema](
-      client: Pulsar.T,
-      topicPattern: Topic.Pattern,
-      sub: Subscription
-  ): Resource[F, Consumer[F, E]] =
-    mkConsumer(client, sub, topicPattern.asLeft, Options[F, E]())
-
-  /**
-    * It creates a [[Consumer]] with default options.
+    * A [[Topic]] can either be `Single` or `Multi` for multi topic subscriptions.
     *
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
     */
-  def create[F[_]: Concurrent: ContextShift, E: Schema](
-      client: Pulsar.T,
-      topic: Topic,
-      sub: Subscription
-  ): Resource[F, Consumer[F, E]] =
-    withOptions(client, topic, sub, Options[F, E]())
-
-  /**
-    * It creates a [[Consumer]] with default options and the supplied message logger.
-    */
-  def withLogger[F[_]: ContextShift: Concurrent, E: Schema](
+  def make[F[_]: Concurrent: ContextShift, E: Schema](
       client: Pulsar.T,
       topic: Topic,
       sub: Subscription,
-      logger: E => Topic.URL => F[Unit]
-  ): Resource[F, Consumer[F, E]] =
-    withOptions(client, topic, sub, Options[F, E]().withLogger(logger))
-
-  /**
-    * It creates a [[Consumer]] with the supplied options.
-    *
-    * Note that this does not create a subscription to any Topic,
-    * you can use [[Consumer#subscribe]] for this purpose.
-    */
-  def withOptions[F[_]: Concurrent: ContextShift, E: Schema](
-      client: Pulsar.T,
-      topic: Topic,
-      sub: Subscription,
-      opts: Options[F, E]
-  ): Resource[F, Consumer[F, E]] =
-    mkConsumer(client, sub, topic.asRight, opts)
+      opts: Options[F, E] = null // default value does not work
+  ): Resource[F, Consumer[F, E]] = {
+    val _opts = Option(opts).getOrElse(Options[F, E]())
+    mkConsumer(client, sub, topic, _opts)
+  }
 
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {

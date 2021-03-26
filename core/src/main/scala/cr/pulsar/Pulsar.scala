@@ -35,14 +35,10 @@ object Pulsar {
     * It will be closed once the client is no longer in use or in case of
     * shutdown of the application that makes use of it.
     */
-  def create[F[_]: Sync](
-      url: PulsarURL
-  ): Resource[F, T] = withOptions(url, Options())
-
-  def withOptions[F[_]: Sync](
+  def make[F[_]: Sync](
       url: PulsarURL,
-      opts: Options
-  ): Resource[F, Underlying] =
+      opts: Options = Options()
+  ): Resource[F, T] =
     Resource.fromAutoCloseable(
       F.delay(
         Underlying.builder

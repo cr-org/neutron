@@ -22,10 +22,7 @@ import io.estatico.newtype.macros.newtype
 import scala.annotation.implicitNotFound
 import scala.util.matching.Regex
 
-sealed abstract class Topic {
-  val name: Topic.Name
-  val url: Topic.URL
-}
+sealed trait Topic
 
 /**
   * Topic names are URLs that have a well-defined structure:
@@ -34,12 +31,27 @@ sealed abstract class Topic {
   * {persistent|non-persistent}://tenant/namespace/topic
   * }}}
   *
+  * It could be either `Single` for one or `Multi` (taking a regular expression) for
+  * consuming from multiple topics.
+  *
   * Find out more at [[https://pulsar.apache.org/docs/en/concepts-messaging/#topics]]
   */
 object Topic {
 
+  sealed abstract class Single extends Topic {
+    val name: Topic.Name
+    val url: Topic.URL
+  }
+
+  sealed abstract class Multi extends Topic {
+    val url: URL
+  }
+
   implicit val showTopic: Show[Topic] =
-    Show[String].contramap(_.url.value)
+    Show[String].contramap {
+      case s: Single => s.url.value
+      case m: Multi  => m.url.value
+    }
 
   @newtype case class Name(value: String)
   @newtype case class NamePattern(value: Regex)
@@ -58,10 +70,6 @@ object Topic {
   private def buildUrl(cfg: Config, name: Name, `type`: Type): URL =
     URL(s"${`type`.show}://${cfg.tenant.value}/${cfg.namespace.value}/${name.value}")
 
-  sealed abstract class Pattern {
-    val url: URL
-  }
-
   private def buildRegexUrl(cfg: Config, namePattern: NamePattern, `type`: Type): URL =
     URL(
       s"${`type`.show}://${cfg.tenant.value}/${cfg.namespace.value}/${namePattern.value.regex}"
@@ -76,24 +84,23 @@ object Topic {
     sealed trait Pattern extends Info
     sealed trait Type extends Info
 
-    type Mandatory        = Empty with Config with Name with Type
-    type PatternMandatory = Empty with Config with Pattern with Type
+    type SingleMandatory = Empty with Config with Name with Type
+    type MultiMandatory  = Empty with Config with Pattern with Type
   }
 
   case class TopicBuilder[I <: Info] protected (
-      _name: Name = Name(""),
-      _pattern: NamePattern = NamePattern("".r),
+      _name: Either[Name, NamePattern] = Name("").asLeft,
       _config: Config = Config.Builder.default,
       _type: Type = Type.Persistent
   ) {
     def withName(name: Name): TopicBuilder[I with Info.Name] =
-      this.copy(_name = name)
+      this.copy(_name = name.asLeft)
 
     def withName(name: String): TopicBuilder[I with Info.Name] =
       withName(Name(name))
 
     def withNamePattern(pattern: NamePattern): TopicBuilder[I with Info.Pattern] =
-      this.copy(_pattern = pattern)
+      this.copy(_name = pattern.asRight)
 
     def withNamePattern(regex: Regex): TopicBuilder[I with Info.Pattern] =
       withNamePattern(NamePattern(regex))
@@ -105,29 +112,33 @@ object Topic {
       this.copy(_type = typ)
 
     /**
-      * It creates a topic. By default, Type=Persistent.
+      * It creates a topic of type Single. By default, Type=Persistent.
       */
     def build(
         implicit @implicitNotFound(
-          "Topic.Name and Config are mandatory. By default Type=Persistent."
-        ) ev: I =:= Info.Mandatory
-    ): Topic =
-      new Topic {
-        val name = _name
-        val url  = buildUrl(_config, _name, _type)
+          "Topic.Name or Topic.Pattern, and Config are mandatory. By default Type=Persistent."
+        ) ev: I =:= Info.SingleMandatory
+    ): Topic.Single = {
+      val t = _name.swap.toOption.get
+      new Single {
+        val name = t
+        val url  = buildUrl(_config, t, _type)
       }
+    }
 
     /**
-      * It creates a topic for a regex pattern. By default, Type=Persistent.
+      * It creates a topic of type Multi. By default, Type=Persistent.
       */
-    def buildPattern(
+    def buildMulti(
         implicit @implicitNotFound(
-          "Topic.NamePattern and Config are mandatory. By default Type=Persistent."
-        ) ev: I =:= Info.PatternMandatory
-    ): Topic.Pattern =
-      new Topic.Pattern {
-        val url = buildRegexUrl(_config, _pattern, _type)
+          "Topic.Pattern, and Config are mandatory. By default Type=Persistent."
+        ) ev: I =:= Info.MultiMandatory
+    ): Topic.Multi = {
+      val m = _name.toOption.get
+      new Multi {
+        val url = buildRegexUrl(_config, m, _type)
       }
+    }
 
   }
 
