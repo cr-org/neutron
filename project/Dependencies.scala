@@ -6,7 +6,7 @@ object Dependencies {
     val java8Compat = "0.9.1"
 
     val cats       = "2.4.2"
-    val catsEffect = "2.4.0"
+    val catsEffect = "3.0.0"
     val circe      = "0.13.0"
     val fs2        = "2.5.3"
     val newtype    = "0.4.4"
