@@ -17,7 +17,7 @@ object AlwaysIncompatibleSchemaSuite extends IOSuite {
     .build
 
   override type Res = Pulsar.T
-  override def sharedResource: Resource[IO, Res] = Pulsar.create[IO](cfg.url)
+  override def sharedResource: Resource[IO, Res] = Pulsar.make[IO](cfg.url)
 
   val sub = (s: String) =>
     Subscription.Builder
@@ -38,8 +38,8 @@ object AlwaysIncompatibleSchemaSuite extends IOSuite {
   ) { client =>
     val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event_V2])] =
       for {
-        consumer <- Consumer.create[IO, Event](client, topic, sub("circe"))
-        producer <- Producer.create[IO, Event_V2](client, topic)
+        consumer <- Consumer.make[IO, Event](client, topic, sub("circe"))
+        producer <- Producer.make[IO, Event_V2](client, topic)
       } yield consumer -> producer
 
     res.attempt.use {

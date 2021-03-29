@@ -36,7 +36,7 @@ import org.apache.pulsar.client.api.schema.{
 
 package object circe {
 
-  implicit def circeInstance[T: ClassTag: Encoder: Decoder]: Schema[T] =
+  implicit def circeInstance[T: ClassTag: Decoder: Encoder]: Schema[T] =
     new Schema[T] {
       def schema: JSchema[T] = {
         val reader = new SchemaReader[T] {

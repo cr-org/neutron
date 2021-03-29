@@ -64,11 +64,13 @@ object Producer {
   /**
     * It creates a simple [[Producer]] with the supplied options.
     */
-  def withOptions[F[_]: Concurrent: ContextShift: Parallel, E: Schema](
+  def make[F[_]: Concurrent: ContextShift: Parallel, E: Schema](
       client: Pulsar.T,
-      topic: Topic,
-      opts: Options[F, E]
+      topic: Topic.Single,
+      opts: Options[F, E] = null // default value does not work
   ): Resource[F, Producer[F, E]] = {
+    val _opts = Option(opts).getOrElse(Options[F, E]())
+
     def configureBatching(
         batching: Batching,
         producerBuilder: ProducerBuilder[E]
@@ -90,7 +92,7 @@ object Producer {
       .make {
         F.delay(
           configureBatching(
-            opts.batching,
+            _opts.batching,
             client.newProducer(E.schema).topic(topic.url.value)
           ).create
         )
@@ -98,11 +100,11 @@ object Producer {
       .map { prod =>
         new Producer[F, E] {
           override def send(msg: E, key: MessageKey): F[MessageId] =
-            opts.logger(msg)(topic.url) &> F.delay {
+            _opts.logger(msg)(topic.url) &> F.delay {
                   prod
                     .newMessage()
                     .value(msg)
-                    .withShardKey(opts.shardKey(msg))
+                    .withShardKey(_opts.shardKey(msg))
                     .withMessageKey(key)
                     .sendAsync()
                 }.futureLift
@@ -115,25 +117,6 @@ object Producer {
         }
       }
   }
-
-  /**
-    * It creates a [[Producer]] with default options and the supplied message logger.
-    */
-  def withLogger[F[_]: ContextShift: Parallel: Concurrent, E: Schema](
-      client: Pulsar.T,
-      topic: Topic,
-      logger: E => Topic.URL => F[Unit]
-  ): Resource[F, Producer[F, E]] =
-    withOptions(client, topic, Options[F, E]().withLogger(logger))
-
-  /**
-    * It creates a [[Producer]] with default options (no-op logger).
-    */
-  def create[F[_]: ContextShift: Parallel: Concurrent, E: Schema](
-      client: Pulsar.T,
-      topic: Topic
-  ): Resource[F, Producer[F, E]] =
-    withOptions(client, topic, Options[F, E]())
 
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {

@@ -35,7 +35,7 @@ object NeutronSuite extends IOSuite {
   val cfg = Config.Builder.default
 
   override type Res = Pulsar.T
-  override def sharedResource: Resource[IO, Res] = Pulsar.create[IO](cfg.url)
+  override def sharedResource: Resource[IO, Res] = Pulsar.make[IO](cfg.url)
 
   val sub = (s: String) =>
     Subscription.Builder
@@ -58,8 +58,8 @@ object NeutronSuite extends IOSuite {
 
       val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event])] =
         for {
-          consumer <- Consumer.create[IO, Event](client, hpTopic, sub("hp-circe"))
-          producer <- Producer.create[IO, Event](client, hpTopic)
+          consumer <- Consumer.make[IO, Event](client, hpTopic, sub("hp-circe"))
+          producer <- Producer.make[IO, Event](client, hpTopic)
         } yield consumer -> producer
 
       Deferred[IO, Event].flatMap { latch =>
@@ -94,8 +94,8 @@ object NeutronSuite extends IOSuite {
 
       val res: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
         for {
-          consumer <- Consumer.create[IO, String](client, hpTopic, sub("hp-bytes"))
-          producer <- Producer.create[IO, String](client, hpTopic)
+          consumer <- Consumer.make[IO, String](client, hpTopic, sub("hp-bytes"))
+          producer <- Producer.make[IO, String](client, hpTopic)
         } yield consumer -> producer
 
       Deferred[IO, String].flatMap { latch =>
@@ -129,8 +129,8 @@ object NeutronSuite extends IOSuite {
 
     val res: Resource[IO, (Consumer[IO, Event], Producer[IO, String])] =
       for {
-        consumer <- Consumer.create[IO, Event](client, dfTopic, sub("decoding-err"))
-        producer <- Producer.create[IO, String](client, dfTopic)
+        consumer <- Consumer.make[IO, Event](client, dfTopic, sub("decoding-err"))
+        producer <- Producer.make[IO, String](client, dfTopic)
       } yield consumer -> producer
 
     Deferred[IO, String].flatMap { latch =>
@@ -179,9 +179,9 @@ object NeutronSuite extends IOSuite {
         (Consumer[IO, Event], Consumer[IO, Event], Producer[IO, Event])
       ] =
         for {
-          c1 <- Consumer.create[IO, Event](client, topic("shared"), makeSub("s1"))
-          c2 <- Consumer.create[IO, Event](client, topic("shared"), makeSub("s2"))
-          p1 <- Producer.withOptions(client, topic("shared"), opts)
+          c1 <- Consumer.make[IO, Event](client, topic("shared"), makeSub("s1"))
+          c2 <- Consumer.make[IO, Event](client, topic("shared"), makeSub("s2"))
+          p1 <- Producer.make(client, topic("shared"), opts)
         } yield (c1, c2, p1)
 
       (Ref.of[IO, List[Event]](List.empty), Ref.of[IO, List[Event]](List.empty)).tupled
@@ -241,8 +241,8 @@ object NeutronSuite extends IOSuite {
 
     val res: Resource[IO, (Consumer[IO, Fruit], Producer[IO, Fruit])] =
       for {
-        consumer <- Consumer.create[IO, Fruit](client, vTopic, sub("fruits"))
-        producer <- Producer.create[IO, Fruit](client, vTopic)
+        consumer <- Consumer.make[IO, Fruit](client, vTopic, sub("fruits"))
+        producer <- Producer.make[IO, Fruit](client, vTopic)
       } yield consumer -> producer
 
     res.use(_ => IO.pure(expect(true)))
@@ -253,8 +253,8 @@ object NeutronSuite extends IOSuite {
 
     val res: Resource[IO, (Consumer[IO, Inner], Producer[IO, Inner])] =
       for {
-        consumer <- Consumer.create[IO, Inner](client, vTopic, sub("outer-inner"))
-        producer <- Producer.create[IO, Inner](client, vTopic)
+        consumer <- Consumer.make[IO, Inner](client, vTopic, sub("outer-inner"))
+        producer <- Producer.make[IO, Inner](client, vTopic)
       } yield consumer -> producer
 
     res.use(_ => IO.pure(expect(true)))
