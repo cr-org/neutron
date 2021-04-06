@@ -76,7 +76,10 @@ object Demo extends IOApp {
 As of version `0.0.6`, Neutron ships with support for [Pulsar Schema](https://pulsar.apache.org/docs/en/schema-get-started/). The simplest way to get started is to use the given UTF-8 encoding, which makes use of the native `Schema.BYTES`.
 
 ```scala mdoc:compile-only
+import cr.pulsar.schema.Schema
 import cr.pulsar.schema.utf8._
+
+val schema = Schema[String] // summon instance
 ```
 
 This brings into scope an `Schema[String]` instance, required to initialize consumers and producers. There's also a default instance `Schema[A]`, for any `cats.Inject[A, Array[Byte]]` instance (based on `Schema.BYTES` as well).
@@ -85,12 +88,14 @@ At Chatroulette, we use JSON-serialised data for which we derive a `Schema.JSON`
 
 ℹ️ When using schemas, prefer to create the producer(s) before the consumer(s) for fail-fast semantics.
 
+We also need instances for Circe's `Decoder` and `Encoder`, and for `JsonSchema`, which expects an Avro schema, used by Pulsar.
 Once you have it, you are an import away from having JSON schema support.
 
 ```scala mdoc:compile-only
 import cr.pulsar.schema.Schema
 import cr.pulsar.schema.circe._
 
+import com.sksamuel.avro4s.AvroSchema
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto._
 
@@ -98,19 +103,19 @@ case class Event(id: Long, name: String)
 object Event {
   implicit val jsonEncoder: Encoder[Event] = deriveEncoder
   implicit val jsonDecoder: Decoder[Event] = deriveDecoder
+
+  implicit val jsonSchema: JsonSchema[Event] =
+    JsonSchema.fromAvro(AvroSchema[Event])
 }
 
 val schema = Schema[Event] // summon an instance
 ```
 
-The `io.circe.Encoder` and `io.circe.Decoder` are mandatory for a `Schema` instance to become available.
-
-⚠️ The `import cr.pulsar.schema.circe._` should be used with caution as it generates an Avro schema via [avro4s](https://github.com/sksamuel/avro4s), which is brought transitively. If you wish more control over this, prefer to use the following explicit method instead.
+The `JsonSchema` can be created directly using [avro4s](https://github.com/sksamuel/avro4s). In fact, this is the recommended way but if you want to get something quickly up and running, you could instead use auto-derivation, which also uses Avro4s.
 
 ```scala mdoc:compile-only
-import com.sksamuel.avro4s.AvroSchema
 import cr.pulsar.schema.Schema
-import cr.pulsar.schema.circe.JsonSchema
+import cr.pulsar.schema.circe.auto._
 
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto._
@@ -121,7 +126,7 @@ object Foo {
   implicit val jsonDecoder: Decoder[Foo] = deriveDecoder
 }
 
-val schema: Schema[Foo] = JsonSchema.fromAvro(AvroSchema[Foo])
+val schema = Schema[Foo] // summon an instance
 ```
 
 #### Schema Compatibility Check Strategy

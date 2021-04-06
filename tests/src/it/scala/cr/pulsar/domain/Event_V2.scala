@@ -3,7 +3,10 @@ package domain
 
 import java.util.UUID
 
+import cr.pulsar.schema.circe.JsonSchema
+
 import cats.Eq
+import com.sksamuel.avro4s.AvroSchema
 import io.circe._
 import io.circe.generic.semiauto._
 
@@ -14,4 +17,7 @@ object Event_V2 {
 
   implicit val jsonEncoder: Encoder[Event_V2] = deriveEncoder
   implicit val jsonDecoder: Decoder[Event_V2] = deriveDecoder[Event_V2]
+
+  implicit val jsonSchema: JsonSchema[Event_V2] =
+    JsonSchema.fromAvro(AvroSchema[Event_V2])
 }

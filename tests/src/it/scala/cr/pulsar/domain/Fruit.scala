@@ -1,6 +1,9 @@
 package cr.pulsar.domain
 
+import cr.pulsar.schema.circe.JsonSchema
+
 import cats.Eq
+import com.sksamuel.avro4s.AvroSchema
 import io.circe._
 import io.circe.generic.semiauto._
 
@@ -15,4 +18,7 @@ object Fruit {
 
   implicit val jsonEncoder: Encoder[Fruit] = deriveEncoder
   implicit val jsonDecoder: Decoder[Fruit] = deriveDecoder
+
+  implicit val jsonSchema: JsonSchema[Fruit] =
+    JsonSchema.fromAvro(AvroSchema[Fruit])
 }

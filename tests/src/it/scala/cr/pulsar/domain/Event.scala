@@ -4,7 +4,10 @@ package domain
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.UUID
 
+import cr.pulsar.schema.circe.JsonSchema
+
 import cats.Eq
+import com.sksamuel.avro4s.AvroSchema
 import io.circe._
 import io.circe.generic.semiauto._
 
@@ -18,4 +21,7 @@ object Event {
 
   implicit val jsonEncoder: Encoder[Event] = deriveEncoder
   implicit val jsonDecoder: Decoder[Event] = deriveDecoder
+
+  implicit val jsonSchema: JsonSchema[Event] =
+    JsonSchema.fromAvro(AvroSchema[Event])
 }

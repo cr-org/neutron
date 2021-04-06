@@ -20,13 +20,13 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.util.UUID
 
 import cr.pulsar.domain._
-import cr.pulsar.schema.circe.JsonSchema
+import cr.pulsar.schema.circe._
+import cr.pulsar.schema.utf8._
 import cr.pulsar.domain.Outer.Inner
 
 import cats.effect._
 import cats.effect.concurrent.{ Deferred, Ref }
 import cats.implicits._
-import com.sksamuel.avro4s.AvroSchema
 import fs2.Stream
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException
 import weaver.IOSuite
@@ -55,8 +55,6 @@ object NeutronSuite extends IOSuite {
 
   test("A message is published and consumed successfully using Schema.JSON via Circe") {
     client =>
-      import cr.pulsar.schema.circe._
-
       val hpTopic = topic("happy-path-json")
 
       val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event])] =
@@ -93,8 +91,6 @@ object NeutronSuite extends IOSuite {
 
   test("A message is published and consumed successfully using Schema.BYTES via Inject") {
     client =>
-      import cr.pulsar.schema.utf8._
-
       val hpTopic = topic("happy-path-bytes")
 
       val res: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
@@ -130,10 +126,6 @@ object NeutronSuite extends IOSuite {
   }
 
   test("Incompatible types for consumer and producer") { client =>
-    import cr.pulsar.schema.utf8._
-
-    implicit val eventSchema = JsonSchema.fromAvro[Event](AvroSchema[Event])
-
     val dfTopic = topic("incompatible-types")
 
     val res: Resource[IO, (Consumer[IO, Event], Producer[IO, String])] =
@@ -150,8 +142,6 @@ object NeutronSuite extends IOSuite {
 
   test("A message with key is published and consumed successfully by the right consumer") {
     client =>
-      import cr.pulsar.schema.circe._
-
       val makeSub =
         (n: String) =>
           Subscription.Builder
@@ -225,8 +215,6 @@ object NeutronSuite extends IOSuite {
   }
 
   test("Support for JSONSchema with ADTs") { client =>
-    import cr.pulsar.schema.circe._
-
     val vTopic = topic("fruits-adt")
 
     val res: Resource[IO, (Consumer[IO, Fruit], Producer[IO, Fruit])] =
@@ -239,8 +227,6 @@ object NeutronSuite extends IOSuite {
   }
 
   test("Support for JSONSchema with class defined within an object") { client =>
-    import cr.pulsar.schema.circe._
-
     val vTopic = topic("not-today")
 
     val res: Resource[IO, (Consumer[IO, Inner], Producer[IO, Inner])] =
