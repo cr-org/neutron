@@ -5,6 +5,7 @@ object Dependencies {
   object V {
     val java8Compat = "0.9.1"
 
+    val avro4s     = "4.0.5"
     val cats       = "2.4.2"
     val catsEffect = "2.4.0"
     val circe      = "0.13.0"
@@ -28,6 +29,8 @@ object Dependencies {
     val circeCore    = "io.circe" %% "circe-core"    % V.circe
     val circeGeneric = "io.circe" %% "circe-generic" % V.circe
     val circeParser  = "io.circe" %% "circe-parser"  % V.circe
+
+    val avro4s = "com.sksamuel.avro4s" %% "avro4s-core" % V.avro4s
 
     val java8Compat = "org.scala-lang.modules" %% "scala-java8-compat" % V.java8Compat
 

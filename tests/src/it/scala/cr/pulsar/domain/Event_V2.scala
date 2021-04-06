@@ -7,7 +7,7 @@ import cats.Eq
 import io.circe._
 import io.circe.generic.semiauto._
 
-case class Event_V2(uuid: UUID, value: String, code: Option[Int])
+case class Event_V2(uuid: UUID, value: String, code: Option[Int] = None)
 
 object Event_V2 {
   implicit val eq: Eq[Event_V2] = Eq.by(_.uuid)

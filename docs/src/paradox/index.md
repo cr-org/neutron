@@ -81,7 +81,9 @@ import cr.pulsar.schema.utf8._
 
 This brings into scope an `Schema[String]` instance, required to initialize consumers and producers. There's also a default instance `Schema[A]`, for any `cats.Inject[A, Array[Byte]]` instance (based on `Schema.BYTES` as well).
 
-At Chatroulette, we use JSON-serialised data for which we derive a `Schema.JSON` based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` dependency.
+At Chatroulette, we use JSON-serialised data for which we derive a `Schema.JSON` based on Circe codecs and Avro schemas. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` dependency.
+
+ℹ️ When using schemas, prefer to create the producer(s) before the consumer(s) for fail-fast semantics.
 
 Once you have it, you are an import away from having JSON schema support.
 
@@ -101,7 +103,26 @@ object Event {
 val schema = Schema[Event] // summon an instance
 ```
 
-Be aware that your datatype needs to provide instances of `io.circe.Encoder` and `io.circe.Decoder` for this instance to become available.
+The `io.circe.Encoder` and `io.circe.Decoder` are mandatory for a `Schema` instance to become available.
+
+⚠️ The `import cr.pulsar.schema.circe._` should be used with caution as it generates an Avro schema via [avro4s](https://github.com/sksamuel/avro4s), which is brought transitively. If you wish more control over this, prefer to use the following explicit method instead.
+
+```scala mdoc:compile-only
+import com.sksamuel.avro4s.AvroSchema
+import cr.pulsar.schema.Schema
+import cr.pulsar.schema.circe.JsonSchema
+
+import io.circe.{Decoder, Encoder}
+import io.circe.generic.semiauto._
+
+case class Foo(tag: String)
+object Foo {
+  implicit val jsonEncoder: Encoder[Foo] = deriveEncoder
+  implicit val jsonDecoder: Decoder[Foo] = deriveDecoder
+}
+
+val schema: Schema[Foo] = JsonSchema.fromAvro(AvroSchema[Foo])
+```
 
 #### Schema Compatibility Check Strategy
 
@@ -111,6 +132,26 @@ For instance, when using the `BACKWARD` mode, a producer and consumer will fail 
 
 ```scala
 case class Event(uuid: UUID, value: String)
+```
+
+The generated Avro schema will look as follows.
+
+```json
+{
+  "type" : "record",
+  "name" : "Event",
+  "namespace" : "cr.pulsar.domain",
+  "fields" : [ {
+    "name" : "uuid",
+    "type" : {
+      "type" : "string",
+      "logicalType" : "uuid"
+    }
+  }, {
+    "name" : "value",
+    "type" : "string"
+  } ]
+}
 ```
 
 And later on, we introduce a breaking change in the model, adding a new **mandatory** field.
@@ -124,10 +165,57 @@ This will be rejected at runtime, validated by Pulsar Schemas, when using the BA
 - Add optional fields
 - Delete fields
 
-Instead, we should make the new field optional for this to work.
+See the generated Avro schema below.
+
+```json
+{
+  "type" : "record",
+  "name" : "Event",
+  "namespace" : "cr.pulsar.domain",
+  "fields" : [ {
+    "name" : "uuid",
+    "type" : {
+      "type" : "string",
+      "logicalType" : "uuid"
+    }
+  }, {
+    "name" : "value",
+    "type" : "string"
+  }, {
+    "name" : "code",
+    "type" : "int"
+  } ]
+}
+```
+
+Instead, we should make the new field optional with a default value for this to work.
 
 ```scala
-case class Event(uuid: UUID, value: String, code: Option[Int])
+case class Event(uuid: UUID, value: String, code: Option[Int] = None)
 ```
 
 This is now accepted by Pulsar since any previous `Event` still not consumed from a Pulsar topic can still be processed by the new consumers expecting the new schema.
+
+```json
+{
+  "type" : "record",
+  "name" : "Event",
+  "namespace" : "cr.pulsar.domain",
+  "fields" : [ {
+    "name" : "uuid",
+    "type" : {
+      "type" : "string",
+      "logicalType" : "uuid"
+    }
+  }, {
+    "name" : "value",
+    "type" : "string"
+  }, {
+    "name" : "code",
+    "type" : [ "null", "int" ],
+    "default" : null
+  } ]
+}
+```
+
+See the difference with the previous schema? This one has a `default: null` in addition to the extra `null` type.
