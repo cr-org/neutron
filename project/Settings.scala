@@ -8,6 +8,7 @@ object Settings {
   val commonSettings = Seq(
     scalacOptions ++= compilerFlags(scalaVersion.value),
     scalacOptions -= "-Wunused:params", // so many false-positives :(
+    scalaVersion := "2.13.5",
     scalafmtOnCompile := true,
     autoAPIMappings := true,
     testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
