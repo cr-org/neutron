@@ -26,7 +26,7 @@ lazy val `neutron-circe` = (project in file("circe"))
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= List(
-          Libraries.avro4s,
+          Libraries.avro4s % Provided,
           Libraries.circeCore,
           Libraries.circeParser
         )
@@ -59,6 +59,7 @@ lazy val tests = (project in file("tests"))
           CompilerPlugins.betterMonadicFor,
           CompilerPlugins.contextApplied,
           CompilerPlugins.kindProjector,
+          Libraries.avro4s       % "it,test",
           Libraries.circeCore    % "it,test",
           Libraries.circeGeneric % "it,test",
           Libraries.circeParser  % "it,test",
@@ -75,7 +76,10 @@ lazy val docs = (project in file("docs"))
   .enablePlugins(MdocPlugin)
   .settings(
     noPublish,
-    libraryDependencies += Libraries.circeGeneric,
+    libraryDependencies ++= List(
+          Libraries.avro4s,
+          Libraries.circeGeneric
+        ),
     scalacOptions -= "-Xfatal-warnings",
     scmInfo := Some(
           ScmInfo(
