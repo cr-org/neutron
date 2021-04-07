@@ -76,19 +76,26 @@ object Demo extends IOApp {
 As of version `0.0.6`, Neutron ships with support for [Pulsar Schema](https://pulsar.apache.org/docs/en/schema-get-started/). The simplest way to get started is to use the given UTF-8 encoding, which makes use of the native `Schema.BYTES`.
 
 ```scala mdoc:compile-only
+import cr.pulsar.schema.Schema
 import cr.pulsar.schema.utf8._
+
+val schema = Schema[String] // summon instance
 ```
 
 This brings into scope an `Schema[String]` instance, required to initialize consumers and producers. There's also a default instance `Schema[A]`, for any `cats.Inject[A, Array[Byte]]` instance (based on `Schema.BYTES` as well).
 
-At Chatroulette, we use JSON-serialised data for which we derive a `Schema.JSON` based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` dependency.
+At Chatroulette, we use JSON-serialised data for which we derive a `Schema.JSON` based on Circe codecs and Avro schemas. Those interested in doing the same can leverage the Circe integration by adding the `neutron-circe` dependency.
 
+ℹ️ When using schemas, prefer to create the producer(s) before the consumer(s) for fail-fast semantics.
+
+We also need instances for Circe's `Decoder` and `Encoder`, and for `JsonSchema`, which expects an Avro schema, used by Pulsar.
 Once you have it, you are an import away from having JSON schema support.
 
 ```scala mdoc:compile-only
 import cr.pulsar.schema.Schema
 import cr.pulsar.schema.circe._
 
+import com.sksamuel.avro4s.AvroSchema
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto._
 
@@ -96,12 +103,31 @@ case class Event(id: Long, name: String)
 object Event {
   implicit val jsonEncoder: Encoder[Event] = deriveEncoder
   implicit val jsonDecoder: Decoder[Event] = deriveDecoder
+
+  implicit val jsonSchema: JsonSchema[Event] =
+    JsonSchema.fromAvro(AvroSchema[Event])
 }
 
 val schema = Schema[Event] // summon an instance
 ```
 
-Be aware that your datatype needs to provide instances of `io.circe.Encoder` and `io.circe.Decoder` for this instance to become available.
+The `JsonSchema` can be created directly using [avro4s](https://github.com/sksamuel/avro4s). In fact, this is the recommended way but if you want to get something quickly up and running, you could instead use auto-derivation, which also uses Avro4s.
+
+```scala mdoc:compile-only
+import cr.pulsar.schema.Schema
+import cr.pulsar.schema.circe.auto._
+
+import io.circe.{Decoder, Encoder}
+import io.circe.generic.semiauto._
+
+case class Foo(tag: String)
+object Foo {
+  implicit val jsonEncoder: Encoder[Foo] = deriveEncoder
+  implicit val jsonDecoder: Decoder[Foo] = deriveDecoder
+}
+
+val schema = Schema[Foo] // summon an instance
+```
 
 #### Schema Compatibility Check Strategy
 
@@ -111,6 +137,26 @@ For instance, when using the `BACKWARD` mode, a producer and consumer will fail 
 
 ```scala
 case class Event(uuid: UUID, value: String)
+```
+
+The generated Avro schema will look as follows.
+
+```json
+{
+  "type" : "record",
+  "name" : "Event",
+  "namespace" : "cr.pulsar.domain",
+  "fields" : [ {
+    "name" : "uuid",
+    "type" : {
+      "type" : "string",
+      "logicalType" : "uuid"
+    }
+  }, {
+    "name" : "value",
+    "type" : "string"
+  } ]
+}
 ```
 
 And later on, we introduce a breaking change in the model, adding a new **mandatory** field.
@@ -124,10 +170,57 @@ This will be rejected at runtime, validated by Pulsar Schemas, when using the BA
 - Add optional fields
 - Delete fields
 
-Instead, we should make the new field optional for this to work.
+See the generated Avro schema below.
+
+```json
+{
+  "type" : "record",
+  "name" : "Event",
+  "namespace" : "cr.pulsar.domain",
+  "fields" : [ {
+    "name" : "uuid",
+    "type" : {
+      "type" : "string",
+      "logicalType" : "uuid"
+    }
+  }, {
+    "name" : "value",
+    "type" : "string"
+  }, {
+    "name" : "code",
+    "type" : "int"
+  } ]
+}
+```
+
+Instead, we should make the new field optional with a default value for this to work.
 
 ```scala
-case class Event(uuid: UUID, value: String, code: Option[Int])
+case class Event(uuid: UUID, value: String, code: Option[Int] = None)
 ```
 
 This is now accepted by Pulsar since any previous `Event` still not consumed from a Pulsar topic can still be processed by the new consumers expecting the new schema.
+
+```json
+{
+  "type" : "record",
+  "name" : "Event",
+  "namespace" : "cr.pulsar.domain",
+  "fields" : [ {
+    "name" : "uuid",
+    "type" : {
+      "type" : "string",
+      "logicalType" : "uuid"
+    }
+  }, {
+    "name" : "value",
+    "type" : "string"
+  }, {
+    "name" : "code",
+    "type" : [ "null", "int" ],
+    "default" : null
+  } ]
+}
+```
+
+See the difference with the previous schema? This one has a `default: null` in addition to the extra `null` type.

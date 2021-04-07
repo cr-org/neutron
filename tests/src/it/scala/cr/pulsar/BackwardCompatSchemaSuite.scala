@@ -9,6 +9,7 @@ import cats.effect._
 import cats.effect.concurrent.{ Deferred, Ref }
 import cats.implicits._
 import fs2.Stream
+import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException
 import weaver.IOSuite
 
 object BackwardCompatSchemaSuite extends IOSuite {
@@ -40,8 +41,8 @@ object BackwardCompatSchemaSuite extends IOSuite {
     client =>
       val res: Resource[IO, (Consumer[IO, Event_V2], Producer[IO, Event])] =
         for {
-          consumer <- Consumer.make[IO, Event_V2](client, topic, sub("circe"))
           producer <- Producer.make[IO, Event](client, topic)
+          consumer <- Consumer.make[IO, Event_V2](client, topic, sub("circe"))
         } yield consumer -> producer
 
       (Ref.of[IO, Int](0), Deferred[IO, Event_V2]).tupled.flatMap {
@@ -77,6 +78,26 @@ object BackwardCompatSchemaSuite extends IOSuite {
             .compile
             .lastOrError
       }
+  }
+
+  test(
+    "BACKWARD compatibility: producer sends old Event, Consumer expects Event_V3, should break"
+  ) { client =>
+    val topic = Topic.Builder
+      .withName("json-backward-broken")
+      .withConfig(cfg)
+      .build
+
+    val res =
+      for {
+        producer <- Producer.make[IO, Event](client, topic)
+        consumer <- Consumer.make[IO, Event_V3](client, topic, sub("broken-compat"))
+      } yield consumer -> producer
+
+    res.attempt.use {
+      case Left(_: IncompatibleSchemaException) => IO.pure(success)
+      case _                                    => IO(failure("Expected IncompatibleSchemaException"))
+    }
   }
 
 }

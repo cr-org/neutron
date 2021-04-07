@@ -20,21 +20,22 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.util.UUID
 
 import cr.pulsar.domain._
-import cr.pulsar.domain.Outer.Inner
 import cr.pulsar.schema.circe._
 import cr.pulsar.schema.utf8._
+import cr.pulsar.domain.Outer.Inner
 
 import cats.effect._
 import cats.effect.concurrent.{ Deferred, Ref }
 import cats.implicits._
 import fs2.Stream
+import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException
 import weaver.IOSuite
 
 object NeutronSuite extends IOSuite {
 
   val cfg = Config.Builder.default
 
-  override type Res = Pulsar.T
+  type Res = Pulsar.T
   override def sharedResource: Resource[IO, Res] = Pulsar.make[IO](cfg.url)
 
   val sub = (s: String) =>
@@ -58,8 +59,8 @@ object NeutronSuite extends IOSuite {
 
       val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event])] =
         for {
-          consumer <- Consumer.make[IO, Event](client, hpTopic, sub("hp-circe"))
           producer <- Producer.make[IO, Event](client, hpTopic)
+          consumer <- Consumer.make[IO, Event](client, hpTopic, sub("hp-circe"))
         } yield consumer -> producer
 
       Deferred[IO, Event].flatMap { latch =>
@@ -94,8 +95,8 @@ object NeutronSuite extends IOSuite {
 
       val res: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
         for {
-          consumer <- Consumer.make[IO, String](client, hpTopic, sub("hp-bytes"))
           producer <- Producer.make[IO, String](client, hpTopic)
+          consumer <- Consumer.make[IO, String](client, hpTopic, sub("hp-bytes"))
         } yield consumer -> producer
 
       Deferred[IO, String].flatMap { latch =>
@@ -124,41 +125,18 @@ object NeutronSuite extends IOSuite {
       }
   }
 
-  test("A consumer fails to decode a message") { client =>
-    val dfTopic = topic("decoding-failure")
+  test("Incompatible types for consumer and producer") { client =>
+    val dfTopic = topic("incompatible-types")
 
     val res: Resource[IO, (Consumer[IO, Event], Producer[IO, String])] =
       for {
-        consumer <- Consumer.make[IO, Event](client, dfTopic, sub("decoding-err"))
         producer <- Producer.make[IO, String](client, dfTopic)
+        consumer <- Consumer.make[IO, Event](client, dfTopic, sub("incompat-err"))
       } yield consumer -> producer
 
-    Deferred[IO, String].flatMap { latch =>
-      Stream
-        .resource(res)
-        .flatMap {
-          case (consumer, producer) =>
-            val consume =
-              consumer.autoSubscribe
-                .onError {
-                  case Consumer.DecodingFailure(data) =>
-                    Stream.eval(latch.complete(data))
-                }
-
-            val testMessage = "Consumer will fail to decode this message"
-
-            val produce =
-              Stream(testMessage)
-                .covary[IO]
-                .evalMap(producer.send)
-                .evalMap(_ => latch.get)
-
-            produce.concurrently(consume.attempt).evalMap { msg =>
-              IO(expect(msg.contains("expected json value")))
-            }
-        }
-        .compile
-        .lastOrError
+    res.attempt.use {
+      case Left(_: IncompatibleSchemaException) => IO.pure(success)
+      case _                                    => IO(failure("Expected IncompatibleSchemaException"))
     }
   }
 
@@ -179,9 +157,9 @@ object NeutronSuite extends IOSuite {
         (Consumer[IO, Event], Consumer[IO, Event], Producer[IO, Event])
       ] =
         for {
+          p1 <- Producer.make(client, topic("shared"), opts)
           c1 <- Consumer.make[IO, Event](client, topic("shared"), makeSub("s1"))
           c2 <- Consumer.make[IO, Event](client, topic("shared"), makeSub("s2"))
-          p1 <- Producer.make(client, topic("shared"), opts)
         } yield (c1, c2, p1)
 
       (Ref.of[IO, List[Event]](List.empty), Ref.of[IO, List[Event]](List.empty)).tupled
@@ -232,7 +210,7 @@ object NeutronSuite extends IOSuite {
               }
               .compile
               .drain
-              .as(expect(true))
+              .as(success)
         }
   }
 
@@ -241,11 +219,11 @@ object NeutronSuite extends IOSuite {
 
     val res: Resource[IO, (Consumer[IO, Fruit], Producer[IO, Fruit])] =
       for {
-        consumer <- Consumer.make[IO, Fruit](client, vTopic, sub("fruits"))
         producer <- Producer.make[IO, Fruit](client, vTopic)
+        consumer <- Consumer.make[IO, Fruit](client, vTopic, sub("fruits"))
       } yield consumer -> producer
 
-    res.use(_ => IO.pure(expect(true)))
+    res.use(_ => IO.pure(success))
   }
 
   test("Support for JSONSchema with class defined within an object") { client =>
@@ -253,11 +231,11 @@ object NeutronSuite extends IOSuite {
 
     val res: Resource[IO, (Consumer[IO, Inner], Producer[IO, Inner])] =
       for {
-        consumer <- Consumer.make[IO, Inner](client, vTopic, sub("outer-inner"))
         producer <- Producer.make[IO, Inner](client, vTopic)
+        consumer <- Consumer.make[IO, Inner](client, vTopic, sub("outer-inner"))
       } yield consumer -> producer
 
-    res.use(_ => IO.pure(expect(true)))
+    res.use(_ => IO.pure(success))
   }
 
 }
