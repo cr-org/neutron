@@ -16,9 +16,8 @@
 
 package cr.pulsar.schema.circe
 
-import com.sksamuel.avro4s.{ AvroSchema, SchemaFor }
+import com.sksamuel.avro4s.SchemaFor
 
 trait AutoDerivation {
-  implicit def fromSchemaFor[A: SchemaFor]: JsonSchema[A] =
-    JsonSchema.fromAvro[A](AvroSchema[A])
+  implicit def fromSchemaFor[A: SchemaFor]: JsonSchema[A] = JsonSchema.derive[A]
 }
