@@ -16,17 +16,21 @@
 
 package cr.pulsar.schema.circe
 
-import org.apache.avro.{ Schema => AvroSchema }
+import com.sksamuel.avro4s.{ AvroSchema, SchemaFor }
+import org.apache.avro.{ Schema => JSchema }
 
 trait JsonSchema[A] {
-  def avro: AvroSchema
+  def avro: JSchema
 }
 
 object JsonSchema {
   def apply[A: JsonSchema]: JsonSchema[A] = implicitly
 
-  def fromAvro[A](schema: AvroSchema): JsonSchema[A] =
+  def derive[A: SchemaFor]: JsonSchema[A] =
+    fromAvro(AvroSchema[A])
+
+  def fromAvro[A](schema: JSchema): JsonSchema[A] =
     new JsonSchema[A] {
-      def avro: AvroSchema = schema
+      def avro: JSchema = schema
     }
 }

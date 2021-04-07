@@ -104,14 +104,13 @@ object Event {
   implicit val jsonEncoder: Encoder[Event] = deriveEncoder
   implicit val jsonDecoder: Decoder[Event] = deriveDecoder
 
-  implicit val jsonSchema: JsonSchema[Event] =
-    JsonSchema.fromAvro(AvroSchema[Event])
+  implicit val jsonSchema: JsonSchema[Event] = JsonSchema.derive
 }
 
 val schema = Schema[Event] // summon an instance
 ```
 
-The `JsonSchema` can be created directly using [avro4s](https://github.com/sksamuel/avro4s). In fact, this is the recommended way but if you want to get something quickly up and running, you could instead use auto-derivation, which also uses Avro4s.
+The `JsonSchema` can be created directly using `JsonSchema.derive[A]`, which uses [avro4s](https://github.com/sksamuel/avro4s) under the hood. In fact, this is the recommended way but if you want to get something quickly up and running, you could also use auto-derivation.
 
 ```scala mdoc:compile-only
 import cr.pulsar.schema.Schema
@@ -128,6 +127,8 @@ object Foo {
 
 val schema = Schema[Foo] // summon an instance
 ```
+
+Notice that `avro4s` is marked as `Provided`, meaning you need to explicitly add it to your classpath.
 
 #### Schema Compatibility Check Strategy
 

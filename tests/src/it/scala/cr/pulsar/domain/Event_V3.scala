@@ -6,7 +6,6 @@ import java.util.UUID
 import cr.pulsar.schema.circe.JsonSchema
 
 import cats.Eq
-import com.sksamuel.avro4s.AvroSchema
 import io.circe._
 import io.circe.generic.semiauto._
 
@@ -18,6 +17,5 @@ object Event_V3 {
   implicit val jsonEncoder: Encoder[Event_V3] = deriveEncoder
   implicit val jsonDecoder: Decoder[Event_V3] = deriveDecoder[Event_V3]
 
-  implicit val jsonSchema: JsonSchema[Event_V3] =
-    JsonSchema.fromAvro(AvroSchema[Event_V3])
+  implicit val jsonSchema: JsonSchema[Event_V3] = JsonSchema.derive
 }

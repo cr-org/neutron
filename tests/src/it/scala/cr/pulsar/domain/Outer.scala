@@ -3,7 +3,6 @@ package cr.pulsar.domain
 import cr.pulsar.schema.circe.JsonSchema
 
 import cats.Eq
-import com.sksamuel.avro4s.AvroSchema
 import io.circe._
 import io.circe.generic.semiauto._
 
@@ -15,6 +14,5 @@ object Outer {
   implicit val jsonEncoder: Encoder[Inner] = deriveEncoder
   implicit val jsonDecoder: Decoder[Inner] = deriveDecoder
 
-  implicit val jsonSchema: JsonSchema[Inner] =
-    JsonSchema.fromAvro(AvroSchema[Inner])
+  implicit val jsonSchema: JsonSchema[Inner] = JsonSchema.derive
 }
