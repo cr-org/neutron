@@ -38,13 +38,13 @@ object AlwaysIncompatibleSchemaSuite extends IOSuite {
   ) { client =>
     val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event_V2])] =
       for {
-        consumer <- Consumer.make[IO, Event](client, topic, sub("circe"))
         producer <- Producer.make[IO, Event_V2](client, topic)
+        consumer <- Consumer.make[IO, Event](client, topic, sub("circe"))
       } yield consumer -> producer
 
     res.attempt.use {
-      case Left(_: IncompatibleSchemaException) => IO.pure(expect(true))
-      case _                                    => IO(failure("Expecting IncompatibleSchemaException"))
+      case Left(_: IncompatibleSchemaException) => IO.pure(success)
+      case _                                    => IO(failure("Expected IncompatibleSchemaException"))
     }
   }
 

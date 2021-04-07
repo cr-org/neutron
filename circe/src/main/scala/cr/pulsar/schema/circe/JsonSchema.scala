@@ -14,8 +14,23 @@
  * limitations under the License.
  */
 
-package cr.pulsar.schema
+package cr.pulsar.schema.circe
 
-package object circe extends CirceDerivation {
-  object auto extends AutoDerivation with CirceDerivation
+import com.sksamuel.avro4s.{ AvroSchema, SchemaFor }
+import org.apache.avro.{ Schema => JSchema }
+
+trait JsonSchema[A] {
+  def avro: JSchema
+}
+
+object JsonSchema {
+  def apply[A: JsonSchema]: JsonSchema[A] = implicitly
+
+  def derive[A: SchemaFor]: JsonSchema[A] =
+    fromAvro(AvroSchema[A])
+
+  def fromAvro[A](schema: JSchema): JsonSchema[A] =
+    new JsonSchema[A] {
+      def avro: JSchema = schema
+    }
 }

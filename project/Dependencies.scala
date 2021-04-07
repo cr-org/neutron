@@ -5,13 +5,14 @@ object Dependencies {
   object V {
     val java8Compat = "0.9.1"
 
-    val cats       = "2.5.0"
+    val avro4s     = "4.0.5"
+    val cats       = "2.4.2"
     val catsEffect = "2.4.0"
     val circe      = "0.13.0"
-    val fs2        = "2.5.3"
+    val fs2        = "2.5.4"
     val newtype    = "0.4.4"
     val pulsar     = "2.7.0"
-    val weaver     = "0.6.0-M6"
+    val weaver     = "0.6.0"
 
     val betterMonadicFor = "0.3.1"
     val contextApplied   = "0.1.4"
@@ -28,6 +29,8 @@ object Dependencies {
     val circeCore    = "io.circe" %% "circe-core"    % V.circe
     val circeGeneric = "io.circe" %% "circe-generic" % V.circe
     val circeParser  = "io.circe" %% "circe-parser"  % V.circe
+
+    val avro4s = "com.sksamuel.avro4s" %% "avro4s-core" % V.avro4s
 
     val java8Compat = "org.scala-lang.modules" %% "scala-java8-compat" % V.java8Compat
 
