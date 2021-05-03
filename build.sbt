@@ -111,7 +111,7 @@ lazy val docs = (project in file("docs"))
       ParadoxMaterialTheme()
         .withColor("red", "orange")
         .withLogoIcon("flash_on")
-        .withCopyright("Copyright © ChatRoulette")
+        .withCopyright("Copyright © Chatroulette")
         .withRepository(uri("https://github.com/cr-org/neutron"))
     }
   )
