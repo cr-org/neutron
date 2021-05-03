@@ -26,6 +26,7 @@ import cats.effect._
 import cats.syntax.all._
 import fs2._
 import org.apache.pulsar.client.api.{
+  DeadLetterPolicy,
   MessageId,
   SubscriptionInitialPosition,
   Consumer => JConsumer
@@ -83,7 +84,9 @@ object Consumer {
           case s: Topic.Single => c.topic(s.url.value)
           case m: Topic.Multi  => c.topicsPattern(m.url.value.r.pattern)
         }
-        z.readCompacted(opts.readCompacted)
+        opts.deadLetterPolicy
+          .fold(z)(z.deadLetterPolicy)
+          .readCompacted(opts.readCompacted)
           .subscriptionType(sub.`type`.pulsarSubscriptionType)
           .subscriptionName(sub.name.value)
           .subscriptionMode(sub.mode.pulsarSubscriptionMode)
@@ -109,6 +112,7 @@ object Consumer {
                     .whenA(autoAck)
                     .as(Message(m.getMessageId, MessageKey(m.getKey), e))
               }
+
             }
 
           override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
@@ -147,6 +151,7 @@ object Consumer {
     val logger: E => Topic.URL => F[Unit]
     val manualUnsubscribe: Boolean
     val readCompacted: Boolean
+    val deadLetterPolicy: Option[DeadLetterPolicy]
 
     /**
       * The Subscription Initial Position. `Latest` by default.
@@ -178,6 +183,15 @@ object Consumer {
       * or on a shared subscription, will lead to the subscription call throwing a PulsarClientException.
       */
     def withReadCompacted: Options[F, E]
+
+    /**
+      * Set dead letter policy for consumer.
+      *
+      * By default some message will redelivery so many times possible, even to the extent that it can be never stop.
+      * By using dead letter mechanism messages will has the max redelivery count, when message exceeding the maximum
+      * number of redeliveries, message will send to the Dead Letter Topic and acknowledged automatic.
+      */
+    def withDeadLetterPolicy(policy: DeadLetterPolicy): Options[F, E]
   }
 
   /**
@@ -188,7 +202,8 @@ object Consumer {
         initial: SubscriptionInitialPosition,
         logger: E => Topic.URL => F[Unit],
         manualUnsubscribe: Boolean,
-        readCompacted: Boolean
+        readCompacted: Boolean,
+        deadLetterPolicy: Option[DeadLetterPolicy]
     ) extends Options[F, E] {
       override def withInitialPosition(
           _initial: SubscriptionInitialPosition
@@ -203,13 +218,17 @@ object Consumer {
 
       override def withReadCompacted: Options[F, E] =
         copy(readCompacted = true)
+
+      override def withDeadLetterPolicy(policy: DeadLetterPolicy): Options[F, E] =
+        copy(deadLetterPolicy = Some(policy))
     }
 
     def apply[F[_]: Applicative, E](): Options[F, E] = OptionsImpl[F, E](
       SubscriptionInitialPosition.Latest,
       _ => _ => F.unit,
       manualUnsubscribe = false,
-      readCompacted = false
+      readCompacted = false,
+      deadLetterPolicy = None
     )
   }
 
