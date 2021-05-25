@@ -1,7 +1,7 @@
 import Dependencies._
 import Settings._
 
-scalaVersion in ThisBuild := "2.13.6"
+ThisBuild / scalaVersion := supportedScala
 
 lazy val `neutron-core` = (project in file("core"))
   .enablePlugins(AutomateHeaderPlugin)
@@ -91,7 +91,7 @@ lazy val docs = (project in file("docs"))
     ghpagesNoJekyll := true,
     version := version.value.takeWhile(_ != '+'),
     paradoxProperties ++= Map(
-          "scala-versions" -> (crossScalaVersions in `neutron-core`).value
+          "scala-versions" -> (`neutron-core` / crossScalaVersions).value
                 .map(CrossVersion.partialVersion)
                 .flatten
                 .map(_._2)
@@ -107,7 +107,7 @@ lazy val docs = (project in file("docs"))
     mdocExtraArguments ++= Seq("--no-link-hygiene"),
     makeSite := makeSite.dependsOn(mdoc.toTask("")).value,
     ParadoxMaterialThemePlugin.paradoxMaterialThemeSettings(Paradox),
-    paradoxMaterialTheme in Paradox := {
+    Paradox / paradoxMaterialTheme := {
       ParadoxMaterialTheme()
         .withColor("red", "orange")
         .withLogoIcon("flash_on")
