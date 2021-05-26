@@ -149,7 +149,7 @@ cr-org/neutron
 <ul style="display: none">
 <li class="md-nav__item md-version" id="project.version">
 <label class="md-nav__link" for="__version">
-<i class="md-icon" title="Version">label_outline</i> 0.0.6
+<i class="md-icon" title="Version">label_outline</i> 0.0.7
 </label>
 </li>
 </ul>
@@ -178,29 +178,29 @@ cr-org/neutron
 <h1><a href="#neutron" name="neutron" class="anchor"><span class="anchor-link"></span></a>Neutron</h1>
 <p>Neutron is a purely functional <a href="https://pulsar.apache.org/">Apache Pulsar</a> client for Scala, build on top of <a href="https://fs2.io">fs2</a> and the Java Pulsar client.</p>
 <p>It is published for Scala 2.13. You can include it in your project by adding the following dependencies.</p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies ++= Seq(
-  "com.chatroulette" %% "neutron-core" % "0.0.6",
-  "com.chatroulette" %% "neutron-circe" % "0.0.6",
-  "com.chatroulette" %% "neutron-function" % "0.0.6"
+  "com.chatroulette" %% "neutron-core" % "0.0.7",
+  "com.chatroulette" %% "neutron-circe" % "0.0.7",
+  "com.chatroulette" %% "neutron-function" % "0.0.7"
 )</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependencies&gt
   &lt;dependency&gt;
     &lt;groupId&gt;com.chatroulette&lt;/groupId&gt;
     &lt;artifactId&gt;neutron-core_2.13&lt;/artifactId&gt;
-    &lt;version&gt;0.0.6&lt;/version&gt;
+    &lt;version&gt;0.0.7&lt;/version&gt;
   &lt;/dependency&gt
   &lt;dependency&gt;
     &lt;groupId&gt;com.chatroulette&lt;/groupId&gt;
     &lt;artifactId&gt;neutron-circe_2.13&lt;/artifactId&gt;
-    &lt;version&gt;0.0.6&lt;/version&gt;
+    &lt;version&gt;0.0.7&lt;/version&gt;
   &lt;/dependency&gt
   &lt;dependency&gt;
     &lt;groupId&gt;com.chatroulette&lt;/groupId&gt;
     &lt;artifactId&gt;neutron-function_2.13&lt;/artifactId&gt;
-    &lt;version&gt;0.0.6&lt;/version&gt;
+    &lt;version&gt;0.0.7&lt;/version&gt;
   &lt;/dependency&gt
 &lt;/dependencies&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
-  implementation "com.chatroulette:neutron-core_2.13:0.0.6"
-  implementation "com.chatroulette:neutron-circe_2.13:0.0.6"
-  implementation "com.chatroulette:neutron-function_2.13:0.0.6"
+  implementation "com.chatroulette:neutron-core_2.13:0.0.7"
+  implementation "com.chatroulette:neutron-circe_2.13:0.0.7"
+  implementation "com.chatroulette:neutron-function_2.13:0.0.7"
 }</code></pre></dd></dl>
 <h2><a href="#quick-start" name="quick-start" class="anchor"><span class="anchor-link"></span></a>Quick start</h2>
 <p>Here&rsquo;s a quick consumer / producer example using Neutron. Note: both are fully asynchronous.</p>
@@ -261,11 +261,15 @@ object Demo extends IOApp {
 </code></pre>
 <h3><a href="#schema" name="schema" class="anchor"><span class="anchor-link"></span></a>Schema</h3>
 <p>As of version <code>0.0.6</code>, Neutron ships with support for <a href="https://pulsar.apache.org/docs/en/schema-get-started/">Pulsar Schema</a>. The simplest way to get started is to use the given UTF-8 encoding, which makes use of the native <code>Schema.BYTES</code>.</p>
-<pre class="prettyprint"><code class="language-scala mdoc:compile-only">import cr.pulsar.schema.utf8._
+<pre class="prettyprint"><code class="language-scala mdoc:compile-only">import cr.pulsar.schema.Schema
+import cr.pulsar.schema.utf8._
+
+val schema = Schema[String] // summon instance
 </code></pre>
 <p>This brings into scope an <code>Schema[String]</code> instance, required to initialize consumers and producers. There&rsquo;s also a default instance <code>Schema[A]</code>, for any <code>cats.Inject[A, Array[Byte]]</code> instance (based on <code>Schema.BYTES</code> as well).</p>
-<p>At Chatroulette, we use JSON-serialised data for which we derive a <code>Schema.JSON</code> based on Circe codecs. Those interested in doing the same can leverage the Circe integration by adding the <code>neutron-circe</code> dependency.</p>
-<p>Once you have it, you are an import away from having JSON schema support.</p>
+<p>At Chatroulette, we use JSON-serialised data for which we derive a <code>Schema.JSON</code> based on Circe codecs and Avro schemas. Those interested in doing the same can leverage the Circe integration by adding the <code>neutron-circe</code> dependency.</p>
+<p>ℹ️ When using schemas, prefer to create the producer(s) before the consumer(s) for fail-fast semantics.</p>
+<p>We also need instances for Circe&rsquo;s <code>Decoder</code> and <code>Encoder</code>, and for <code>JsonSchema</code>, which expects an Avro schema, used by Pulsar. Once you have it, you are an import away from having JSON schema support.</p>
 <pre class="prettyprint"><code class="language-scala mdoc:compile-only">import cr.pulsar.schema.Schema
 import cr.pulsar.schema.circe._
 
@@ -276,15 +280,49 @@ case class Event(id: Long, name: String)
 object Event {
   implicit val jsonEncoder: Encoder[Event] = deriveEncoder
   implicit val jsonDecoder: Decoder[Event] = deriveDecoder
+
+  implicit val jsonSchema: JsonSchema[Event] = JsonSchema.derive
 }
 
 val schema = Schema[Event] // summon an instance
 </code></pre>
-<p>Be aware that your datatype needs to provide instances of <code>io.circe.Encoder</code> and <code>io.circe.Decoder</code> for this instance to become available.</p>
+<p>The <code>JsonSchema</code> can be created directly using <code>JsonSchema.derive[A]</code>, which uses <a href="https://github.com/sksamuel/avro4s">avro4s</a> under the hood. In fact, this is the recommended way but if you want to get something quickly up and running, you could also use auto-derivation.</p>
+<pre class="prettyprint"><code class="language-scala mdoc:compile-only">import cr.pulsar.schema.Schema
+import cr.pulsar.schema.circe.auto._
+
+import io.circe.{Decoder, Encoder}
+import io.circe.generic.semiauto._
+
+case class Foo(tag: String)
+object Foo {
+  implicit val jsonEncoder: Encoder[Foo] = deriveEncoder
+  implicit val jsonDecoder: Decoder[Foo] = deriveDecoder
+}
+
+val schema = Schema[Foo] // summon an instance
+</code></pre>
+<p>Notice that <code>avro4s</code> is marked as <code>Provided</code>, meaning you need to explicitly add it to your classpath.</p>
 <h4><a href="#schema-compatibility-check-strategy" name="schema-compatibility-check-strategy" class="anchor"><span class="anchor-link"></span></a>Schema Compatibility Check Strategy</h4>
 <p>Whenever using schemas, make sure you fully understand the different <a href="https://pulsar.apache.org/docs/en/schema-evolution-compatibility/#schema-compatibility-check-strategy">strategies</a>, which only operate at the namespace level (e.g. see how integration tests are set up in the <a href="./run.sh">run.sh</a> shell script).</p>
 <p>For instance, when using the <code>BACKWARD</code> mode, a producer and consumer will fail to initialize if the schemas are incompatible, even if your custom JSON decoder can deserialize the previous model, the Pulsar broker doesn&rsquo;t know about it. E.g. say we have this model in our new application.</p>
 <pre class="prettyprint"><code class="language-scala">case class Event(uuid: UUID, value: String)
+</code></pre>
+<p>The generated Avro schema will look as follows.</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;type&quot; : &quot;record&quot;,
+  &quot;name&quot; : &quot;Event&quot;,
+  &quot;namespace&quot; : &quot;cr.pulsar.domain&quot;,
+  &quot;fields&quot; : [ {
+    &quot;name&quot; : &quot;uuid&quot;,
+    &quot;type&quot; : {
+      &quot;type&quot; : &quot;string&quot;,
+      &quot;logicalType&quot; : &quot;uuid&quot;
+    }
+  }, {
+    &quot;name&quot; : &quot;value&quot;,
+    &quot;type&quot; : &quot;string&quot;
+  } ]
+}
 </code></pre>
 <p>And later on, we introduce a breaking change in the model, adding a new <strong>mandatory</strong> field.</p>
 <pre class="prettyprint"><code class="language-scala">case class Event(uuid: UUID, value: String, code: Int)
@@ -294,19 +332,60 @@ val schema = Schema[Event] // summon an instance
   <li>Add optional fields</li>
   <li>Delete fields</li>
 </ul>
-<p>Instead, we should make the new field optional for this to work.</p>
-<pre class="prettyprint"><code class="language-scala">case class Event(uuid: UUID, value: String, code: Option[Int])
+<p>See the generated Avro schema below.</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;type&quot; : &quot;record&quot;,
+  &quot;name&quot; : &quot;Event&quot;,
+  &quot;namespace&quot; : &quot;cr.pulsar.domain&quot;,
+  &quot;fields&quot; : [ {
+    &quot;name&quot; : &quot;uuid&quot;,
+    &quot;type&quot; : {
+      &quot;type&quot; : &quot;string&quot;,
+      &quot;logicalType&quot; : &quot;uuid&quot;
+    }
+  }, {
+    &quot;name&quot; : &quot;value&quot;,
+    &quot;type&quot; : &quot;string&quot;
+  }, {
+    &quot;name&quot; : &quot;code&quot;,
+    &quot;type&quot; : &quot;int&quot;
+  } ]
+}
+</code></pre>
+<p>Instead, we should make the new field optional with a default value for this to work.</p>
+<pre class="prettyprint"><code class="language-scala">case class Event(uuid: UUID, value: String, code: Option[Int] = None)
 </code></pre>
 <p>This is now accepted by Pulsar since any previous <code>Event</code> still not consumed from a Pulsar topic can still be processed by the new consumers expecting the new schema.</p>
+<pre class="prettyprint"><code class="language-json">{
+  &quot;type&quot; : &quot;record&quot;,
+  &quot;name&quot; : &quot;Event&quot;,
+  &quot;namespace&quot; : &quot;cr.pulsar.domain&quot;,
+  &quot;fields&quot; : [ {
+    &quot;name&quot; : &quot;uuid&quot;,
+    &quot;type&quot; : {
+      &quot;type&quot; : &quot;string&quot;,
+      &quot;logicalType&quot; : &quot;uuid&quot;
+    }
+  }, {
+    &quot;name&quot; : &quot;value&quot;,
+    &quot;type&quot; : &quot;string&quot;
+  }, {
+    &quot;name&quot; : &quot;code&quot;,
+    &quot;type&quot; : [ &quot;null&quot;, &quot;int&quot; ],
+    &quot;default&quot; : null
+  } ]
+}
+</code></pre>
+<p>See the difference with the previous schema? This one has a <code>default: null</code> in addition to the extra <code>null</code> type.</p>
 </div>
 <div>
-<a href="https://github.com/cr-org/neutron/tree/v0.0.6/docs/src/paradox/index.md" title="Edit this page" class="md-source-file md-edit">
+<a href="https://github.com/cr-org/neutron/tree/v0.0.7/docs/src/paradox/index.md" title="Edit this page" class="md-source-file md-edit">
 Edit this page
 </a>
 </div>
 <div class="print-only">
 <span class="md-source-file md-version">
-0.0.6
+0.0.7
 </span>
 </div>
 </article>
@@ -318,7 +397,7 @@ Edit this page
 <div class="md-footer-meta__inner md-grid">
 <div class="md-footer-copyright">
 <div class="md-footer-copyright__highlight">
-Copyright © ChatRoulette
+Copyright © Chatroulette
 </div>
 Powered by
 <a href="https://github.com/lightbend/paradox">Paradox</a>
