@@ -95,7 +95,6 @@ Once you have it, you are an import away from having JSON schema support.
 import cr.pulsar.schema.Schema
 import cr.pulsar.schema.circe._
 
-import com.sksamuel.avro4s.AvroSchema
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto._
 
