@@ -79,7 +79,7 @@ object Reader {
       )
 
   private def mkMessageReader[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async: Spawn,
       E: Schema
   ](c: JReader[E]): MessageReader[F, E] =
     new MessageReader[F, E] {
@@ -126,7 +126,7 @@ object Reader {
     * It creates a [[Reader]] with the supplied [[Options]].
     */
   def make[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async: Spawn,
       E: Schema
   ](
       client: Pulsar.T,
@@ -140,7 +140,7 @@ object Reader {
     * It creates a [[MessageReader]] with the supplied [[Options]].
     */
   def messageReader[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async: Spawn,
       E: Schema
   ](
       client: Pulsar.T,

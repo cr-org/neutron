@@ -71,7 +71,7 @@ object Consumer {
   case class Message[A](id: MessageId, key: MessageKey, payload: A)
   case class DecodingFailure(msg: String) extends Exception(msg) with NoStackTrace
 
-  private def mkConsumer[F[_]: Concurrent: ContextShift, E: Schema](
+  private def mkConsumer[F[_]: Async: Spawn, E: Schema](
       client: Pulsar.T,
       sub: Subscription,
       topic: Topic,
@@ -135,7 +135,7 @@ object Consumer {
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
     */
-  def make[F[_]: Concurrent: ContextShift, E: Schema](
+  def make[F[_]: Async: Spawn, E: Schema](
       client: Pulsar.T,
       topic: Topic,
       sub: Subscription,

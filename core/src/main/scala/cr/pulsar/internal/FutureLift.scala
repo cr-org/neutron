@@ -25,20 +25,20 @@ object FutureLift {
 
   private[internal] type JFuture[A] = CompletionStage[A] with Future[A]
 
-  implicit class CompletableFutureLift[F[_]: Concurrent: ContextShift, A](
+  implicit class CompletableFutureLift[F[_]: Async: Spawn, A](
       fa: F[CompletableFuture[A]]
   ) {
     def futureLift: F[A] = liftJFuture[F, CompletableFuture[A], A](fa)
   }
 
   private[internal] def liftJFuture[
-      F[_]: Concurrent: ContextShift,
+      F[_]: Async: Spawn,
       G <: JFuture[A],
       A
   ](fa: F[G]): F[A] = {
     val lifted: F[A] =
       fa.flatMap { f =>
-        F.cancelable { cb =>
+        F.async { cb =>
           f.handle[Unit] { (res: A, err: Throwable) =>
             err match {
               case null =>
@@ -51,10 +51,10 @@ object FutureLift {
                 cb(Left(ex))
             }
           }
-          F.delay(f.cancel(true)).void
+          F.delay(Option(F.delay(f.cancel(true)).void))
         }
       }
-    lifted.guarantee(F.shift)
+    lifted.guarantee(F.cede)
   }
 
 }

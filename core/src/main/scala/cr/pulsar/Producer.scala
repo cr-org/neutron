@@ -64,7 +64,7 @@ object Producer {
   /**
     * It creates a simple [[Producer]] with the supplied options.
     */
-  def make[F[_]: Concurrent: ContextShift: Parallel, E: Schema](
+  def make[F[_]: Async: Spawn: Parallel, E: Schema](
       client: Pulsar.T,
       topic: Topic.Single,
       opts: Options[F, E] = null // default value does not work
