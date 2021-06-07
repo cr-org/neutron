@@ -17,44 +17,18 @@
 package cr.pulsar.internal
 
 import cats.effect._
-import cats.syntax.all._
-import cats.effect.implicits._
+
 import java.util.concurrent._
 
+trait FutureLift[F[_]] {
+  def futureLift[A](fa: CompletableFuture[A]): F[A]
+}
+
 object FutureLift {
-
-  private[internal] type JFuture[A] = CompletionStage[A] with Future[A]
-
-  implicit class CompletableFutureLift[F[_]: Async: Spawn, A](
-      fa: F[CompletableFuture[A]]
-  ) {
-    def futureLift: F[A] = liftJFuture[F, CompletableFuture[A], A](fa)
+  implicit def instance[F[_]: Async]: FutureLift[F] = new FutureLift[F] {
+    override def futureLift[A](fa: CompletableFuture[A]): F[A] =
+      F.fromCompletableFuture(F.delay(fa))
   }
 
-  private[internal] def liftJFuture[
-      F[_]: Async: Spawn,
-      G <: JFuture[A],
-      A
-  ](fa: F[G]): F[A] = {
-    val lifted: F[A] =
-      fa.flatMap { f =>
-        F.async { cb =>
-          f.handle[Unit] { (res: A, err: Throwable) =>
-            err match {
-              case null =>
-                cb(Right(res))
-              case _: CancellationException =>
-                ()
-              case ex: CompletionException if ex.getCause ne null =>
-                cb(Left(ex.getCause))
-              case ex =>
-                cb(Left(ex))
-            }
-          }
-          F.delay(Option(F.delay(f.cancel(true)).void))
-        }
-      }
-    lifted.guarantee(F.cede)
-  }
-
+  def apply[F[_]](implicit fl: FutureLift[F]): FutureLift[F] = fl
 }

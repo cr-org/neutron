@@ -20,7 +20,7 @@ import cats.Functor
 import cats.effect._
 import cats.syntax.all._
 import cr.pulsar.Reader.{ Message, MessageAvailable }
-import cr.pulsar.internal.FutureLift._
+import cr.pulsar.internal.FutureLift
 import cr.pulsar.schema.Schema
 import fs2._
 import org.apache.pulsar.client.api.{ MessageId, Reader => JReader }
@@ -58,7 +58,7 @@ object Reader {
   case class DecodingFailure(bytes: Array[Byte]) extends NoStackTrace
   case class Message[A](id: MessageId, key: MessageKey, payload: A)
 
-  private def mkPulsarReader[F[_]: Sync, E: Schema](
+  private def mkPulsarReader[F[_]: Sync: FutureLift, E: Schema](
       client: Pulsar.T,
       topic: Topic.Single,
       opts: Options
@@ -74,17 +74,15 @@ object Reader {
             .readCompacted(opts.readCompacted)
             .create()
         }
-      }(
-        c => F.delay(c.closeAsync()).void
-      )
+      }(c => F.futureLift(c.closeAsync()).void)
 
   private def mkMessageReader[
-      F[_]: Async: Spawn,
+      F[_]: Sync: FutureLift,
       E: Schema
   ](c: JReader[E]): MessageReader[F, E] =
     new MessageReader[F, E] {
       private def readMsg: F[Message[E]] =
-        F.delay(c.readNextAsync()).futureLift.map { m =>
+        F.futureLift(c.readNextAsync()).map { m =>
           Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
         }
 
@@ -108,7 +106,7 @@ object Reader {
         }
 
       override def messageAvailable: F[MessageAvailable] =
-        F.delay(c.hasMessageAvailableAsync).futureLift.map { hasAvailable =>
+        F.futureLift(c.hasMessageAvailableAsync).map { hasAvailable =>
           if (hasAvailable) MessageAvailable.Yes else MessageAvailable.No
         }
     }
@@ -126,7 +124,7 @@ object Reader {
     * It creates a [[Reader]] with the supplied [[Options]].
     */
   def make[
-      F[_]: Async: Spawn,
+      F[_]: Sync: FutureLift,
       E: Schema
   ](
       client: Pulsar.T,
@@ -140,7 +138,7 @@ object Reader {
     * It creates a [[MessageReader]] with the supplied [[Options]].
     */
   def messageReader[
-      F[_]: Async: Spawn,
+      F[_]: Sync: FutureLift,
       E: Schema
   ](
       client: Pulsar.T,
