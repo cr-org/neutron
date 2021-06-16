@@ -17,16 +17,14 @@
 package cr.pulsar.schema.circe
 
 import java.nio.charset.StandardCharsets.UTF_8
-
 import scala.reflect.ClassTag
-
 import cr.pulsar.Consumer.DecodingFailure
 import cr.pulsar.schema.Schema
-
 import io.circe._
 import io.circe.parser.{ decode => jsonDecode }
 import io.circe.syntax._
 import org.apache.pulsar.client.api.{ Schema => JSchema }
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl
 import org.apache.pulsar.common.schema.{ SchemaInfo, SchemaType }
 
 trait CirceDerivation {
@@ -38,12 +36,12 @@ trait CirceDerivation {
 
         override def decode(bytes: Array[Byte]): T =
           jsonDecode[T](new String(bytes, UTF_8)).fold[T](
-            e => throw new DecodingFailure(e.getMessage),
+            e => throw DecodingFailure(e.getMessage),
             identity
           )
 
         override def getSchemaInfo(): SchemaInfo =
-          new SchemaInfo()
+          new SchemaInfoImpl()
             .setName(implicitly[ClassTag[T]].runtimeClass.getCanonicalName)
             .setType(SchemaType.JSON)
             .setSchema(JsonSchema[T].avro.toString.getBytes(UTF_8))
