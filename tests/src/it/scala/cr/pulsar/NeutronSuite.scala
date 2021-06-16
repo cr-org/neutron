@@ -125,7 +125,7 @@ object NeutronSuite extends IOSuite {
       }
   }
 
-  test("Incompatible types for consumer and producer") { client =>
+  test("Incompatible schema types for consumer and producer") { client =>
     val dfTopic = topic("incompatible-types")
 
     val res: Resource[IO, (Consumer[IO, Event], Producer[IO, String])] =
