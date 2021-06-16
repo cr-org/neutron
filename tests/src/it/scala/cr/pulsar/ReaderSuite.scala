@@ -15,7 +15,7 @@ object ReaderSuite extends IOSuite {
 
   test("Reader can check if topic has messages") {
     client =>
-      val hpTopic = topic("reader-test")
+      val hpTopic = topic("reader-test" + UUID.randomUUID())
 
       val resources: Resource[IO, (Reader[IO, Event], Producer[IO, Event])] =
         for {
@@ -37,7 +37,7 @@ object ReaderSuite extends IOSuite {
 
   test("Reader can read a message if it exists") {
     client =>
-      val hpTopic = topic("reader-test-2")
+      val hpTopic = topic("reader-test" + UUID.randomUUID())
 
       val resources: Resource[IO, (Reader[IO, Event], Producer[IO, Event])] =
         for {
