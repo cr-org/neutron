@@ -19,7 +19,7 @@ package cr.pulsar
 import cats.Functor
 import cats.effect._
 import cats.syntax.all._
-import cr.pulsar.Reader.Message
+import cr.pulsar.Reader.{ Message, MessageAvailable }
 import cr.pulsar.internal.FutureLift._
 import cr.pulsar.schema.Schema
 import fs2._
@@ -35,6 +35,7 @@ trait MessageReader[F[_], E] {
   def read: Stream[F, Message[E]]
   def read1: F[Option[Message[E]]]
   def readUntil(timeout: FiniteDuration): F[Option[Message[E]]]
+  def messageAvailable: F[MessageAvailable]
 }
 
 /**
@@ -44,9 +45,15 @@ trait Reader[F[_], E] {
   def read: Stream[F, E]
   def read1: F[Option[E]]
   def readUntil(timeout: FiniteDuration): F[Option[E]]
+  def messageAvailable: F[MessageAvailable]
 }
 
 object Reader {
+  sealed trait MessageAvailable
+  object MessageAvailable {
+    case object Yes extends MessageAvailable
+    case object No extends MessageAvailable
+  }
 
   case class DecodingFailure(bytes: Array[Byte]) extends NoStackTrace
   case class Message[A](id: MessageId, key: MessageKey, payload: A)
@@ -76,30 +83,33 @@ object Reader {
       E: Schema
   ](c: JReader[E]): MessageReader[F, E] =
     new MessageReader[F, E] {
+      private def readMsg: F[Message[E]] =
+        F.delay(c.readNextAsync()).futureLift.map { m =>
+          Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
+        }
+
       override def read: Stream[F, Message[E]] =
-        Stream.repeatEval(
-          F.delay(c.readNextAsync()).futureLift.map { m =>
-            Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
-          }
-        )
+        Stream.repeatEval(readMsg)
 
       override def read1: F[Option[Message[E]]] =
-        F.delay(c.hasMessageAvailableAsync).futureLift.flatMap { hasAvailable =>
-          val readNext = F.delay(c.readNextAsync()).futureLift.map { m =>
-            Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
-          }
-
-          Option.when(hasAvailable)(readNext).sequence
+        messageAvailable.flatMap {
+          case MessageAvailable.Yes => readMsg.map(Some(_))
+          case MessageAvailable.No  => F.pure(None)
         }
 
       override def readUntil(timeout: FiniteDuration): F[Option[Message[E]]] =
-        F.delay(c.hasMessageAvailableAsync).futureLift.flatMap { hasAvailable =>
-          val readNext =
+        messageAvailable.flatMap {
+          case MessageAvailable.Yes =>
             F.delay(c.readNext(timeout.length.toInt, timeout.unit)).map { m =>
-              Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
+              Some(Message(m.getMessageId, MessageKey(m.getKey), m.getValue))
             }
+          case MessageAvailable.No =>
+            F.pure(None)
+        }
 
-          Option.when(hasAvailable)(readNext).sequence
+      override def messageAvailable: F[MessageAvailable] =
+        F.delay(c.hasMessageAvailableAsync).futureLift.map { hasAvailable =>
+          if (hasAvailable) MessageAvailable.Yes else MessageAvailable.No
         }
     }
 
@@ -109,6 +119,7 @@ object Reader {
       override def read1: F[Option[E]] = m.read1.map(_.map(_.payload))
       override def readUntil(timeout: FiniteDuration): F[Option[E]] =
         m.readUntil(timeout).map(_.map(_.payload))
+      override def messageAvailable: F[MessageAvailable] = m.messageAvailable
     }
 
   /**
