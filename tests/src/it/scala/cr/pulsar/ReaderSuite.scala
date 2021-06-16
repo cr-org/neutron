@@ -4,8 +4,8 @@ import cats.effect.{IO, Resource}
 import cr.pulsar.NeutronSuite.topic
 import cr.pulsar.Reader.MessageAvailable
 import cr.pulsar.domain.Event
-import weaver.IOSuite
 import cr.pulsar.schema.circe._
+import weaver.IOSuite
 
 import java.util.UUID
 
