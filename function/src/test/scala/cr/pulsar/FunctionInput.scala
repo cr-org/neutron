@@ -29,6 +29,7 @@ import org.apache.pulsar.functions.api.{
 }
 import org.slf4j.Logger
 import cr.pulsar.JavaConversions._
+import org.apache.pulsar.client.admin.PulsarAdmin
 
 object FunctionInput {
   def emptyWindowCtx: JavaWindowContext = new JavaWindowContext {
@@ -109,12 +110,8 @@ object FunctionInput {
         tenant: String,
         ns: String,
         name: String
-    ): S = ???
-    override def newOutputMessage[O](
-        clusterName: String,
-        topicName: String,
-        schema: Schema[O]
-    ): TypedMessageBuilder[O] = ???
+    ): S                                     = ???
+    override def getPulsarAdmin: PulsarAdmin = ???
   }
 
   def input[A](seq: Seq[A]): util.Collection[JavaRecord[A]] = {
