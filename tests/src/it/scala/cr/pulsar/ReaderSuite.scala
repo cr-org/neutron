@@ -17,9 +17,12 @@ object ReaderSuite extends IOSuite {
   test("Reader can check if topic has messages") { client =>
     val hpTopic = topic("reader-test" + UUID.randomUUID())
 
-    Producer
-      .make[IO, Event](client, hpTopic)
-      .parZip(Reader.make[IO, Event](client, hpTopic))
+    val resources = for {
+      prod <- Producer.make[IO, Event](client, hpTopic)
+      reader <- Reader.make[IO, Event](client, hpTopic)
+    } yield prod -> reader
+
+    resources
       .use { case (producer, reader) =>
         for {
           res1 <- reader.messageAvailable
@@ -36,9 +39,12 @@ object ReaderSuite extends IOSuite {
     val hpTopic = topic("reader-test" + UUID.randomUUID())
     val event = Event(UUID.randomUUID(), "test")
 
-    Producer
-      .make[IO, Event](client, hpTopic)
-      .parZip(Reader.make[IO, Event](client, hpTopic))
+    val resources = for {
+      prod <- Producer.make[IO, Event](client, hpTopic)
+      reader <- Reader.make[IO, Event](client, hpTopic)
+    } yield prod -> reader
+
+    resources
       .use { case (producer, reader) =>
         for {
           res1 <- reader.read1
