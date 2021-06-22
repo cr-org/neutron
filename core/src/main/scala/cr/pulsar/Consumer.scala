@@ -17,13 +17,11 @@
 package cr.pulsar
 
 import scala.util.control.NoStackTrace
-
-import cr.pulsar.internal.FutureLift._
 import cr.pulsar.schema.Schema
-
 import cats._
 import cats.effect._
 import cats.syntax.all._
+import cr.pulsar.internal.FutureLift
 import fs2._
 import org.apache.pulsar.client.api.{
   DeadLetterPolicy,
@@ -71,32 +69,32 @@ object Consumer {
   case class Message[A](id: MessageId, key: MessageKey, payload: A)
   case class DecodingFailure(msg: String) extends Exception(msg) with NoStackTrace
 
-  private def mkConsumer[F[_]: Concurrent: ContextShift, E: Schema](
+  private def mkConsumer[F[_]: Sync: FutureLift, E: Schema](
       client: Pulsar.T,
       sub: Subscription,
       topic: Topic,
       opts: Options[F, E]
   ): Resource[F, Consumer[F, E]] = {
-    val acquire =
-      F.delay {
-        val c = client.newConsumer(E.schema)
-        val z = topic match {
-          case s: Topic.Single => c.topic(s.url.value)
-          case m: Topic.Multi  => c.topicsPattern(m.url.value.r.pattern)
-        }
-        opts.deadLetterPolicy
-          .fold(z)(z.deadLetterPolicy)
-          .readCompacted(opts.readCompacted)
-          .subscriptionType(sub.`type`.pulsarSubscriptionType)
-          .subscriptionName(sub.name.value)
-          .subscriptionMode(sub.mode.pulsarSubscriptionMode)
-          .subscriptionInitialPosition(opts.initial)
-          .subscribeAsync
-      }.futureLift
+
+    val acquire = F.futureLift {
+      val c = client.newConsumer(E.schema)
+      val z = topic match {
+        case s: Topic.Single => c.topic(s.url.value)
+        case m: Topic.Multi  => c.topicsPattern(m.url.value.r.pattern)
+      }
+      opts.deadLetterPolicy
+        .fold(z)(z.deadLetterPolicy)
+        .readCompacted(opts.readCompacted)
+        .subscriptionType(sub.`type`.pulsarSubscriptionType)
+        .subscriptionName(sub.name.value)
+        .subscriptionMode(sub.mode.pulsarSubscriptionMode)
+        .subscriptionInitialPosition(opts.initial)
+        .subscribeAsync
+    }
 
     def release(c: JConsumer[E]): F[Unit] =
-      F.delay(c.unsubscribeAsync()).futureLift.attempt.unlessA(opts.manualUnsubscribe) >>
-          F.delay(c.closeAsync()).futureLift.void
+      F.futureLift(c.unsubscribeAsync()).attempt.unlessA(opts.manualUnsubscribe) >>
+          F.futureLift(c.closeAsync()).void
 
     Resource
       .make(acquire)(release)
@@ -104,7 +102,7 @@ object Consumer {
         new Consumer[F, E] {
           private def subscribeInternal(autoAck: Boolean): Stream[F, Message[E]] =
             Stream.repeatEval {
-              F.delay(c.receiveAsync()).futureLift.flatMap { m =>
+              F.futureLift(c.receiveAsync()).flatMap { m =>
                 val e = m.getValue()
 
                 opts.logger(e)(Topic.URL(m.getTopicName)) >>
@@ -118,7 +116,7 @@ object Consumer {
           override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
           override def nack(id: MessageId): F[Unit] = F.delay(c.negativeAcknowledge(id))
           override def unsubscribe: F[Unit] =
-            F.delay(c.unsubscribeAsync()).futureLift.void
+            F.futureLift(c.unsubscribeAsync()).void
           override def subscribe: Stream[F, Message[E]] =
             subscribeInternal(autoAck = false)
           override def autoSubscribe: Stream[F, E] =
@@ -135,7 +133,7 @@ object Consumer {
     * Note that this does not create a subscription to any Topic,
     * you can use [[Consumer#subscribe]] for this purpose.
     */
-  def make[F[_]: Concurrent: ContextShift, E: Schema](
+  def make[F[_]: Sync: FutureLift, E: Schema](
       client: Pulsar.T,
       topic: Topic,
       sub: Subscription,

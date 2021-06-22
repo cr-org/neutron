@@ -17,15 +17,12 @@
 package cr.pulsar
 
 import java.util.concurrent.TimeUnit
-
 import scala.concurrent.duration.FiniteDuration
-
 import cats._
 import cats.effect._
 import cats.syntax.all._
+import cr.pulsar.internal.FutureLift
 import fs2.concurrent.{ Topic => _ }
-
-import cr.pulsar.internal.FutureLift._
 import cr.pulsar.internal.TypedMessageBuilderOps._
 import cr.pulsar.schema.Schema
 import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder }
@@ -64,7 +61,7 @@ object Producer {
   /**
     * It creates a simple [[Producer]] with the supplied options.
     */
-  def make[F[_]: Concurrent: ContextShift: Parallel, E: Schema](
+  def make[F[_]: Sync: FutureLift: Parallel, E: Schema](
       client: Pulsar.T,
       topic: Topic.Single,
       opts: Options[F, E] = null // default value does not work
@@ -74,7 +71,7 @@ object Producer {
     def configureBatching(
         batching: Batching,
         producerBuilder: ProducerBuilder[E]
-    ) =
+    ): ProducerBuilder[E] =
       batching match {
         case Batching.Enabled(delay, _) =>
           producerBuilder
@@ -96,18 +93,18 @@ object Producer {
             client.newProducer(E.schema).topic(topic.url.value)
           ).create
         )
-      }(p => F.delay(p.closeAsync()).futureLift.void)
+      }(p => F.futureLift(p.closeAsync()).void)
       .map { prod =>
         new Producer[F, E] {
           override def send(msg: E, key: MessageKey): F[MessageId] =
-            _opts.logger(msg)(topic.url) &> F.delay {
+            _opts.logger(msg)(topic.url) &> F.futureLift {
                   prod
                     .newMessage()
                     .value(msg)
                     .withShardKey(_opts.shardKey(msg))
                     .withMessageKey(key)
                     .sendAsync()
-                }.futureLift
+                }
 
           override def send_(msg: E, key: MessageKey): F[Unit] = send(msg, key).void
 

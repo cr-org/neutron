@@ -25,7 +25,6 @@ import cr.pulsar.schema.utf8._
 import cr.pulsar.domain.Outer.Inner
 
 import cats.effect._
-import cats.effect.concurrent.{ Deferred, Ref }
 import cats.implicits._
 import fs2.Stream
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException
