@@ -5,14 +5,14 @@ object Dependencies {
   object V {
     val java8Compat = "1.0.0"
 
-    val avro4s     = "4.0.9"
+    val avro4s     = "4.0.10"
     val cats       = "2.6.1"
     val catsEffect = "3.1.1"
     val circe      = "0.14.1"
-    val fs2        = "3.0.4"
+    val fs2        = "3.0.6"
     val newtype    = "0.4.4"
     val pulsar     = "2.8.0"
-    val weaver     = "0.7.3"
+    val weaver     = "0.7.4"
 
     val betterMonadicFor = "0.3.1"
     val contextApplied   = "0.1.4"
