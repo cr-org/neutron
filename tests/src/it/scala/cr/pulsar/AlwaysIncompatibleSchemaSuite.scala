@@ -4,7 +4,6 @@ import cr.pulsar.domain._
 import cr.pulsar.schema.circe._
 
 import cats.effect._
-import cats.syntax.all._
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException
 import weaver.IOSuite
 

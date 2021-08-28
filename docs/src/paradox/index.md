@@ -18,13 +18,12 @@ Here's a quick consumer / producer example using Neutron. Note: both are fully a
 import scala.concurrent.duration._
 
 import cats.effect._
-import cats.implicits._
 import fs2.Stream
 
 import cr.pulsar._
 import cr.pulsar.schema.utf8._
 
-object Demo extends IOApp {
+object Demo extends IOApp.Simple {
 
   val config = Config.Builder.default
 
@@ -46,27 +45,29 @@ object Demo extends IOApp {
       pulsar   <- Pulsar.make[IO](config.url)
       consumer <- Consumer.make[IO, String](pulsar, topic, subs)
       producer <- Producer.make[IO, String](pulsar, topic)
-    } yield (consumer, producer)
+    } yield consumer -> producer
 
-  def run(args: List[String]): IO[ExitCode] =
+  val run: IO[Unit] =
     Stream
       .resource(resources)
       .flatMap {
         case (consumer, producer) =>
           val consume =
             consumer
-              .subscribe
-              .evalMap(m => IO(println(m.payload)) >> consumer.ack(m.id))
+              .autoSubscribe
+              .evalMap(IO.println)
 
           val produce =
             Stream
               .emit("test data")
               .covary[IO]
               .metered(3.seconds)
-              .evalMap(producer.send_(_))
+              .evalMap(producer.send_)
 
           consume.concurrently(produce)
-      }.compile.drain.as(ExitCode.Success)
+      }
+      .compile
+      .drain
 
 }
 ```
