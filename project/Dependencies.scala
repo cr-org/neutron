@@ -3,7 +3,7 @@ import sbt._
 object Dependencies {
 
   object V {
-    val java8Compat = "1.0.0"
+    val java8Compat = "1.0.1"
 
     val avro4s     = "4.0.11"
     val cats       = "2.6.1"
