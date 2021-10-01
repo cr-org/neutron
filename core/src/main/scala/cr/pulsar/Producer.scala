@@ -25,7 +25,7 @@ import cr.pulsar.internal.FutureLift
 import fs2.concurrent.{ Topic => _ }
 import cr.pulsar.internal.TypedMessageBuilderOps._
 import cr.pulsar.schema.Schema
-import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder }
+import org.apache.pulsar.client.api.{ MessageId, ProducerBuilder, TypedMessageBuilder }
 
 trait Producer[F[_], E] {
 
@@ -33,6 +33,16 @@ trait Producer[F[_], E] {
     * Sends a message asynchronously.
     */
   def send(msg: E): F[MessageId]
+
+  /**
+    * Sends a delayed message asynchronously. Works only with shared subscriptions.
+    */
+  def sendDelayed(msg: E, delay: FiniteDuration): F[MessageId]
+
+  /**
+    * Sends a delayed message asynchronously but it discards its output. Works only with shared subscriptions.
+    */
+  def sendDelayed_(msg: E, delay: FiniteDuration): F[Unit]
 
   /**
     * Sends a message associated with a `key` asynchronously.
@@ -96,21 +106,37 @@ object Producer {
       }(p => F.futureLift(p.closeAsync()).void)
       .map { prod =>
         new Producer[F, E] {
+          private def buildMessage(
+              msg: E,
+              key: MessageKey,
+              delay: Option[FiniteDuration]
+          ): F[TypedMessageBuilder[E]] =
+            _opts.logger(msg)(topic.url).map { _ =>
+              prod
+                .newMessage()
+                .value(msg)
+                .withShardKey(_opts.shardKey(msg))
+                .withMessageKey(key)
+                .withDelay(delay)
+            }
+
+          private def _send(msg: TypedMessageBuilder[E]): F[MessageId] =
+            F.futureLift(msg.sendAsync())
+
           override def send(msg: E, key: MessageKey): F[MessageId] =
-            _opts.logger(msg)(topic.url) &> F.futureLift {
-                  prod
-                    .newMessage()
-                    .value(msg)
-                    .withShardKey(_opts.shardKey(msg))
-                    .withMessageKey(key)
-                    .sendAsync()
-                }
+            buildMessage(msg, key, None) >>= _send
 
           override def send_(msg: E, key: MessageKey): F[Unit] = send(msg, key).void
 
           override def send(msg: E): F[MessageId] = send(msg, MessageKey.Empty)
 
           override def send_(msg: E): F[Unit] = send(msg, MessageKey.Empty).void
+
+          override def sendDelayed(msg: E, delay: FiniteDuration): F[MessageId] =
+            buildMessage(msg, MessageKey.Empty, Some(delay)) >>= _send
+
+          override def sendDelayed_(msg: E, delay: FiniteDuration): F[Unit] =
+            sendDelayed(msg, delay).void
         }
       }
   }
