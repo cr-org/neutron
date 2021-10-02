@@ -29,21 +29,25 @@ object DelayedDeliverySuite extends IOSuite {
           .withType(Subscription.Type.Shared)
           .build
 
+      val failoverSubscription =
+        Subscription.Builder
+          .withName("dd-failover")
+          .withType(Subscription.Type.Failover)
+          .build
+
       val event = Event(UUID.randomUUID(), "I'm delayed!")
 
       def now: IO[Instant]      = IO(Instant.now)
-      val delay: FiniteDuration = 1.second
+      val delay: FiniteDuration = 2.seconds
 
       case class ReceivedMessage(sub: Subscription, event: Event, ts: Instant)
 
       def sendMessage: IO[Instant] =
-        Producer.make[IO, Event](client, ddTopic).use { producer =>
-          now.flatMap { start =>
-            producer.sendDelayed_(event, delay).as(start)
-          }
-        }
+        Producer
+          .make[IO, Event](client, ddTopic)
+          .use(_.sendDelayed_(event, delay) >> now)
 
-      def receiveMessage(
+      def consumeMessage(
           sub: Subscription,
           ref: Ref[IO, List[ReceivedMessage]]
       ): IO[Unit] =
@@ -61,18 +65,25 @@ object DelayedDeliverySuite extends IOSuite {
       for {
         ref <- Ref.of[IO, List[ReceivedMessage]](List.empty)
 
-        start <- sendMessage
-        _ <- receiveMessage(sharedSubscription, ref)
+        start <- consumeMessage(failoverSubscription, ref) &>
+                    consumeMessage(sharedSubscription, ref) &>
+                    sendMessage
 
         result <- ref.get
       } yield {
         val sharedSubResult = result.exists { r =>
           Duration
             .between(start, r.ts)
-            .toMillis > 1000 && r.sub.`type` == Subscription.Type.Shared
+            .toMillis > 2000 && r.sub.`type` == Subscription.Type.Shared
         }
 
-        assert(sharedSubResult)
+        val failoverSubResult = result.exists { r =>
+          Duration
+            .between(start, r.ts)
+            .toMillis < 2000 && r.sub.`type` == Subscription.Type.Failover
+        }
+
+        assert(sharedSubResult) && assert(failoverSubResult)
       }
   }
 }
