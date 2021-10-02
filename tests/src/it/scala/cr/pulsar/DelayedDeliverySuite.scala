@@ -1,6 +1,7 @@
 package cr.pulsar
 
 import cats.effect.{ IO, Ref, Resource }
+import cr.pulsar.NeutronSuite.topic
 import cr.pulsar.domain.Event
 import cr.pulsar.schema.circe.circeInstance
 import weaver.IOSuite
@@ -10,29 +11,18 @@ import java.util.UUID
 import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 
 object DelayedDeliverySuite extends IOSuite {
-
-  val cfg = Config.Builder.default
-
-  type Res = Pulsar.T
-  override def sharedResource: Resource[IO, Res] = Pulsar.make[IO](cfg.url)
+  override type Res = Pulsar.T
+  override def sharedResource: Resource[IO, Res] =
+    Pulsar.make[IO](Config.Builder.default.url)
 
   test("A message is published and consumed after a delay with shared subscription") {
     client =>
-      val ddTopic = Topic.Builder
-        .withName(s"delayed-delivery-suite-${UUID.randomUUID().toString}")
-        .withConfig(cfg)
-        .build
+      val ddTopic = topic(s"delayed-delivery-suite-${UUID.randomUUID().toString}")
 
       val sharedSubscription =
         Subscription.Builder
           .withName("dd-shared")
           .withType(Subscription.Type.Shared)
-          .build
-
-      val failoverSubscription =
-        Subscription.Builder
-          .withName("dd-failover")
-          .withType(Subscription.Type.Failover)
           .build
 
       val event = Event(UUID.randomUUID(), "I'm delayed!")
@@ -65,25 +55,19 @@ object DelayedDeliverySuite extends IOSuite {
       for {
         ref <- Ref.of[IO, List[ReceivedMessage]](List.empty)
 
-        start <- consumeMessage(failoverSubscription, ref) &>
-                    consumeMessage(sharedSubscription, ref) &>
-                    sendMessage
+        start    = Instant.now
+        consumer = fs2.Stream.eval(consumeMessage(sharedSubscription, ref))
+        producer = fs2.Stream.eval(sendMessage)
+
+        _ <- fs2
+              .Stream(consumer, producer)
+              .parJoinUnbounded
+              .compile
+              .drain
 
         result <- ref.get
-      } yield {
-        val sharedSubResult = result.exists { r =>
-          Duration
-            .between(start, r.ts)
-            .toMillis > 2000 && r.sub.`type` == Subscription.Type.Shared
-        }
-
-        val failoverSubResult = result.exists { r =>
-          Duration
-            .between(start, r.ts)
-            .toMillis < 2000 && r.sub.`type` == Subscription.Type.Failover
-        }
-
-        assert(sharedSubResult) && assert(failoverSubResult)
-      }
+      } yield assert(
+        result.exists(r => Duration.between(start, r.ts).toMillis >= delay.toMillis)
+      )
   }
 }
