@@ -19,6 +19,9 @@ package cr.pulsar.internal
 import cr.pulsar.{ MessageKey, ShardKey }
 import org.apache.pulsar.client.api.TypedMessageBuilder
 
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
+
 private[pulsar] object TypedMessageBuilderOps {
   implicit class TMBOps[A](val value: TypedMessageBuilder[A]) extends AnyVal {
     def withShardKey(shardKey: ShardKey): TypedMessageBuilder[A] =
@@ -31,6 +34,12 @@ private[pulsar] object TypedMessageBuilderOps {
       msgKey match {
         case MessageKey.Of(k) => value.key(k)
         case MessageKey.Empty => value
+      }
+
+    def withDelay(delay: Option[FiniteDuration]): TypedMessageBuilder[A] =
+      delay match {
+        case Some(delay) => value.deliverAfter(delay.toNanos, TimeUnit.NANOSECONDS)
+        case None        => value
       }
   }
 }
