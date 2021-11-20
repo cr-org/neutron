@@ -34,7 +34,7 @@ object NeutronSuite extends IOSuite {
 
   val cfg = Config.Builder.default
 
-  type Res = Pulsar.T
+  type Res = Pulsar.Underlying
   override def sharedResource: Resource[IO, Res] = Pulsar.make[IO](cfg.url)
 
   val sub = (s: String) =>

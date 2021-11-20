@@ -72,7 +72,7 @@ object Producer {
     * It creates a simple [[Producer]] with the supplied options.
     */
   def make[F[_]: Sync: FutureLift: Parallel, E: Schema](
-      client: Pulsar.T,
+      client: Pulsar.Underlying,
       topic: Topic.Single,
       opts: Options[F, E] = null // default value does not work
   ): Resource[F, Producer[F, E]] = {
@@ -111,7 +111,7 @@ object Producer {
               key: MessageKey,
               delay: Option[FiniteDuration]
           ): F[TypedMessageBuilder[E]] =
-            _opts.logger(msg)(topic.url).map { _ =>
+            _opts.logger.log(topic.url, msg).map { _ =>
               prod
                 .newMessage()
                 .value(msg)
@@ -145,10 +145,10 @@ object Producer {
   sealed abstract class Options[F[_], E] {
     val batching: Batching
     val shardKey: E => ShardKey
-    val logger: E => Topic.URL => F[Unit]
+    val logger: Logger[F, E]
     def withBatching(_batching: Batching): Options[F, E]
     def withShardKey(_shardKey: E => ShardKey): Options[F, E]
-    def withLogger(_logger: E => Topic.URL => F[Unit]): Options[F, E]
+    def withLogger(_logger: Logger[F, E]): Options[F, E]
   }
 
   /**
@@ -158,20 +158,20 @@ object Producer {
     private case class OptionsImpl[F[_], E](
         batching: Batching,
         shardKey: E => ShardKey,
-        logger: E => Topic.URL => F[Unit]
+        logger: Logger[F, E]
     ) extends Options[F, E] {
       override def withBatching(_batching: Batching): Options[F, E] =
         copy(batching = _batching)
       override def withShardKey(_shardKey: E => ShardKey): Options[F, E] =
         copy(shardKey = _shardKey)
-      override def withLogger(_logger: E => (Topic.URL => F[Unit])): Options[F, E] =
+      override def withLogger(_logger: Logger[F, E]): Options[F, E] =
         copy(logger = _logger)
     }
     def apply[F[_]: Applicative, E](): Options[F, E] =
       OptionsImpl[F, E](
         Batching.Disabled,
         _ => ShardKey.Default,
-        _ => _ => F.unit
+        Logger.noop[F, E]
       )
   }
 
