@@ -19,7 +19,7 @@ package cr.pulsar
 import cats.effect.{ Resource, Sync }
 import cr.pulsar.Pulsar.Options.{ ConnectionTimeout, OperationTimeout }
 import io.estatico.newtype.macros.newtype
-import org.apache.pulsar.client.api.{ PulsarClient => Underlying }
+import org.apache.pulsar.client.api.{ PulsarClient => JavaPulsar }
 import scala.concurrent.duration._
 
 import scala.concurrent.duration.FiniteDuration
@@ -27,7 +27,7 @@ import scala.concurrent.duration.FiniteDuration
 object Pulsar {
   import Config._
 
-  type T = Underlying
+  type Underlying = JavaPulsar
 
   /**
     * It creates an underlying PulsarClient as a `cats.effect.Resource`.
@@ -38,10 +38,10 @@ object Pulsar {
   def make[F[_]: Sync](
       url: PulsarURL,
       opts: Options = Options()
-  ): Resource[F, T] =
+  ): Resource[F, Underlying] =
     Resource.fromAutoCloseable(
       F.delay(
-        Underlying.builder
+        JavaPulsar.builder
           .serviceUrl(url.value)
           .connectionTimeout(
             opts.connectionTimeout.value.length.toInt,

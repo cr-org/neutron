@@ -70,7 +70,7 @@ object Consumer {
   case class DecodingFailure(msg: String) extends Exception(msg) with NoStackTrace
 
   private def mkConsumer[F[_]: Sync: FutureLift, E: Schema](
-      client: Pulsar.T,
+      client: Pulsar.Underlying,
       sub: Subscription,
       topic: Topic,
       opts: Options[F, E]
@@ -105,7 +105,7 @@ object Consumer {
               F.futureLift(c.receiveAsync()).flatMap { m =>
                 val e = m.getValue()
 
-                opts.logger(e)(Topic.URL(m.getTopicName)) >>
+                opts.logger.log(Topic.URL(m.getTopicName), e) >>
                   ack(m.getMessageId)
                     .whenA(autoAck)
                     .as(Message(m.getMessageId, MessageKey(m.getKey), e))
@@ -134,7 +134,7 @@ object Consumer {
     * you can use [[Consumer#subscribe]] for this purpose.
     */
   def make[F[_]: Sync: FutureLift, E: Schema](
-      client: Pulsar.T,
+      client: Pulsar.Underlying,
       topic: Topic,
       sub: Subscription,
       opts: Options[F, E] = null // default value does not work
@@ -146,7 +146,7 @@ object Consumer {
   // Builder-style abstract class instead of case class to allow for bincompat-friendly extension in future versions.
   sealed abstract class Options[F[_], E] {
     val initial: SubscriptionInitialPosition
-    val logger: E => Topic.URL => F[Unit]
+    val logger: Logger[F, E]
     val manualUnsubscribe: Boolean
     val readCompacted: Boolean
     val deadLetterPolicy: Option[DeadLetterPolicy]
@@ -159,7 +159,7 @@ object Consumer {
     /**
       * The logger action that runs on every message consumed. It does nothing by default.
       */
-    def withLogger(_logger: E => Topic.URL => F[Unit]): Options[F, E]
+    def withLogger(_logger: Logger[F, E]): Options[F, E]
 
     /**
       * Sets unsubscribe mode to `Manual`.
@@ -198,7 +198,7 @@ object Consumer {
   object Options {
     private case class OptionsImpl[F[_]: Applicative, E](
         initial: SubscriptionInitialPosition,
-        logger: E => Topic.URL => F[Unit],
+        logger: Logger[F, E],
         manualUnsubscribe: Boolean,
         readCompacted: Boolean,
         deadLetterPolicy: Option[DeadLetterPolicy]
@@ -208,7 +208,7 @@ object Consumer {
       ): Options[F, E] =
         copy(initial = _initial)
 
-      override def withLogger(_logger: E => (Topic.URL => F[Unit])): Options[F, E] =
+      override def withLogger(_logger: Logger[F, E]): Options[F, E] =
         copy(logger = _logger)
 
       override def withManualUnsubscribe: Options[F, E] =
@@ -223,7 +223,7 @@ object Consumer {
 
     def apply[F[_]: Applicative, E](): Options[F, E] = OptionsImpl[F, E](
       SubscriptionInitialPosition.Latest,
-      _ => _ => F.unit,
+      Logger.noop[F, E],
       manualUnsubscribe = false,
       readCompacted = false,
       deadLetterPolicy = None

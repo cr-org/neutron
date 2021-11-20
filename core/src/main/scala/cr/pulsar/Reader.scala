@@ -59,7 +59,7 @@ object Reader {
   case class Message[A](id: MessageId, key: MessageKey, payload: A)
 
   private def mkPulsarReader[F[_]: Sync: FutureLift, E: Schema](
-      client: Pulsar.T,
+      client: Pulsar.Underlying,
       topic: Topic.Single,
       opts: Options
   ): Resource[F, JReader[E]] =
@@ -127,7 +127,7 @@ object Reader {
       F[_]: Sync: FutureLift,
       E: Schema
   ](
-      client: Pulsar.T,
+      client: Pulsar.Underlying,
       topic: Topic.Single,
       opts: Options = Options()
   ): Resource[F, Reader[F, E]] =
@@ -141,7 +141,7 @@ object Reader {
       F[_]: Sync: FutureLift,
       E: Schema
   ](
-      client: Pulsar.T,
+      client: Pulsar.Underlying,
       topic: Topic.Single,
       opts: Options = Options()
   ): Resource[F, MessageReader[F, E]] =

@@ -19,7 +19,7 @@ object BackwardCompatSchemaSuite extends IOSuite {
     .withURL("pulsar://localhost:6650")
     .build
 
-  override type Res = Pulsar.T
+  override type Res = Pulsar.Underlying
   override def sharedResource: Resource[IO, Res] = Pulsar.make[IO](cfg.url)
 
   val sub = (s: String) =>
