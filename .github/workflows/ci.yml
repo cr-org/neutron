@@ -27,12 +27,6 @@ jobs:
       - name: "Install Nix ❄️"
         uses: cachix/install-nix-action@v12
 
-      - name: "Install Cachix ❄️"
-        uses: cachix/cachix-action@v10
-        with:
-          name: neutron
-          signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
-
       - name: "Run with ${{ matrix.java }} 🚀"
         run: nix-shell --argstr java "${{ matrix.java }}" --run "SBT_OPTS='--add-opens java.base/java.lang=ALL-UNNAMED' sbt + 'it:test;test;makeSite;doc'"
 
