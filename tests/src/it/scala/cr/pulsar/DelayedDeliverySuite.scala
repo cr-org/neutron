@@ -1,7 +1,7 @@
 package cr.pulsar
 
 import cats.effect.{ IO, Ref, Resource }
-import cr.pulsar.NeutronSuite.topic
+import cr.pulsar.NeutronSuite.cfg
 import cr.pulsar.domain.Event
 import cr.pulsar.schema.circe.circeInstance
 import weaver.IOSuite
@@ -15,59 +15,49 @@ object DelayedDeliverySuite extends IOSuite {
   override def sharedResource: Resource[IO, Res] =
     Pulsar.make[IO](Config.Builder.default.url)
 
-  test("A message is published and consumed after a delay with shared subscription") {
-    client =>
-      val ddTopic = topic(s"delayed-delivery-suite-${UUID.randomUUID().toString}")
+  case class ReceivedMessage(event: Event, ts: Instant)
 
-      val sharedSubscription =
-        Subscription.Builder
-          .withName("dd-shared")
-          .withType(Subscription.Type.Shared)
-          .build
+  val delay: FiniteDuration = 2.seconds
+  def now: IO[Instant]      = IO(Instant.now)
+  def mkTopic(s: String): Topic.Single =
+    Topic.Builder
+      .withName(s)
+      .withType(Topic.Type.Persistent)
+      .withConfig(cfg)
+      .build
 
-      val event = Event(UUID.randomUUID(), "I'm delayed!")
+  val event: Event        = Event(UUID.randomUUID(), "I'm delayed!")
+  val topic: Topic.Single = mkTopic(s"delayed-delivery-suite-${UUID.randomUUID().toString}")
 
-      def now: IO[Instant]      = IO(Instant.now)
-      val delay: FiniteDuration = 2.seconds
+  val subscription: Subscription =
+    Subscription.Builder
+      .withName(s"dd-shared-${UUID.randomUUID().toString}")
+      .withType(Subscription.Type.Shared)
+      .build
 
-      case class ReceivedMessage(sub: Subscription, event: Event, ts: Instant)
+  test(s"A message is published and consumed after a delay with shared subscription") { client =>
+    val resources = for {
+      producer <- Producer.make[IO, Event](client, topic)
+      consumer <- Consumer.make[IO, Event](client, topic, subscription)
+    } yield producer -> consumer
 
-      def sendMessage: IO[Instant] =
-        Producer
-          .make[IO, Event](client, ddTopic)
-          .use(_.sendDelayed_(event, delay) >> now)
+    for {
+      start <- now
+      ref <- Ref.of[IO, List[ReceivedMessage]](List.empty)
 
-      def consumeMessage(
-          sub: Subscription,
-          ref: Ref[IO, List[ReceivedMessage]]
-      ): IO[Unit] =
-        Consumer
-          .make[IO, Event](client, ddTopic, sub)
-          .use {
-            _.autoSubscribe
-              .evalMap(e => now.map(ts => ReceivedMessage(sub, e, ts)))
-              .take(1)
-              .evalMap(msg => ref.update(_ :+ msg))
-              .compile
-              .drain
+      _ <- resources.use {
+            case (producer, consumer) =>
+              consumer.autoSubscribe
+                .evalMap(e => now.map(ts => ReceivedMessage(e, ts)))
+                .evalMap(msg => ref.update(_ :+ msg))
+                .take(1)
+                .compile
+                .drain &> producer.sendDelayed_(event, delay)
           }
 
-      for {
-        ref <- Ref.of[IO, List[ReceivedMessage]](List.empty)
-
-        start    = Instant.now
-        consumer = fs2.Stream.eval(consumeMessage(sharedSubscription, ref))
-        producer = fs2.Stream.eval(sendMessage)
-
-        _ <- fs2
-              .Stream(consumer, producer)
-              .parJoinUnbounded
-              .compile
-              .drain
-
-        result <- ref.get
-      } yield assert(
-        result.exists(r => Duration.between(start, r.ts).toMillis >= delay.toMillis)
-      )
+      result <- ref.get
+    } yield assert(
+      result.exists(r => Duration.between(start, r.ts).toMillis >= delay.toMillis)
+    )
   }
 }
