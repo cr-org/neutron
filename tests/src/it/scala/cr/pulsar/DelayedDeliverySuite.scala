@@ -11,7 +11,7 @@ import java.util.UUID
 import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 
 object DelayedDeliverySuite extends IOSuite {
-  override type Res = Pulsar.T
+  override type Res = Pulsar.Underlying
   override def sharedResource: Resource[IO, Res] =
     Pulsar.make[IO](Config.Builder.default.url)
 
