@@ -16,9 +16,9 @@ let
   };
 
   nixpkgs = fetchTarball {
-    name   = "nixos-unstable-2021-01-03";
-    url    = "https://github.com/NixOS/nixpkgs/archive/56bb1b0f7a3.tar.gz";
-    sha256 = "1wl5yglgj3ajbf2j4dzgsxmgz7iqydfs514w73fs9a6x253wzjbs";
+    name   = "nixos-unstable-2021-10-27";
+    url    = "https://github.com/NixOS/nixpkgs/archive/a4bf44345706.tar.gz";
+    sha256 = "0zag9yfqsf544vrfccfvn5yjagizqf69adza8fpmsmn5ll8jw8gw";
   };
 
   pkgs = import nixpkgs { inherit config; };
