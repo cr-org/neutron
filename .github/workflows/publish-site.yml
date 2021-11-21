@@ -17,7 +17,7 @@ jobs:
         uses: cachix/install-nix-action@v12
 
       - name: "Install Cachix ❄️"
-        uses: cachix/cachix-action@v8
+        uses: cachix/cachix-action@v10
         with:
           name: neutron
           signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
@@ -32,4 +32,4 @@ jobs:
       - run: git config --global user.name "neutron-site-bot"
 
       - name: "Build microsite 🚧"
-        run: nix-shell --run "sbt ghpagesPushSite" nix/ci.nix
+        run: nix-shell --run "sbt ghpagesPushSite"

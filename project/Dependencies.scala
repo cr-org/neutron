@@ -3,16 +3,16 @@ import sbt._
 object Dependencies {
 
   object V {
-    val java8Compat = "1.0.1"
+    val java8Compat = "1.0.2"
 
     val avro4s     = "4.0.11"
     val cats       = "2.6.1"
     val catsEffect = "3.2.9"
     val circe      = "0.14.1"
-    val fs2        = "3.1.3"
+    val fs2        = "3.2.0"
     val newtype    = "0.4.4"
     val pulsar     = "2.8.0"
-    val weaver     = "0.7.6"
+    val weaver     = "0.7.7"
 
     val betterMonadicFor = "0.3.1"
     val contextApplied   = "0.1.4"
