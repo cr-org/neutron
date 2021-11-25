@@ -15,24 +15,10 @@ It is published for Scala $scala-versions$. You can include it in your project b
 Here's a quick consumer / producer example using Neutron. Note: both are fully asynchronous.
 
 ```scala mdoc:compile-only
-import scala.concurrent.duration._
+val url = PulsarURL("pulsar://localhost:6650")
 
-import cats.effect._
-import fs2.Stream
-
-import cr.pulsar._
-import cr.pulsar.schema.utf8._
-
-object Demo extends IOApp.Simple {
-
-  val config = Config.Builder.default
-
-  val topic  =
-    Topic.Builder
-      .withName("my-topic")
-      .withConfig(config)
-      .withType(Topic.Type.NonPersistent)
-      .build
+  val topic =
+    Topic.simple("my-topic", Topic.Type.NonPersistent)
 
   val subs =
     Subscription.Builder
@@ -42,7 +28,7 @@ object Demo extends IOApp.Simple {
 
   val resources: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
     for {
-      pulsar   <- Pulsar.make[IO](config.url)
+      pulsar <- Pulsar.make[IO](url)
       consumer <- Consumer.make[IO, String](pulsar, topic, subs)
       producer <- Producer.make[IO, String](pulsar, topic)
     } yield consumer -> producer
