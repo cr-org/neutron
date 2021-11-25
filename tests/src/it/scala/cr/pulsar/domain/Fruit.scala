@@ -1,8 +1,7 @@
 package cr.pulsar.domain
 
-import cr.pulsar.schema.circe.JsonSchema
-
 import cats.Eq
+import cr.pulsar.schema.circe.JsonSchema
 import io.circe._
 import io.circe.generic.semiauto._
 

@@ -1,13 +1,12 @@
 package cr.pulsar
 package domain
 
-import java.util.UUID
-
-import cr.pulsar.schema.circe.JsonSchema
-
 import cats.Eq
+import cr.pulsar.schema.circe.JsonSchema
 import io.circe._
 import io.circe.generic.semiauto._
+
+import java.util.UUID
 
 case class Event_V3(uuid: UUID, value: String, thisFieldBreaksCompat: Int)
 

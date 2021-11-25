@@ -1,14 +1,13 @@
 package cr.pulsar
 package domain
 
-import java.nio.charset.StandardCharsets.UTF_8
-import java.util.UUID
-
-import cr.pulsar.schema.circe.JsonSchema
-
 import cats.Eq
+import cr.pulsar.schema.circe.JsonSchema
 import io.circe._
 import io.circe.generic.semiauto._
+
+import java.nio.charset.StandardCharsets.UTF_8
+import java.util.UUID
 
 case class Event(uuid: UUID, value: String) {
   def shardKey: ShardKey = ShardKey.Of(uuid.toString.getBytes(UTF_8))
