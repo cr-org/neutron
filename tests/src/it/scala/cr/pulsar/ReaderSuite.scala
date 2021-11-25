@@ -1,22 +1,16 @@
 package cr.pulsar
 
-import cats.effect.{ IO, Resource }
-import cr.pulsar.NeutronSuite.topic
+import cats.effect.IO
 import cr.pulsar.Reader.MessageAvailable
+import cr.pulsar.Topic.Type
 import cr.pulsar.domain.Event
 import cr.pulsar.schema.circe._
-import weaver.IOSuite
 
 import java.util.UUID
 
-object ReaderSuite extends IOSuite {
-  override type Res = Pulsar.Underlying
-  override def sharedResource: Resource[IO, Res] =
-    Pulsar.make[IO](Config.Builder.default.url)
-
+object ReaderSuite extends NeutronSuite {
   test("Reader can check if topic has messages") { client =>
-    val hpTopic = topic("reader-test" + UUID.randomUUID())
-
+    val hpTopic = Topic.simple("reader-test" + UUID.randomUUID(), Type.Persistent)
     val resources = for {
       prod <- Producer.make[IO, Event](client, hpTopic)
       reader <- Reader.make[IO, Event](client, hpTopic)
@@ -37,7 +31,7 @@ object ReaderSuite extends IOSuite {
   }
 
   test("Reader can read a message if it exists") { client =>
-    val hpTopic = topic("reader-test" + UUID.randomUUID())
+    val hpTopic = Topic.simple("reader-test" + UUID.randomUUID(), Type.Persistent)
     val event   = Event(UUID.randomUUID(), "test")
 
     val resources = for {

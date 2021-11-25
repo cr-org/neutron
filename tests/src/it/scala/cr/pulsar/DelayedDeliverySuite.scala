@@ -1,33 +1,22 @@
 package cr.pulsar
 
-import cats.effect.{ IO, Ref, Resource }
-import cr.pulsar.NeutronSuite.cfg
+import cats.effect.{ IO, Ref }
+import cr.pulsar.Topic.Type
 import cr.pulsar.domain.Event
 import cr.pulsar.schema.circe.circeInstance
-import weaver.IOSuite
 
 import java.time.{ Duration, Instant }
 import java.util.UUID
 import scala.concurrent.duration.{ DurationInt, FiniteDuration }
 
-object DelayedDeliverySuite extends IOSuite {
-  override type Res = Pulsar.Underlying
-  override def sharedResource: Resource[IO, Res] =
-    Pulsar.make[IO](Config.Builder.default.url)
-
+object DelayedDeliverySuite extends NeutronSuite {
   case class ReceivedMessage(event: Event, ts: Instant)
 
   val delay: FiniteDuration = 2.seconds
   def now: IO[Instant]      = IO(Instant.now)
-  def mkTopic(s: String): Topic.Single =
-    Topic.Builder
-      .withName(s)
-      .withType(Topic.Type.Persistent)
-      .withConfig(cfg)
-      .build
 
   val event: Event        = Event(UUID.randomUUID(), "I'm delayed!")
-  val topic: Topic.Single = mkTopic(s"delayed-delivery-suite-${UUID.randomUUID().toString}")
+  val topic: Topic.Single = Topic.simple(s"delayed-delivery-suite-${UUID.randomUUID().toString}", Type.Persistent)
 
   val subscription: Subscription =
     Subscription.Builder
