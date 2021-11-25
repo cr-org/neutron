@@ -18,7 +18,7 @@ object AlwaysIncompatibleSchemaSuite extends NeutronSuite {
 
     res.attempt.use {
       case Left(_: IncompatibleSchemaException) => IO.pure(success)
-      case x                                    => IO(failure("Expected IncompatibleSchemaException"))
+      case _                                    => IO(failure("Expected IncompatibleSchemaException"))
     }
   }
 
