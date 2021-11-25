@@ -15,7 +15,15 @@ It is published for Scala $scala-versions$. You can include it in your project b
 Here's a quick consumer / producer example using Neutron. Note: both are fully asynchronous.
 
 ```scala mdoc:compile-only
-val url = PulsarURL("pulsar://localhost:6650")
+import scala.concurrent.duration._
+import cats.effect._
+import cr.pulsar.Pulsar.PulsarURL
+import fs2.Stream
+import cr.pulsar._
+import cr.pulsar.schema.utf8._
+
+object Demo extends IOApp.Simple {
+  val url = PulsarURL("pulsar://localhost:6650")
 
   val topic =
     Topic.simple("my-topic", Topic.Type.NonPersistent)
