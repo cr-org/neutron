@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.FiniteDuration
 
 object Pulsar {
-  import Config._
+  @newtype case class PulsarURL(value: String)
 
   type Underlying = JavaPulsar
 

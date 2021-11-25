@@ -19,10 +19,12 @@ package cr.pulsar
 import cats.Show
 import cats.syntax.all._
 import io.estatico.newtype.macros.newtype
-import scala.annotation.implicitNotFound
+
 import scala.util.matching.Regex
 
-sealed trait Topic
+sealed trait Topic {
+  def url: Topic.URL
+}
 
 /**
   * Topic names are URLs that have a well-defined structure:
@@ -38,20 +40,24 @@ sealed trait Topic
   */
 object Topic {
 
-  sealed abstract class Single extends Topic {
-    val name: Topic.Name
-    val url: Topic.URL
-  }
-
-  sealed abstract class Multi extends Topic {
-    val url: URL
-  }
+  case class Single(url: Topic.URL) extends Topic
+  case class Multi(url: Topic.URL) extends Topic
 
   implicit val showTopic: Show[Topic] =
     Show[String].contramap {
       case s: Single => s.url.value
       case m: Multi  => m.url.value
     }
+
+  @newtype case class Tenant(value: String)
+  object Tenant {
+    val default: Tenant = Tenant("public")
+  }
+
+  @newtype case class Namespace(value: String)
+  object Namespace {
+    val default: Namespace = Namespace("default")
+  }
 
   @newtype case class Name(value: String)
   @newtype case class NamePattern(value: Regex)
@@ -61,85 +67,37 @@ object Topic {
   object Type {
     case object Persistent extends Type
     case object NonPersistent extends Type
-    implicit val showType = Show.show[Type] {
+    implicit val showType: Show[Type] = Show.show[Type] {
       case Persistent    => "persistent"
       case NonPersistent => "non-persistent"
     }
   }
 
-  private def buildUrl(cfg: Config, name: Name, `type`: Type): URL =
-    URL(s"${`type`.show}://${cfg.tenant.value}/${cfg.namespace.value}/${name.value}")
+  private def buildUrl(tenant: Tenant, namespace: Namespace, name: Name, `type`: Type): URL =
+    URL(s"${`type`.show}://${tenant.value}/${namespace.value}/${name.value}")
 
-  private def buildRegexUrl(cfg: Config, namePattern: NamePattern, `type`: Type): URL =
-    URL(
-      s"${`type`.show}://${cfg.tenant.value}/${cfg.namespace.value}/${namePattern.value.regex}"
-    )
+  private def buildRegexUrl(tenant: Tenant, namespace: Namespace, namePattern: NamePattern, `type`: Type): URL =
+    URL(s"${`type`.show}://${tenant.value}/${namespace.value}/${namePattern.value.regex}")
 
-  /**************** Type-level builder ******************/
-  sealed trait Info
-  object Info {
-    sealed trait Empty extends Info
-    sealed trait Config extends Info
-    sealed trait Name extends Info
-    sealed trait Pattern extends Info
-    sealed trait Type extends Info
+  def simple(name: Name, `type`: Type): Topic.Single =
+    Single(buildUrl(Tenant("public"), Namespace("default"), name, `type`))
 
-    type SingleMandatory = Empty with Config with Name with Type
-    type MultiMandatory  = Empty with Config with Pattern with Type
-  }
+  def simple(name: String, `type`: Type): Topic.Single =
+    Single(buildUrl(Tenant("public"), Namespace("default"), Name(name), `type`))
 
-  case class TopicBuilder[I <: Info] protected (
-      _name: Either[Name, NamePattern] = Name("").asLeft,
-      _config: Config = Config.Builder.default,
-      _type: Type = Type.Persistent
-  ) {
-    def withName(name: Name): TopicBuilder[I with Info.Name] =
-      this.copy(_name = name.asLeft)
+  def simpleMulti(pattern: NamePattern, `type`: Type): Topic.Multi =
+    Multi(buildRegexUrl(Tenant.default, Namespace.default, pattern, `type`))
 
-    def withName(name: String): TopicBuilder[I with Info.Name] =
-      withName(Name(name))
+  def simpleMulti(pattern: Regex, `type`: Type): Topic.Multi =
+    Multi(buildRegexUrl(Tenant.default, Namespace.default, NamePattern(pattern), `type`))
 
-    def withNamePattern(pattern: NamePattern): TopicBuilder[I with Info.Pattern] =
-      this.copy(_name = pattern.asRight)
+  def single(tenant: Tenant, namespace: Namespace, name: Name, `type`: Type): Topic.Single =
+    Single(buildUrl(tenant, namespace, name, `type`))
 
-    def withNamePattern(regex: Regex): TopicBuilder[I with Info.Pattern] =
-      withNamePattern(NamePattern(regex))
+  def single(tenant: String, namespace: String, name: String, `type`: Type): Topic.Single =
+    Single(buildUrl(Tenant(tenant), Namespace(namespace), Name(name), `type`))
 
-    def withConfig(config: Config): TopicBuilder[I with Info.Config] =
-      this.copy(_config = config)
-
-    def withType(typ: Type): TopicBuilder[I with Info.Type] =
-      this.copy(_type = typ)
-
-    /**
-      * It creates a topic of type Single. By default, Type=Persistent.
-      */
-    def build(
-        implicit @implicitNotFound(
-          "Topic.Name and Config are mandatory. By default Type=Persistent."
-        ) ev: I =:= Info.SingleMandatory
-    ): Topic.Single = {
-      val t = _name.swap.toOption.get
-      new Single {
-        val name = t
-        val url  = buildUrl(_config, t, _type)
-      }
-    }
-
-    /**
-      * It creates a topic of type Multi. By default, Type=Persistent.
-      */
-    def buildMulti(
-        implicit @implicitNotFound(
-          "Topic.Pattern and Config are mandatory. By default Type=Persistent."
-        ) ev: I =:= Info.MultiMandatory
-    ): Topic.Multi =
-      new Multi {
-        val url = buildRegexUrl(_config, _name.toOption.get, _type)
-      }
-
-  }
-
-  object Builder extends TopicBuilder[Info.Empty with Info.Type]()
+  def multi(tenant: Tenant, namespace: Namespace, name: Name, `type`: Type): Topic.Multi =
+    Multi(buildUrl(tenant, namespace, name, `type`))
 
 }
