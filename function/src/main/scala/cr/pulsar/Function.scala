@@ -16,10 +16,7 @@
 
 package cr.pulsar
 
-import org.apache.pulsar.functions.api.{
-  Context => JavaContext,
-  Function => JavaFunction
-}
+import org.apache.pulsar.functions.api.{ Context => JavaContext, Function => JavaFunction }
 
 trait Function[In, Out] extends JavaFunction[In, Out] {
   def handle(input: In, context: Context): Out
