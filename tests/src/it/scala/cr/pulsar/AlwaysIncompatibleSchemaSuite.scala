@@ -1,40 +1,15 @@
 package cr.pulsar
 
+import cats.effect._
+import cr.pulsar.Topic.Type
 import cr.pulsar.domain._
 import cr.pulsar.schema.circe._
-
-import cats.effect._
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException
-import weaver.IOSuite
 
-object AlwaysIncompatibleSchemaSuite extends IOSuite {
+object AlwaysIncompatibleSchemaSuite extends NeutronSuite {
+  val topic = Topic.single("public", "nope", "json-always-incompatible", Type.Persistent)
 
-  val cfg = Config.Builder
-    .withTenant("public")
-    .withNameSpace("nope")
-    .withURL("pulsar://localhost:6650")
-    .build
-
-  override type Res = Pulsar.Underlying
-  override def sharedResource: Resource[IO, Res] = Pulsar.make[IO](cfg.url)
-
-  val sub = (s: String) =>
-    Subscription.Builder
-      .withName(s)
-      .withType(Subscription.Type.Failover)
-      .build
-
-  val topic = Topic.Builder
-    .withName("json-always-incompatible")
-    .withConfig(cfg)
-    .build
-
-  val batch = Producer.Batching.Disabled
-  val shard = (_: Event) => ShardKey.Default
-
-  test(
-    "ALWAYS_INCOMPATIBLE schemas: producer sends new Event_V2, Consumer expects old Event"
-  ) { client =>
+  test("ALWAYS_INCOMPATIBLE schemas: producer sends new Event_V2, Consumer expects old Event") { client =>
     val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event_V2])] =
       for {
         producer <- Producer.make[IO, Event_V2](client, topic)
@@ -43,7 +18,7 @@ object AlwaysIncompatibleSchemaSuite extends IOSuite {
 
     res.attempt.use {
       case Left(_: IncompatibleSchemaException) => IO.pure(success)
-      case _                                    => IO(failure("Expected IncompatibleSchemaException"))
+      case x                                    => IO(failure("Expected IncompatibleSchemaException"))
     }
   }
 
