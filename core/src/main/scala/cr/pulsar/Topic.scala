@@ -79,24 +79,45 @@ object Topic {
   private def buildRegexUrl(tenant: Tenant, namespace: Namespace, namePattern: NamePattern, `type`: Type): URL =
     URL(s"${`type`.show}://${tenant.value}/${namespace.value}/${namePattern.value.regex}")
 
+  /**
+    * Simple typed constructor to build a topic in `public/default` tenant/namespace
+    */
   def simple(name: Name, `type`: Type): Topic.Single =
     Single(buildUrl(Tenant("public"), Namespace("default"), name, `type`))
 
+  /**
+    * Simple untyped constructor to build a topic in `public/default` tenant/namespace
+    */
   def simple(name: String, `type`: Type): Topic.Single =
     Single(buildUrl(Tenant("public"), Namespace("default"), Name(name), `type`))
 
+  /**
+    * Simple typed constructor to build a multi topic in `public/default` tenant/namespace
+    */
   def simpleMulti(pattern: NamePattern, `type`: Type): Topic.Multi =
     Multi(buildRegexUrl(Tenant.default, Namespace.default, pattern, `type`))
 
+  /**
+    * Simple typed constructor to build a multi topic in public/default tenant/namespace
+    */
   def simpleMulti(pattern: Regex, `type`: Type): Topic.Multi =
     Multi(buildRegexUrl(Tenant.default, Namespace.default, NamePattern(pattern), `type`))
 
+  /**
+    * Typed constructor to build a topic in a custom tenant/namespace
+    */
   def single(tenant: Tenant, namespace: Namespace, name: Name, `type`: Type): Topic.Single =
     Single(buildUrl(tenant, namespace, name, `type`))
 
+  /**
+    * Untyped constructor to build a topic in a custom tenant/namespace
+    */
   def single(tenant: String, namespace: String, name: String, `type`: Type): Topic.Single =
     Single(buildUrl(Tenant(tenant), Namespace(namespace), Name(name), `type`))
 
+  /**
+    * Typed constructor to build a multi topic in a custom tenant/namespace
+    */
   def multi(tenant: Tenant, namespace: Namespace, name: Name, `type`: Type): Topic.Multi =
     Multi(buildUrl(tenant, namespace, name, `type`))
 
