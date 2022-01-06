@@ -24,7 +24,6 @@ import io.circe._
 import io.circe.parser.{ decode => jsonDecode }
 import io.circe.syntax._
 import org.apache.pulsar.client.api.{ Schema => JSchema }
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl
 import org.apache.pulsar.common.schema.{ SchemaInfo, SchemaType }
 
 trait CirceDerivation {
@@ -41,7 +40,7 @@ trait CirceDerivation {
           )
 
         override def getSchemaInfo(): SchemaInfo =
-          new SchemaInfoImpl()
+          new SchemaInfo()
             .setName(implicitly[ClassTag[T]].runtimeClass.getCanonicalName)
             .setType(SchemaType.JSON)
             .setSchema(JsonSchema[T].avro.toString.getBytes(UTF_8))
