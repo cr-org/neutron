@@ -11,7 +11,7 @@ object Dependencies {
     val circe      = "0.14.1"
     val fs2        = "3.2.2"
     val newtype    = "0.4.4"
-    val pulsar     = "2.8.1"
+    val pulsar     = "2.7.4"
     val weaver     = "0.7.7"
 
     val betterMonadicFor = "0.3.1"
