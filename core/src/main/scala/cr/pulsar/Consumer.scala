@@ -23,7 +23,13 @@ import cats.effect._
 import cats.syntax.all._
 import cr.pulsar.internal.FutureLift
 import fs2._
-import org.apache.pulsar.client.api.{ DeadLetterPolicy, MessageId, SubscriptionInitialPosition, Consumer => JConsumer }
+import org.apache.pulsar.client.api.{
+  ConsumerEventListener,
+  DeadLetterPolicy,
+  MessageId,
+  SubscriptionInitialPosition,
+  Consumer => JConsumer
+}
 
 trait Consumer[F[_], E] {
 
@@ -48,6 +54,11 @@ trait Consumer[F[_], E] {
     * Auto-ack subscription that consumes the message payload directly.
     */
   def autoSubscribe: Stream[F, E]
+
+  /**
+    * Subscription that processes a message and acks it afterwards
+    */
+  def process[T](processor: E => F[T]): Stream[F, T]
 
   /**
     * This operation fails when performed on a shared subscription where multiple
@@ -116,6 +127,19 @@ object Consumer {
             subscribeInternal(autoAck = false)
           override def autoSubscribe: Stream[F, E] =
             subscribeInternal(autoAck = true).map(_.payload)
+
+          override def process[T](processor: E => F[T]): Stream[F, T] =
+            Stream
+              .repeatEval {
+                F.futureLift(c.receiveAsync()).flatMap { m =>
+                  opts.logger.log(Topic.URL(m.getTopicName), m.getValue()).as(m)
+                }
+              }
+              .evalMap { msg =>
+                processor(msg.getValue()).flatMap { result =>
+                  ack(msg.getMessageId).as(result)
+                }
+              }
         }
       }
   }
