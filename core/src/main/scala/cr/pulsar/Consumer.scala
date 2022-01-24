@@ -23,13 +23,7 @@ import cats.effect._
 import cats.syntax.all._
 import cr.pulsar.internal.FutureLift
 import fs2._
-import org.apache.pulsar.client.api.{
-  ConsumerEventListener,
-  DeadLetterPolicy,
-  MessageId,
-  SubscriptionInitialPosition,
-  Consumer => JConsumer
-}
+import org.apache.pulsar.client.api.{ DeadLetterPolicy, MessageId, SubscriptionInitialPosition, Consumer => JConsumer }
 
 trait Consumer[F[_], E] {
 
