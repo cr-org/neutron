@@ -15,6 +15,8 @@ case class Event(uuid: UUID, value: String) {
 }
 
 object Event {
+  def mkEvent: Event = Event(UUID.randomUUID(), "test")
+
   implicit val eq: Eq[Event] = Eq.by(_.uuid)
 
   implicit val jsonEncoder: Encoder[Event] = deriveEncoder

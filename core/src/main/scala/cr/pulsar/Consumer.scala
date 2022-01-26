@@ -130,9 +130,9 @@ object Consumer {
                 }
               }
               .evalMap { msg =>
-                processor(msg.getValue()).flatMap { result =>
-                  ack(msg.getMessageId).as(result)
-                }
+                processor(msg.getValue())
+                  .flatMap(result => ack(msg.getMessageId).as(result))
+                  .onError(_ => nack(msg.getMessageId))
               }
         }
       }
