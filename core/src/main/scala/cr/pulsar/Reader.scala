@@ -186,7 +186,7 @@ object Reader {
     }
 
     def apply(): Options = OptionsImpl(
-      MessageId.latest,
+      MessageId.earliest,
       readCompacted = false
     )
   }
