@@ -2,7 +2,6 @@ package cr.pulsar
 
 import cats.effect.{ IO, Ref, Resource }
 import cats.syntax.all._
-import cr.pulsar.Topic.Type
 import cr.pulsar.domain.Event
 import cr.pulsar.schema.circe._
 import fs2.Stream
@@ -11,9 +10,9 @@ import java.nio.charset.StandardCharsets.UTF_8
 import java.util.UUID
 
 object KeySharedSuite extends NeutronSuite {
-  val topic = Topic.simple("shared", Type.Persistent)
-
   test("A message with key is published and consumed successfully by the right consumer") { client =>
+    val topic = mkTopic
+
     val makeSub =
       (n: String) =>
         Subscription.Builder
