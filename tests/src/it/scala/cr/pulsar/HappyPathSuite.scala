@@ -1,7 +1,6 @@
 package cr.pulsar
 
 import cats.effect.{ Deferred, IO, Resource }
-import cr.pulsar.Topic.Type
 import cr.pulsar.domain.Event
 import cr.pulsar.schema.circe._
 import cr.pulsar.schema.utf8._
@@ -11,7 +10,7 @@ import java.util.UUID
 
 object HappyPathSuite extends NeutronSuite {
   test("A message is published and consumed successfully using Schema.JSON via Circe") { client =>
-    val hpTopic = Topic.simple("happy-path-json", Type.Persistent)
+    val hpTopic = mkTopic
 
     val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event])] =
       for {
@@ -46,7 +45,7 @@ object HappyPathSuite extends NeutronSuite {
   }
 
   test("A message is published and consumed successfully using Schema.BYTES via Inject") { client =>
-    val hpTopic = Topic.simple("happy-path-bytes", Type.Persistent)
+    val hpTopic = mkTopic
 
     val res: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
       for {

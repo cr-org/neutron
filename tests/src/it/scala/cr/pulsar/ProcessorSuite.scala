@@ -2,7 +2,6 @@ package cr.pulsar
 
 import cats.effect.{ Deferred, IO, Resource }
 import cr.pulsar.schema.circe._
-import cr.pulsar.Topic.Type
 import cr.pulsar.domain.Event
 import fs2.Stream
 
@@ -10,7 +9,7 @@ import java.util.UUID
 
 object ProcessorSuite extends NeutronSuite {
   test("Processor should consume and ack messages") { client =>
-    val hpTopic = Topic.simple("processor-suite", Type.Persistent)
+    val hpTopic = mkTopic
 
     val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event])] =
       for {
@@ -42,7 +41,7 @@ object ProcessorSuite extends NeutronSuite {
   }
 
   test("Message should be nacked if processor failed") { client =>
-    val hpTopic = Topic.simple("processor-nack-suite", Type.Persistent)
+    val hpTopic = mkTopic
 
     val res: Resource[IO, (Consumer[IO, Event], Consumer[IO, Event], Producer[IO, Event])] =
       for {

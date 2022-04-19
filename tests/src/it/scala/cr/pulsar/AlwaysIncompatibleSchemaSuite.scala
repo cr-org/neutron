@@ -7,13 +7,13 @@ import cr.pulsar.schema.circe._
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException
 
 object AlwaysIncompatibleSchemaSuite extends NeutronSuite {
-  val topic = Topic.single("public", "nope", "json-always-incompatible", Type.Persistent)
-
   test("ALWAYS_INCOMPATIBLE schemas: producer sends new Event_V2, Consumer expects old Event") { client =>
+    val topic = Topic.single("public", "incompat", "test-incompat", Type.Persistent)
+
     val res: Resource[IO, (Consumer[IO, Event], Producer[IO, Event_V2])] =
       for {
         producer <- Producer.make[IO, Event_V2](client, topic)
-        consumer <- Consumer.make[IO, Event](client, topic, sub("circe"))
+        consumer <- Consumer.make[IO, Event](client, topic, sub("mysub"))
       } yield consumer -> producer
 
     res.attempt.use {
@@ -21,5 +21,4 @@ object AlwaysIncompatibleSchemaSuite extends NeutronSuite {
       case _                                    => IO(failure("Expected IncompatibleSchemaException"))
     }
   }
-
 }
