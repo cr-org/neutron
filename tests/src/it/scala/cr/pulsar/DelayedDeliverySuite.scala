@@ -1,7 +1,6 @@
 package cr.pulsar
 
 import cats.effect.{ IO, Ref }
-import cr.pulsar.Topic.Type
 import cr.pulsar.domain.Event
 import cr.pulsar.schema.circe.circeInstance
 
@@ -15,14 +14,13 @@ object DelayedDeliverySuite extends NeutronSuite {
   val delay: FiniteDuration = 2.seconds
   def now: IO[Instant]      = IO(Instant.now)
 
-  val event: Event        = Event(UUID.randomUUID(), "I'm delayed!")
-  val topic: Topic.Single = Topic.simple(s"delayed-delivery-suite-${UUID.randomUUID().toString}", Type.Persistent)
-
   val subscription: Subscription =
     Subscription.Builder
       .withName(s"dd-shared-${UUID.randomUUID().toString}")
       .withType(Subscription.Type.Shared)
       .build
+
+  val topic = mkTopic
 
   test(s"A message is published and consumed after a delay with shared subscription") { client =>
     val resources = for {
@@ -41,7 +39,7 @@ object DelayedDeliverySuite extends NeutronSuite {
                 .evalMap(msg => ref.update(_ :+ msg))
                 .take(1)
                 .compile
-                .drain &> producer.sendDelayed_(event, delay)
+                .drain &> producer.sendDelayed_(mkEvent, delay)
           }
 
       result <- ref.get
