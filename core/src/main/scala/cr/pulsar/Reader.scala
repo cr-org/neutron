@@ -105,10 +105,9 @@ object Reader {
             F.pure(None)
         }
 
-      override def messageAvailable: F[MessageAvailable] =
-        F.futureLift(c.hasMessageAvailableAsync).map { hasAvailable =>
-          if (hasAvailable) MessageAvailable.Yes else MessageAvailable.No
-        }
+      override def messageAvailable: F[MessageAvailable] = F.delay {
+        if (c.hasMessageAvailable) MessageAvailable.Yes else MessageAvailable.No
+      }
     }
 
   private def mkPayloadReader[F[_]: Functor, E](m: MessageReader[F, E]): Reader[F, E] =
