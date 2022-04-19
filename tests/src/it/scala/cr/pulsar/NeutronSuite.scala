@@ -25,7 +25,7 @@ import weaver.IOSuite
 import java.util.UUID
 
 trait NeutronSuite extends IOSuite {
-  def event: Event = Event(UUID.randomUUID(), "test")
+  def mkEvent: Event = Event(UUID.randomUUID(), "test")
   def mkTopic: Topic.Single =
     Topic.single(Tenant("neutron"), Namespace("test"), Name("test-" + UUID.randomUUID().toString), Type.Persistent)
 

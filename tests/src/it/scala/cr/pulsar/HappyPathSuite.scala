@@ -6,8 +6,6 @@ import cr.pulsar.schema.circe._
 import cr.pulsar.schema.utf8._
 import fs2.Stream
 
-import java.util.UUID
-
 object HappyPathSuite extends NeutronSuite {
   test("A message is published and consumed successfully using Schema.JSON via Circe") { client =>
     val hpTopic = mkTopic
@@ -27,7 +25,7 @@ object HappyPathSuite extends NeutronSuite {
               consumer.subscribe
                 .evalMap(msg => consumer.ack(msg.id) >> latch.complete(msg.payload))
 
-            val testEvent = Event(UUID.randomUUID(), "test")
+            val testEvent = mkEvent
 
             val produce =
               Stream(testEvent)

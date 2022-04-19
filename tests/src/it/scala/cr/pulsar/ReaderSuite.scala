@@ -19,7 +19,7 @@ object ReaderSuite extends NeutronSuite {
         case (producer, reader) =>
           for {
             res1 <- reader.messageAvailable
-            _ <- producer.send(event)
+            _ <- producer.send(mkEvent)
             res2 <- reader.messageAvailable
           } yield {
             expect.same(MessageAvailable.No, res1) &&
@@ -30,6 +30,7 @@ object ReaderSuite extends NeutronSuite {
 
   test("Reader can read a message if it exists") { client =>
     val topic = mkTopic
+    val event = mkEvent
 
     val resources = for {
       prod <- Producer.make[IO, Event](client, topic)

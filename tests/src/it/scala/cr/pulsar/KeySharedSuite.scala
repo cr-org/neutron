@@ -20,8 +20,7 @@ object KeySharedSuite extends NeutronSuite {
           .withType(Subscription.Type.KeyShared)
           .build
 
-    val opts =
-      Producer.Options[IO, Event]().withShardKey(_.shardKey).withBatching(batch)
+    val opts = Producer.Options[IO, Event]().withShardKey(_.shardKey).withBatching(batch)
 
     val res: Resource[
       IO,
