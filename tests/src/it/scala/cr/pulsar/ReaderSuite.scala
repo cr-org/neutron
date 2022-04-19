@@ -8,7 +8,6 @@ import cr.pulsar.schema.circe._
 object ReaderSuite extends NeutronSuite {
   test("Reader can check if topic has messages") { client =>
     val topic = mkTopic
-    println("Topic1: " + topic.url.value)
     val event = mkEvent
 
     val resources = for {
@@ -20,10 +19,6 @@ object ReaderSuite extends NeutronSuite {
       case (producer, reader) =>
         for {
           res1 <- reader.messageAvailable
-          _ <- if (res1 == MessageAvailable.Yes) reader.read1.flatMap { e =>
-                IO.println(s"Received unexpected event: ${e}, expected: ${event}")
-              }
-              else IO.println("As expected")
           _ <- producer.send(event)
           res2 <- reader.messageAvailable
         } yield {
@@ -35,7 +30,6 @@ object ReaderSuite extends NeutronSuite {
 
   test("Reader can read a message if it exists") { client =>
     val topic = mkTopic
-    println("Topic2: " + topic.url.value)
     val event = mkEvent
 
     val resources = for {
