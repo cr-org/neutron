@@ -2,18 +2,16 @@ package cr.pulsar
 
 import cats.effect.IO
 import cr.pulsar.Reader.MessageAvailable
-import cr.pulsar.Topic.Type
 import cr.pulsar.domain.Event
 import cr.pulsar.schema.circe._
 
-import java.util.UUID
-
 object ReaderSuite extends NeutronSuite {
   test("Reader can check if topic has messages") { client =>
-    val hpTopic = Topic.simple("reader-test" + UUID.randomUUID(), Type.Persistent)
+    val topic = mkTopic
+
     val resources = for {
-      prod <- Producer.make[IO, Event](client, hpTopic)
-      reader <- Reader.make[IO, Event](client, hpTopic)
+      prod <- Producer.make[IO, Event](client, topic)
+      reader <- Reader.make[IO, Event](client, topic)
     } yield prod -> reader
 
     resources
@@ -21,7 +19,7 @@ object ReaderSuite extends NeutronSuite {
         case (producer, reader) =>
           for {
             res1 <- reader.messageAvailable
-            _ <- producer.send(Event(UUID.randomUUID(), "test"))
+            _ <- producer.send(mkEvent)
             res2 <- reader.messageAvailable
           } yield {
             expect.same(MessageAvailable.No, res1) &&
@@ -31,12 +29,12 @@ object ReaderSuite extends NeutronSuite {
   }
 
   test("Reader can read a message if it exists") { client =>
-    val hpTopic = Topic.simple("reader-test" + UUID.randomUUID(), Type.Persistent)
-    val event   = Event(UUID.randomUUID(), "test")
+    val topic = mkTopic
+    val event = mkEvent
 
     val resources = for {
-      prod <- Producer.make[IO, Event](client, hpTopic)
-      reader <- Reader.make[IO, Event](client, hpTopic)
+      prod <- Producer.make[IO, Event](client, topic)
+      reader <- Reader.make[IO, Event](client, topic)
     } yield prod -> reader
 
     resources
