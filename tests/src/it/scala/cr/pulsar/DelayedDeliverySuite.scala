@@ -39,7 +39,7 @@ object DelayedDeliverySuite extends NeutronSuite {
                 .evalMap(msg => ref.update(_ :+ msg))
                 .take(1)
                 .compile
-                .drain &> producer.sendDelayed_(event, delay)
+                .drain &> producer.sendDelayed_(mkEvent, delay)
           }
 
       result <- ref.get

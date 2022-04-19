@@ -7,8 +7,6 @@ import cr.pulsar.schema.circe._
 import fs2.Stream
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException
 
-import java.util.UUID
-
 object BackwardCompatSchemaSuite extends NeutronSuite {
   test("BACKWARD compatibility: producer sends old Event, Consumer expects Event_V2") { client =>
     val topic = mkTopic
@@ -36,9 +34,8 @@ object BackwardCompatSchemaSuite extends NeutronSuite {
                       }
                   }
 
-              val testEvent = Event(UUID.randomUUID(), "test")
-
-              val events = List.fill(5)(testEvent)
+              val testEvent = mkEvent
+              val events    = List.fill(5)(testEvent)
 
               val produce =
                 Stream.eval {
