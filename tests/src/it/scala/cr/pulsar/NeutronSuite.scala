@@ -18,10 +18,17 @@ package cr.pulsar
 
 import cats.effect._
 import cr.pulsar.Pulsar.PulsarURL
+import cr.pulsar.Topic.{ Name, Namespace, Tenant, Type }
 import cr.pulsar.domain._
 import weaver.IOSuite
 
+import java.util.UUID
+
 trait NeutronSuite extends IOSuite {
+  def mkEvent: Event = Event(UUID.randomUUID(), "test")
+  def mkTopic: Topic.Single =
+    Topic.single(Tenant("neutron"), Namespace("test"), Name("test-" + UUID.randomUUID().toString), Type.Persistent)
+
   val url = PulsarURL("pulsar://localhost:6650")
 
   val batch = Producer.Batching.Disabled

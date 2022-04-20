@@ -2,18 +2,15 @@ package cr.pulsar
 
 import cats.effect._
 import cats.implicits._
-import cr.pulsar.Topic.Type
 import cr.pulsar.domain._
 import cr.pulsar.schema.circe._
 import fs2.Stream
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException
 
-import java.util.UUID
-
 object BackwardCompatSchemaSuite extends NeutronSuite {
-  val topic = Topic.simple("json-backward", Type.Persistent)
-
   test("BACKWARD compatibility: producer sends old Event, Consumer expects Event_V2") { client =>
+    val topic = mkTopic
+
     val res: Resource[IO, (Consumer[IO, Event_V2], Producer[IO, Event])] =
       for {
         producer <- Producer.make[IO, Event](client, topic)
@@ -37,9 +34,8 @@ object BackwardCompatSchemaSuite extends NeutronSuite {
                       }
                   }
 
-              val testEvent = Event(UUID.randomUUID(), "test")
-
-              val events = List.fill(5)(testEvent)
+              val testEvent = mkEvent
+              val events    = List.fill(5)(testEvent)
 
               val produce =
                 Stream.eval {
@@ -58,7 +54,7 @@ object BackwardCompatSchemaSuite extends NeutronSuite {
   test(
     "BACKWARD compatibility: producer sends old Event, Consumer expects Event_V3, should break"
   ) { client =>
-    val topic = Topic.simple("json-backward-broken", Type.Persistent)
+    val topic = mkTopic
 
     val res =
       for {

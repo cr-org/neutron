@@ -1,8 +1,43 @@
-pulsar:
-  restart: always
-  image: apachepulsar/pulsar:2.7.4
-  ports:
-    - "6650:6650"
-    - "8080:8080"
-  command: >
-    /bin/bash -c "bin/pulsar standalone"
+# Compose specification: https://github.com/compose-spec/compose-spec/blob/master/spec.md
+
+services:
+  pulsar:
+    restart: always
+    image: apachepulsar/pulsar:2.9.1
+    container_name: neutron_pulsar
+    ports:
+      - "6650:6650"
+      - "8080:8080"
+    command: >
+      /bin/bash -c "bin/pulsar standalone"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:8080/admin/v2/brokers/health"
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 2m
+
+  pulsar-init:
+    image: docker
+    container_name: neutron_pulsar_1-init
+    privileged: true
+    depends_on:
+      pulsar:
+        condition: service_healthy
+    command: >
+      /bin/sh -c "echo 'Initializing Pulsar...' &&
+      docker exec neutron_pulsar bin/pulsar-admin tenants create neutron > /dev/null 2>&1 || true &&
+      docker exec neutron_pulsar bin/pulsar-admin namespaces create neutron/test > /dev/null 2>&1 || true &&
+      docker exec neutron_pulsar bin/pulsar-admin namespaces set-schema-compatibility-strategy -c BACKWARD neutron/test > /dev/null 2>&1 || true &&
+      docker exec neutron_pulsar bin/pulsar-admin namespaces set-retention --time 50m --size 200M neutron/test > /dev/null 2>&1 || true &&
+      docker exec neutron_pulsar bin/pulsar-admin namespaces create public/incompat > /dev/null 2>&1 || true &&
+      docker exec neutron_pulsar bin/pulsar-admin namespaces set-schema-compatibility-strategy -c ALWAYS_INCOMPATIBLE public/incompat > /dev/null 2>&1 || true &&
+      echo 'Pulsar initialized'"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
