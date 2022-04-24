@@ -33,7 +33,6 @@ import scala.util.control.NoStackTrace
   */
 trait MessageReader[F[_], E] {
   def read: Stream[F, Message[E]]
-  def read1: F[Option[Message[E]]]
   def readUntil(timeout: FiniteDuration): F[Option[Message[E]]]
   def messageAvailable: F[MessageAvailable]
 }
@@ -43,7 +42,6 @@ trait MessageReader[F[_], E] {
   */
 trait Reader[F[_], E] {
   def read: Stream[F, E]
-  def read1: F[Option[E]]
   def readUntil(timeout: FiniteDuration): F[Option[E]]
   def messageAvailable: F[MessageAvailable]
 }
@@ -81,28 +79,19 @@ object Reader {
       E: Schema
   ](c: JReader[E]): MessageReader[F, E] =
     new MessageReader[F, E] {
-      private def readMsg: F[Message[E]] =
-        F.futureLift(c.readNextAsync()).map { m =>
-          Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
-        }
+      private def readMsg: F[Message[E]] = F.delay {
+        val m = c.readNext()
+        Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
+      }
 
       override def read: Stream[F, Message[E]] =
         Stream.repeatEval(readMsg)
 
-      override def read1: F[Option[Message[E]]] =
-        messageAvailable.flatMap {
-          case MessageAvailable.Yes => readMsg.map(Some(_))
-          case MessageAvailable.No  => F.pure(None)
-        }
-
       override def readUntil(timeout: FiniteDuration): F[Option[Message[E]]] =
-        messageAvailable.flatMap {
-          case MessageAvailable.Yes =>
-            F.delay(c.readNext(timeout.length.toInt, timeout.unit)).map { m =>
-              Some(Message(m.getMessageId, MessageKey(m.getKey), m.getValue))
-            }
-          case MessageAvailable.No =>
-            F.pure(None)
+        F.delay(c.readNext(timeout.length.toInt, timeout.unit)).map {
+          Option(_).map { m =>
+            Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
+          }
         }
 
       override def messageAvailable: F[MessageAvailable] = F.delay {
@@ -112,8 +101,7 @@ object Reader {
 
   private def mkPayloadReader[F[_]: Functor, E](m: MessageReader[F, E]): Reader[F, E] =
     new Reader[F, E] {
-      override def read: Stream[F, E]  = m.read.map(_.payload)
-      override def read1: F[Option[E]] = m.read1.map(_.map(_.payload))
+      override def read: Stream[F, E] = m.read.map(_.payload)
       override def readUntil(timeout: FiniteDuration): F[Option[E]] =
         m.readUntil(timeout).map(_.map(_.payload))
       override def messageAvailable: F[MessageAvailable] = m.messageAvailable
