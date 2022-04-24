@@ -1,5 +1,3 @@
-name: Steward
-
 # This workflow will launch at 00:00 every Sunday
 on:
   schedule:
