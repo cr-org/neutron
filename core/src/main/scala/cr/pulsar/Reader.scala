@@ -94,17 +94,9 @@ object Reader {
           }
         }
 
-      override def messageAvailable: F[MessageAvailable] =
-        F.delay {
-          println("MR messageAvailable 2")
-          if (c.hasMessageAvailable) {
-            println("MR messageAvailable 3")
-            MessageAvailable.Yes
-          } else {
-            println("MR messageAvailable 4")
-            MessageAvailable.No
-          }
-        }
+      override def messageAvailable: F[MessageAvailable] = F.delay {
+        if (c.hasMessageAvailable) MessageAvailable.Yes else MessageAvailable.No
+      }
     }
 
   private def mkPayloadReader[F[_]: Functor, E](m: MessageReader[F, E]): Reader[F, E] =
