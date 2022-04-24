@@ -1,7 +1,6 @@
 package cr.pulsar
 
 import cats.effect.IO
-import cr.pulsar.Reader.MessageAvailable
 import cr.pulsar.domain.Event
 import cr.pulsar.schema.circe._
 
