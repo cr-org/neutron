@@ -81,10 +81,19 @@ object Reader {
       E: Schema
   ](c: JReader[E]): MessageReader[F, E] =
     new MessageReader[F, E] {
-      private def readMsg: F[Message[E]] =
-        F.futureLift(c.readNextAsync()).map { m =>
-          Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
-        }
+      private def readMsg: F[Message[E]] = {
+        println("readMsg 1")
+        F.futureLift(c.readNextAsync())
+          .map { m =>
+            println("readMsg 2")
+            Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
+          }
+          .handleErrorWith {
+            case x =>
+              println("ERROR: " + x.getMessage)
+              F.raiseError(x)
+          }
+      }
 
       override def read: Stream[F, Message[E]] =
         Stream.repeatEval(readMsg)
