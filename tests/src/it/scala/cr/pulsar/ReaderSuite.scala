@@ -1,44 +1,15 @@
 package cr.pulsar
 
 import cats.effect.IO
-import cr.pulsar.Reader.MessageAvailable
 import cr.pulsar.domain.Event
 import cr.pulsar.schema.circe._
 
+import scala.concurrent.duration.DurationInt
+
 object ReaderSuite extends NeutronSuite {
-  test("Reader can check if topic has messages") { client =>
-    val topic = mkTopic
-    println(s"Topic1: " + topic.url.value)
-    val event = mkEvent
-    println("Event1: " + event)
-
-    val resources = for {
-      prod <- Producer.make[IO, Event](client, topic)
-      reader <- Reader.make[IO, Event](client, topic)
-    } yield prod -> reader
-
-    resources.use {
-      case (producer, reader) =>
-        for {
-          res1 <- reader.messageAvailable
-          _ <- if (res1 == MessageAvailable.Yes) reader.read1.flatMap { e =>
-                IO.println(s"Received unexpected event: $e, expected: $event")
-              }
-              else IO.println(s"As expected")
-          _ <- producer.send(event)
-          res2 <- reader.messageAvailable
-        } yield {
-          expect.same(MessageAvailable.No, res1) &&
-          expect.same(MessageAvailable.Yes, res2)
-        }
-    }
-  }
-
   test("Reader can read a message if it exists") { client =>
     val topic = mkTopic
     val event = mkEvent
-    println("Topic2: " + topic.url.value)
-    println("Event2: " + event)
 
     val resources = for {
       prod <- Producer.make[IO, Event](client, topic)
@@ -48,9 +19,9 @@ object ReaderSuite extends NeutronSuite {
     resources.use {
       case (producer, reader) =>
         for {
-          res1 <- reader.read1
+          res1 <- reader.readUntil(1.second)
           _ <- producer.send(event)
-          res2 <- reader.read1
+          res2 <- reader.readUntil(1.second)
         } yield {
           expect.same(None, res1) &&
           expect.same(Some(event), res2)
