@@ -4,6 +4,8 @@ import cats.effect.IO
 import cr.pulsar.domain.Event
 import cr.pulsar.schema.circe._
 
+import scala.concurrent.duration.DurationInt
+
 object ReaderSuite extends NeutronSuite {
   test("Reader can read a message if it exists") { client =>
     val topic = mkTopic
@@ -18,11 +20,11 @@ object ReaderSuite extends NeutronSuite {
       case (producer, reader) =>
         println("Read0")
         for {
-          res1 <- reader.read1
+          res1 <- reader.readUntil(1.second)
           _ = println("Read1")
           _ <- producer.send(event)
           _ = println("Send1")
-          res2 <- reader.read1
+          res2 <- reader.readUntil(1.second)
           _ = println("Read2")
         } yield {
           expect.same(None, res1) &&

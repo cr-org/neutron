@@ -33,7 +33,6 @@ import scala.util.control.NoStackTrace
   */
 trait MessageReader[F[_], E] {
   def read: Stream[F, Message[E]]
-  def read1: F[Option[Message[E]]]
   def readUntil(timeout: FiniteDuration): F[Option[Message[E]]]
   def messageAvailable: F[MessageAvailable]
 }
@@ -43,7 +42,6 @@ trait MessageReader[F[_], E] {
   */
 trait Reader[F[_], E] {
   def read: Stream[F, E]
-  def read1: F[Option[E]]
   def readUntil(timeout: FiniteDuration): F[Option[E]]
   def messageAvailable: F[MessageAvailable]
 }
@@ -82,27 +80,12 @@ object Reader {
   ](c: JReader[E]): MessageReader[F, E] =
     new MessageReader[F, E] {
       private def readMsg: F[Message[E]] = F.delay {
-        println("readMsg 1")
         val m = c.readNext()
-        println("readMsg 2")
         Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
       }
 
       override def read: Stream[F, Message[E]] =
         Stream.repeatEval(readMsg)
-
-      override def read1: F[Option[Message[E]]] = {
-        println("MR read1 1")
-
-        messageAvailable.flatMap {
-          case MessageAvailable.Yes =>
-            println("MR read1 2")
-            readMsg.map(Some(_))
-          case MessageAvailable.No =>
-            println("MR read1 3")
-            F.pure(None)
-        }
-      }
 
       override def readUntil(timeout: FiniteDuration): F[Option[Message[E]]] =
         messageAvailable.flatMap {
@@ -133,13 +116,6 @@ object Reader {
   private def mkPayloadReader[F[_]: Functor, E](m: MessageReader[F, E]): Reader[F, E] =
     new Reader[F, E] {
       override def read: Stream[F, E] = m.read.map(_.payload)
-      override def read1: F[Option[E]] = {
-        println("PR read1 1")
-        m.read1.map(_.map(_.payload)).map { x =>
-          println("PR read1 2")
-          x
-        }
-      }
       override def readUntil(timeout: FiniteDuration): F[Option[E]] =
         m.readUntil(timeout).map(_.map(_.payload))
       override def messageAvailable: F[MessageAvailable] = m.messageAvailable
