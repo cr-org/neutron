@@ -88,13 +88,10 @@ object Reader {
         Stream.repeatEval(readMsg)
 
       override def readUntil(timeout: FiniteDuration): F[Option[Message[E]]] =
-        messageAvailable.flatMap {
-          case MessageAvailable.Yes =>
-            F.delay(c.readNext(timeout.length.toInt, timeout.unit)).map { m =>
-              Some(Message(m.getMessageId, MessageKey(m.getKey), m.getValue))
-            }
-          case MessageAvailable.No =>
-            F.pure(None)
+        F.delay(c.readNext(timeout.length.toInt, timeout.unit)).map {
+          Option(_).map { m =>
+            Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
+          }
         }
 
       override def messageAvailable: F[MessageAvailable] = {
