@@ -89,11 +89,18 @@ object Reader {
       override def read: Stream[F, Message[E]] =
         Stream.repeatEval(readMsg)
 
-      override def read1: F[Option[Message[E]]] =
+      override def read1: F[Option[Message[E]]] = {
+        println("MR read1 1")
+
         messageAvailable.flatMap {
-          case MessageAvailable.Yes => readMsg.map(Some(_))
-          case MessageAvailable.No  => F.pure(None)
+          case MessageAvailable.Yes =>
+            println("MR read1 2")
+            readMsg.map(Some(_))
+          case MessageAvailable.No =>
+            println("MR read1 3")
+            F.pure(None)
         }
+      }
 
       override def readUntil(timeout: FiniteDuration): F[Option[Message[E]]] =
         messageAvailable.flatMap {
@@ -105,15 +112,32 @@ object Reader {
             F.pure(None)
         }
 
-      override def messageAvailable: F[MessageAvailable] = F.delay {
-        if (c.hasMessageAvailable) MessageAvailable.Yes else MessageAvailable.No
+      override def messageAvailable: F[MessageAvailable] = {
+        println("MR messageAvailable 1")
+
+        F.delay {
+          println("MR messageAvailable 2")
+          if (c.hasMessageAvailable) {
+            println("MR messageAvailable 3")
+            MessageAvailable.Yes
+          } else {
+            println("MR messageAvailable 4")
+            MessageAvailable.No
+          }
+        }
       }
     }
 
   private def mkPayloadReader[F[_]: Functor, E](m: MessageReader[F, E]): Reader[F, E] =
     new Reader[F, E] {
-      override def read: Stream[F, E]  = m.read.map(_.payload)
-      override def read1: F[Option[E]] = m.read1.map(_.map(_.payload))
+      override def read: Stream[F, E] = m.read.map(_.payload)
+      override def read1: F[Option[E]] = {
+        println("PR read1 1")
+        m.read1.map(_.map(_.payload)).map { x =>
+          println("PR read1 2")
+          x
+        }
+      }
       override def readUntil(timeout: FiniteDuration): F[Option[E]] =
         m.readUntil(timeout).map(_.map(_.payload))
       override def messageAvailable: F[MessageAvailable] = m.messageAvailable
