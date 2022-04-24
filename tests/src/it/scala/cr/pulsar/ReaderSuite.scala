@@ -16,10 +16,14 @@ object ReaderSuite extends NeutronSuite {
 
     resources.use {
       case (producer, reader) =>
+        println("Read0")
         for {
           res1 <- reader.read1
+          _ = println("Read1")
           _ <- producer.send(event)
+          _ = println("Send1")
           res2 <- reader.read1
+          _ = println("Read2")
         } yield {
           expect.same(None, res1) &&
           expect.same(Some(event), res2)
