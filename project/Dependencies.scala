@@ -5,7 +5,7 @@ object Dependencies {
   object V {
     val java8Compat = "1.0.2"
 
-    val avro4s = "4.0.13"
+    val avro4s = "4.1.0"
     val cats   = "2.7.0"
 
     val catsEffect = "3.3.12"
