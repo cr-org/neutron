@@ -71,7 +71,7 @@ object Producer {
   /**
     * It creates a simple [[Producer]] with the supplied options.
     */
-  def make[F[_]: Sync: FutureLift: Parallel, E: Schema](
+  def make[F[_]: Sync: FutureLift, E: Schema](
       client: Pulsar.Underlying,
       topic: Topic.Single,
       opts: Options[F, E] = null // default value does not work

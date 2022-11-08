@@ -25,34 +25,10 @@ object Settings {
     ),
     ThisBuild / developers := List(
       Developer(
-        "agjacome",
-        "Alberto G. Jácome",
-        "alberto.jacome@chatroulette.com",
-        url("https://github.com/agjacome")
-      ),
-      Developer(
-        "AndreasKostler",
-        "Andreas Kostler",
-        "andreas.kostler@chatroulette.com",
-        url("https://github.com/AndreasKostler")
-      ),
-      Developer(
-        "gvolpe",
-        "Gabriel Volpe",
-        "gabriel.volpe@chatroulette.com",
-        url("https://gvolpe.com")
-      ),
-      Developer(
         "psisoyev",
         "Pavels Sisojevs",
         "pavels.sisojevs@chatroulette.com",
         url("https://scala.monster/")
-      ),
-      Developer(
-        "tabdulazim",
-        "Tamer Abdulazim",
-        "tamer.abdulazim@chatroulette.com",
-        url("https://bitspire.ca/")
       )
     )
   )
