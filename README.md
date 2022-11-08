@@ -20,7 +20,7 @@ Check out the [microsite](https://cr-org.github.io/neutron/).
 
 ### Pulsar version
 
-At the moment, we target Apache Pulsar 2.7.x.
+At the moment, we target Apache Pulsar 2.10.x.
 
 ### Development
 
