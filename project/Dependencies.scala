@@ -8,12 +8,12 @@ object Dependencies {
     val avro4s = "4.1.0"
     val cats   = "2.8.0"
 
-    val catsEffect = "3.3.14"
+    val catsEffect = "3.4.2"
     val circe      = "0.14.3"
-    val fs2        = "3.3.0"
+    val fs2        = "3.4.0"
     val newtype    = "0.4.4"
     val pulsar     = "2.10.2"
-    val weaver     = "0.8.0"
+    val weaver     = "0.8.1"
 
     val betterMonadicFor = "0.3.1"
     val contextApplied   = "0.1.4"
