@@ -149,7 +149,7 @@ cr-org/neutron
 <ul style="display: none">
 <li class="md-nav__item md-version" id="project.version">
 <label class="md-nav__link" for="__version">
-<i class="md-icon" title="Version">label_outline</i> 0.0.8
+<i class="md-icon" title="Version">label_outline</i> 0.0.10
 </label>
 </li>
 </ul>
@@ -178,51 +178,44 @@ cr-org/neutron
 <h1><a href="#neutron" name="neutron" class="anchor"><span class="anchor-link"></span></a>Neutron</h1>
 <p>Neutron is a purely functional <a href="https://pulsar.apache.org/">Apache Pulsar</a> client for Scala, build on top of <a href="https://fs2.io">fs2</a> and the Java Pulsar client.</p>
 <p>It is published for Scala 2.13. You can include it in your project by adding the following dependencies.</p><dl class="dependency"><dt>sbt</dt><dd><pre class="prettyprint"><code class="language-scala">libraryDependencies ++= Seq(
-  "com.chatroulette" %% "neutron-core" % "0.0.8",
-  "com.chatroulette" %% "neutron-circe" % "0.0.8",
-  "com.chatroulette" %% "neutron-function" % "0.0.8"
+  "com.chatroulette" %% "neutron-core" % "0.0.10",
+  "com.chatroulette" %% "neutron-circe" % "0.0.10",
+  "com.chatroulette" %% "neutron-function" % "0.0.10"
 )</code></pre></dd><dt>Maven</dt><dd><pre class="prettyprint"><code class="language-xml">&lt;dependencies&gt
   &lt;dependency&gt;
     &lt;groupId&gt;com.chatroulette&lt;/groupId&gt;
     &lt;artifactId&gt;neutron-core_2.13&lt;/artifactId&gt;
-    &lt;version&gt;0.0.8&lt;/version&gt;
+    &lt;version&gt;0.0.10&lt;/version&gt;
   &lt;/dependency&gt
   &lt;dependency&gt;
     &lt;groupId&gt;com.chatroulette&lt;/groupId&gt;
     &lt;artifactId&gt;neutron-circe_2.13&lt;/artifactId&gt;
-    &lt;version&gt;0.0.8&lt;/version&gt;
+    &lt;version&gt;0.0.10&lt;/version&gt;
   &lt;/dependency&gt
   &lt;dependency&gt;
     &lt;groupId&gt;com.chatroulette&lt;/groupId&gt;
     &lt;artifactId&gt;neutron-function_2.13&lt;/artifactId&gt;
-    &lt;version&gt;0.0.8&lt;/version&gt;
+    &lt;version&gt;0.0.10&lt;/version&gt;
   &lt;/dependency&gt
 &lt;/dependencies&gt;</code></pre></dd><dt>Gradle</dt><dd><pre class="prettyprint"><code class="language-gradle">dependencies {
-  implementation "com.chatroulette:neutron-core_2.13:0.0.8"
-  implementation "com.chatroulette:neutron-circe_2.13:0.0.8"
-  implementation "com.chatroulette:neutron-function_2.13:0.0.8"
+  implementation "com.chatroulette:neutron-core_2.13:0.0.10"
+  implementation "com.chatroulette:neutron-circe_2.13:0.0.10"
+  implementation "com.chatroulette:neutron-function_2.13:0.0.10"
 }</code></pre></dd></dl>
 <h2><a href="#quick-start" name="quick-start" class="anchor"><span class="anchor-link"></span></a>Quick start</h2>
 <p>Here&rsquo;s a quick consumer / producer example using Neutron. Note: both are fully asynchronous.</p>
 <pre class="prettyprint"><code class="language-scala mdoc:compile-only">import scala.concurrent.duration._
-
 import cats.effect._
-import cats.implicits._
+import cr.pulsar.Pulsar.PulsarURL
 import fs2.Stream
-
 import cr.pulsar._
 import cr.pulsar.schema.utf8._
 
-object Demo extends IOApp {
+object Demo extends IOApp.Simple {
+  val url = PulsarURL(&quot;pulsar://localhost:6650&quot;)
 
-  val config = Config.Builder.default
-
-  val topic  =
-    Topic.Builder
-      .withName(&quot;my-topic&quot;)
-      .withConfig(config)
-      .withType(Topic.Type.NonPersistent)
-      .build
+  val topic =
+    Topic.simple(&quot;my-topic&quot;, Topic.Type.NonPersistent)
 
   val subs =
     Subscription.Builder
@@ -232,30 +225,32 @@ object Demo extends IOApp {
 
   val resources: Resource[IO, (Consumer[IO, String], Producer[IO, String])] =
     for {
-      pulsar   &lt;- Pulsar.make[IO](config.url)
+      pulsar &lt;- Pulsar.make[IO](url)
       consumer &lt;- Consumer.make[IO, String](pulsar, topic, subs)
       producer &lt;- Producer.make[IO, String](pulsar, topic)
-    } yield (consumer, producer)
+    } yield consumer -&gt; producer
 
-  def run(args: List[String]): IO[ExitCode] =
+  val run: IO[Unit] =
     Stream
       .resource(resources)
       .flatMap {
         case (consumer, producer) =&gt;
           val consume =
             consumer
-              .subscribe
-              .evalMap(m =&gt; IO(println(m.payload)) &gt;&gt; consumer.ack(m.id))
+              .autoSubscribe
+              .evalMap(IO.println)
 
           val produce =
             Stream
               .emit(&quot;test data&quot;)
               .covary[IO]
               .metered(3.seconds)
-              .evalMap(producer.send_(_))
+              .evalMap(producer.send_)
 
           consume.concurrently(produce)
-      }.compile.drain.as(ExitCode.Success)
+      }
+      .compile
+      .drain
 
 }
 </code></pre>
@@ -303,7 +298,7 @@ val schema = Schema[Foo] // summon an instance
 </code></pre>
 <p>Notice that <code>avro4s</code> is marked as <code>Provided</code>, meaning you need to explicitly add it to your classpath.</p>
 <h4><a href="#schema-compatibility-check-strategy" name="schema-compatibility-check-strategy" class="anchor"><span class="anchor-link"></span></a>Schema Compatibility Check Strategy</h4>
-<p>Whenever using schemas, make sure you fully understand the different <a href="https://pulsar.apache.org/docs/en/schema-evolution-compatibility/#schema-compatibility-check-strategy">strategies</a>, which only operate at the namespace level (e.g. see how integration tests are set up in the <a href="./run.sh">run.sh</a> shell script).</p>
+<p>Whenever using schemas, make sure you fully understand the different <a href="https://pulsar.apache.org/docs/en/schema-evolution-compatibility/#schema-compatibility-check-strategy">strategies</a>, which only operate at the namespace level (e.g. see how integration tests are set up in the <a href="./docker-compose.yml">docker-compose.yml</a> shell script).</p>
 <p>For instance, when using the <code>BACKWARD</code> mode, a producer and consumer will fail to initialize if the schemas are incompatible, even if your custom JSON decoder can deserialize the previous model, the Pulsar broker doesn&rsquo;t know about it. E.g. say we have this model in our new application.</p>
 <pre class="prettyprint"><code class="language-scala">case class Event(uuid: UUID, value: String)
 </code></pre>
@@ -379,13 +374,13 @@ val schema = Schema[Foo] // summon an instance
 <p>See the difference with the previous schema? This one has a <code>default: null</code> in addition to the extra <code>null</code> type.</p>
 </div>
 <div>
-<a href="https://github.com/cr-org/neutron/tree/v0.0.8/docs/src/paradox/index.md" title="Edit this page" class="md-source-file md-edit">
+<a href="https://github.com/cr-org/neutron/tree/v0.0.10/docs/src/paradox/index.md" title="Edit this page" class="md-source-file md-edit">
 Edit this page
 </a>
 </div>
 <div class="print-only">
 <span class="md-source-file md-version">
-0.0.8
+0.0.10
 </span>
 </div>
 </article>
