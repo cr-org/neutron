@@ -27,6 +27,7 @@ import org.apache.pulsar.functions.api.{
   Record => JavaRecord,
   WindowContext => JavaWindowContext
 }
+import org.apache.pulsar.functions.api.utils.FunctionRecord.FunctionRecordBuilder
 import org.slf4j.Logger
 import cr.pulsar.JavaConversions._
 import org.apache.pulsar.client.admin.PulsarAdmin
@@ -110,8 +111,9 @@ object FunctionInput {
         tenant: String,
         ns: String,
         name: String
-    ): S                                     = ???
-    override def getPulsarAdmin: PulsarAdmin = ???
+    ): S                                                                                = ???
+    override def getPulsarAdmin: PulsarAdmin                                            = ???
+    override def newOutputRecordBuilder[O](schema: Schema[O]): FunctionRecordBuilder[O] = ???
   }
 
   def input[A](seq: Seq[A]): util.Collection[JavaRecord[A]] = {
