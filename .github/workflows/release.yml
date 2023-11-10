@@ -17,7 +17,7 @@ jobs:
           fetch-depth: 0 # fetch all branches & tags
 
       - name: "Install Nix ❄️"
-        uses: cachix/install-nix-action@v12
+        uses: cachix/install-nix-action@v22
 
       - name: "Install Cachix ❄️"
         uses: cachix/cachix-action@v12
