@@ -27,7 +27,6 @@ import org.apache.pulsar.functions.api.{
   Record => JavaRecord,
   WindowContext => JavaWindowContext
 }
-import org.apache.pulsar.functions.api.utils.FunctionRecord.FunctionRecordBuilder
 import org.slf4j.Logger
 import cr.pulsar.JavaConversions._
 import org.apache.pulsar.client.admin.PulsarAdmin
