@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         java:
@@ -24,7 +24,7 @@ jobs:
         uses: coursier/cache-action@v4.1
 
       - name: "Install Nix ❄️"
-        uses: cachix/install-nix-action@v12
+        uses: cachix/install-nix-action@v22
 
       - name: "Run with ${{ matrix.java }} 🚀"
         run: nix-shell --argstr java "${{ matrix.java }}" --run "SBT_OPTS='--add-opens java.base/java.lang=ALL-UNNAMED' sbt + 'it:test;test;makeSite;doc'"
