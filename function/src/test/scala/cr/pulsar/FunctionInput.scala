@@ -18,15 +18,20 @@ package cr.pulsar
 
 import cr.pulsar.JavaConversions._
 import org.apache.pulsar.client.admin.PulsarAdmin
-import org.apache.pulsar.client.api.{ConsumerBuilder, Schema, TypedMessageBuilder}
+import org.apache.pulsar.client.api.{ ConsumerBuilder, Schema, TypedMessageBuilder }
 import org.apache.pulsar.functions.api.utils.FunctionRecord.FunctionRecordBuilder
-import org.apache.pulsar.functions.api.{StateStore, Context => JavaContext, Record => JavaRecord, WindowContext => JavaWindowContext}
+import org.apache.pulsar.functions.api.{
+  StateStore,
+  Context => JavaContext,
+  Record => JavaRecord,
+  WindowContext => JavaWindowContext
+}
 import org.slf4j.Logger
 
 import java.nio.ByteBuffer
 import java.util.Optional
 import java.util.concurrent.CompletableFuture
-import java.{lang, util}
+import java.{ lang, util }
 
 object FunctionInput {
   def emptyWindowCtx: JavaWindowContext = new JavaWindowContext {
