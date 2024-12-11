@@ -115,6 +115,7 @@ object FunctionInput {
     ): S                                                                                = ???
     override def getPulsarAdmin: PulsarAdmin                                            = ???
     override def newOutputRecordBuilder[O](schema: Schema[O]): FunctionRecordBuilder[O] = ???
+    override def fatal(t: Throwable): Unit                                              = ???
   }
 
   def input[A](seq: Seq[A]): util.Collection[JavaRecord[A]] = {
