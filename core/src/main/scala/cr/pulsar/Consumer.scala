@@ -242,5 +242,4 @@ object Consumer {
       deadLetterPolicy = None
     )
   }
-
 }
