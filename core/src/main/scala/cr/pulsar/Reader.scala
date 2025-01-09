@@ -63,23 +63,23 @@ object Reader {
   ): Resource[F, JReader[E]] =
     Resource
       .make {
-        F.delay {
+        Sync[F].delay {
           client
-            .newReader(E.schema)
+            .newReader(Schema[E].schema)
             .topic(topic.url.value)
             .startMessageId(opts.startMessageId)
             .startMessageIdInclusive()
             .readCompacted(opts.readCompacted)
             .create()
         }
-      }(c => F.futureLift(c.closeAsync()).void)
+      }(c => FutureLift[F].lift(c.closeAsync()).void)
 
   private def mkMessageReader[
       F[_]: Sync: FutureLift,
       E: Schema
   ](c: JReader[E]): MessageReader[F, E] =
     new MessageReader[F, E] {
-      private def readMsg: F[Message[E]] = F.delay {
+      private def readMsg: F[Message[E]] = Sync[F].delay {
         val m = c.readNext()
         Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
       }
@@ -88,13 +88,13 @@ object Reader {
         Stream.repeatEval(readMsg)
 
       override def readUntil(timeout: FiniteDuration): F[Option[Message[E]]] =
-        F.delay(c.readNext(timeout.length.toInt, timeout.unit)).map {
+        Sync[F].delay(c.readNext(timeout.length.toInt, timeout.unit)).map {
           Option(_).map { m =>
             Message(m.getMessageId, MessageKey(m.getKey), m.getValue)
           }
         }
 
-      override def messageAvailable: F[MessageAvailable] = F.delay {
+      override def messageAvailable: F[MessageAvailable] = Sync[F].delay {
         if (c.hasMessageAvailable) MessageAvailable.Yes else MessageAvailable.No
       }
     }
