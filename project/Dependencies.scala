@@ -14,7 +14,7 @@ object Dependencies {
 
     val newtype = "0.4.4"
     val pulsar  = "4.0.3"
-    val weaver  = "0.8.4"
+    val weaver  = "0.9.3"
 
     val betterMonadicFor = "0.3.1"
     val kindProjector    = "0.13.3"
@@ -39,8 +39,8 @@ object Dependencies {
     val pulsarFunctionsApi = "org.apache.pulsar" % "pulsar-functions-api" % V.pulsar
 
     // Testing
-    val weaverCats       = "com.disneystreaming" %% "weaver-cats"       % V.weaver
-    val weaverScalaCheck = "com.disneystreaming" %% "weaver-scalacheck" % V.weaver
+    val weaverCats       = "org.typelevel" %% "weaver-cats"       % V.weaver
+    val weaverScalaCheck = "org.typelevel" %% "weaver-scalacheck" % V.weaver
   }
 
   object CompilerPlugins {
