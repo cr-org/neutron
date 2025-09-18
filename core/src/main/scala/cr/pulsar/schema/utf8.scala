@@ -34,6 +34,8 @@ object utf8 {
             .catchNonFatal(new String(bytes, UTF_8))
             .getOrElse(throw new DecodingFailure(s"Could not decode bytes: $bytes"))
         override def getSchemaInfo(): SchemaInfo = JSchema.BYTES.getSchemaInfo()
+
+        override def clone(): JSchema[String] = this
       }
     }
 }

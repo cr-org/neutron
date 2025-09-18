@@ -5,19 +5,22 @@ object Dependencies {
   object V {
     val java8Compat = "1.0.2"
 
-    val avro4s = "4.1.1"
-    val cats   = "2.9.0"
+    val avro4s = "4.1.2"
 
     val catsEffect = "3.4.8"
     val circe      = "0.14.5"
     val fs2        = "3.6.1"
     val newtype    = "0.4.4"
     val pulsar     = "2.10.2"
-    val weaver     = "0.8.3"
+    val weaver     = "0.8.4"
+    val cats       = "2.13.0"
+    val catsEffect = "3.6.1"
+    val fs2        = "3.11.0"
+    val circe      = "0.14.10"
+
 
     val betterMonadicFor = "0.3.1"
-    val contextApplied   = "0.1.4"
-    val kindProjector    = "0.13.2"
+    val kindProjector    = "0.13.3"
     val macroParadise    = "2.1.1"
   }
 
@@ -46,9 +49,6 @@ object Dependencies {
   object CompilerPlugins {
     val betterMonadicFor = compilerPlugin(
       "com.olegpy" %% "better-monadic-for" % V.betterMonadicFor
-    )
-    val contextApplied = compilerPlugin(
-      "org.augustjune" %% "context-applied" % V.contextApplied
     )
     val kindProjector = compilerPlugin(
       "org.typelevel" %% "kind-projector" % V.kindProjector cross CrossVersion.full

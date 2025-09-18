@@ -40,7 +40,7 @@ object Pulsar {
       opts: Options = Options()
   ): Resource[F, Underlying] =
     Resource.fromAutoCloseable(
-      F.delay(
+      Sync[F].delay(
         JavaPulsar.builder
           .serviceUrl(url.value)
           .connectionTimeout(

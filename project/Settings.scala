@@ -5,7 +5,7 @@ import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport._
 import Dependencies.CompilerPlugins
 
 object Settings {
-  val supportedScala = "2.13.5"
+  val supportedScala = "2.13.16"
 
   val commonSettings = Seq(
     scalacOptions ++= compilerFlags(scalaVersion.value),

@@ -24,6 +24,6 @@ trait Logger[F[_], E] {
 
 object Logger {
   def noop[F[_]: Applicative, E]: Logger[F, E] = new Logger[F, E] {
-    override def log(topic: Topic.URL, e: E): F[Unit] = F.unit
+    override def log(topic: Topic.URL, e: E): F[Unit] = Applicative[F].unit
   }
 }

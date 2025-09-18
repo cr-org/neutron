@@ -76,8 +76,8 @@ object Consumer {
       opts: Options[F, E]
   ): Resource[F, Consumer[F, E]] = {
 
-    val acquire = F.futureLift {
-      val c = client.newConsumer(E.schema)
+    val acquire = FutureLift[F].lift {
+      val c = client.newConsumer(Schema[E].schema)
       val z = topic match {
         case s: Topic.Single => c.topic(s.url.value)
         case m: Topic.Multi  => c.topicsPattern(m.url.value.r.pattern)
@@ -93,8 +93,8 @@ object Consumer {
     }
 
     def release(c: JConsumer[E]): F[Unit] =
-      F.futureLift(c.unsubscribeAsync()).attempt.unlessA(opts.manualUnsubscribe) >>
-          F.futureLift(c.closeAsync()).void
+      FutureLift[F].lift(c.unsubscribeAsync()).attempt.unlessA(opts.manualUnsubscribe) >>
+          FutureLift[F].lift(c.closeAsync()).void
 
     Resource
       .make(acquire)(release)
@@ -102,7 +102,7 @@ object Consumer {
         new Consumer[F, E] {
           private def subscribeInternal(autoAck: Boolean): Stream[F, Message[E]] =
             Stream.repeatEval {
-              F.futureLift(c.receiveAsync()).flatMap { m =>
+              FutureLift[F].lift(c.receiveAsync()).flatMap { m =>
                 val e = m.getValue()
 
                 opts.logger.log(Topic.URL(m.getTopicName), e) >>
@@ -113,10 +113,10 @@ object Consumer {
 
             }
 
-          override def ack(id: MessageId): F[Unit]  = F.delay(c.acknowledge(id))
-          override def nack(id: MessageId): F[Unit] = F.delay(c.negativeAcknowledge(id))
+          override def ack(id: MessageId): F[Unit]  = Sync[F].delay(c.acknowledge(id))
+          override def nack(id: MessageId): F[Unit] = Sync[F].delay(c.negativeAcknowledge(id))
           override def unsubscribe: F[Unit] =
-            F.futureLift(c.unsubscribeAsync()).void
+            FutureLift[F].lift(c.unsubscribeAsync()).void
           override def subscribe: Stream[F, Message[E]] =
             subscribeInternal(autoAck = false)
           override def autoSubscribe: Stream[F, E] =
@@ -125,7 +125,7 @@ object Consumer {
           override def process[T](processor: E => F[T]): Stream[F, T] =
             Stream
               .repeatEval {
-                F.futureLift(c.receiveAsync()).flatMap { m =>
+                FutureLift[F].lift(c.receiveAsync()).flatMap { m =>
                   opts.logger.log(Topic.URL(m.getTopicName), m.getValue()).as(m)
                 }
               }
@@ -242,5 +242,4 @@ object Consumer {
       deadLetterPolicy = None
     )
   }
-
 }

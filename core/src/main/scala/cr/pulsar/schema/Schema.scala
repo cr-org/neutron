@@ -33,11 +33,13 @@ object Schema {
     new Schema[E] {
       def schema: JSchema[E] =
         new JSchema[E] {
-          override def encode(message: E): Array[Byte] = E.inj(message)
+          override def encode(message: E): Array[Byte] = Inject[E, Array[Byte]].inj(message)
           override def decode(bytes: Array[Byte]): E =
-            E.prj(bytes)
+            Inject[E, Array[Byte]]
+              .prj(bytes)
               .getOrElse(throw new DecodingFailure(s"Could not decode bytes: $bytes"))
           override def getSchemaInfo(): SchemaInfo = JSchema.BYTES.getSchemaInfo()
+          override def clone(): JSchema[E]         = this
         }
     }
 }

@@ -21,13 +21,13 @@ import cats.effect._
 import java.util.concurrent._
 
 private[pulsar] trait FutureLift[F[_]] {
-  def futureLift[A](fa: => CompletableFuture[A]): F[A]
+  def lift[A](fa: => CompletableFuture[A]): F[A]
 }
 
 private[pulsar] object FutureLift {
   implicit def instance[F[_]: Async]: FutureLift[F] = new FutureLift[F] {
-    override def futureLift[A](fa: => CompletableFuture[A]): F[A] =
-      F.fromCompletableFuture(F.delay(fa))
+    override def lift[A](fa: => CompletableFuture[A]): F[A] =
+      Async[F].fromCompletableFuture(Sync[F].delay(fa))
   }
 
   def apply[F[_]](implicit fl: FutureLift[F]): FutureLift[F] = fl

@@ -97,13 +97,13 @@ object Producer {
 
     Resource
       .make {
-        F.delay(
+        Sync[F].delay(
           configureBatching(
             _opts.batching,
-            client.newProducer(E.schema).topic(topic.url.value)
+            client.newProducer(Schema[E].schema).topic(topic.url.value)
           ).create
         )
-      }(p => F.futureLift(p.closeAsync()).void)
+      }(p => FutureLift[F].lift(p.closeAsync()).void)
       .map { prod =>
         new Producer[F, E] {
           private def buildMessage(
@@ -121,7 +121,7 @@ object Producer {
             }
 
           private def _send(msg: TypedMessageBuilder[E]): F[MessageId] =
-            F.futureLift(msg.sendAsync())
+            FutureLift[F].lift(msg.sendAsync())
 
           override def send(msg: E, key: MessageKey): F[MessageId] =
             buildMessage(msg, key, None) >>= _send

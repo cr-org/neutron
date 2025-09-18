@@ -16,11 +16,10 @@
 
 package cr.pulsar
 
-import java.nio.ByteBuffer
-import java.{ lang, util }
-import java.util.Optional
-import java.util.concurrent.CompletableFuture
+import cr.pulsar.JavaConversions._
+import org.apache.pulsar.client.admin.PulsarAdmin
 import org.apache.pulsar.client.api.{ ConsumerBuilder, Schema, TypedMessageBuilder }
+import org.apache.pulsar.functions.api.utils.FunctionRecord.FunctionRecordBuilder
 import org.apache.pulsar.functions.api.{
   StateStore,
   Context => JavaContext,
@@ -28,8 +27,11 @@ import org.apache.pulsar.functions.api.{
   WindowContext => JavaWindowContext
 }
 import org.slf4j.Logger
-import cr.pulsar.JavaConversions._
-import org.apache.pulsar.client.admin.PulsarAdmin
+
+import java.nio.ByteBuffer
+import java.util.Optional
+import java.util.concurrent.CompletableFuture
+import java.{ lang, util }
 
 object FunctionInput {
   def emptyWindowCtx: JavaWindowContext = new JavaWindowContext {
@@ -110,8 +112,10 @@ object FunctionInput {
         tenant: String,
         ns: String,
         name: String
-    ): S                                     = ???
-    override def getPulsarAdmin: PulsarAdmin = ???
+    ): S                                                                                = ???
+    override def getPulsarAdmin: PulsarAdmin                                            = ???
+    override def newOutputRecordBuilder[O](schema: Schema[O]): FunctionRecordBuilder[O] = ???
+    override def fatal(t: Throwable): Unit                                              = ???
   }
 
   def input[A](seq: Seq[A]): util.Collection[JavaRecord[A]] = {

@@ -9,7 +9,6 @@ lazy val `neutron-core` = (project in file("core"))
   .settings(
     libraryDependencies ++= List(
           CompilerPlugins.betterMonadicFor,
-          CompilerPlugins.contextApplied,
           CompilerPlugins.kindProjector,
           Libraries.cats,
           Libraries.catsEffect,
@@ -57,7 +56,6 @@ lazy val tests = (project in file("tests"))
     Defaults.itSettings,
     libraryDependencies ++= List(
           CompilerPlugins.betterMonadicFor,
-          CompilerPlugins.contextApplied,
           CompilerPlugins.kindProjector,
           Libraries.avro4s       % "it,test",
           Libraries.circeCore    % "it,test",
