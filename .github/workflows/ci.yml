@@ -26,7 +26,9 @@ jobs:
         run: docker-compose up -d
 
       - name: "Cache for sbt & coursier ♨️"
-        uses: coursier/cache-action@v4.1
+        uses: coursier/cache-action@v6
+        with:
+          extraSbtFiles: 'tmp/remote-cache/**'
 
       - name: "Install Nix ❄️"
         uses: cachix/install-nix-action@v22
