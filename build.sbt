@@ -1,5 +1,5 @@
-import Dependencies._
-import Settings._
+import Dependencies.*
+import Settings.*
 
 ThisBuild / scalaVersion := supportedScala
 
@@ -50,77 +50,29 @@ lazy val `neutron-function` = (project in file("function"))
 lazy val tests = (project in file("tests"))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(commonSettings)
-  .configs(IntegrationTest)
   .settings(
+    publish / skip := true,
     noPublish,
-    Defaults.itSettings,
+    Test / fork := true,
+    Test / parallelExecution := false,
     libraryDependencies ++= List(
-          CompilerPlugins.betterMonadicFor,
-          CompilerPlugins.kindProjector,
-          Libraries.avro4s       % "it,test",
-          Libraries.circeCore    % "it,test",
-          Libraries.circeGeneric % "it,test",
-          Libraries.circeParser  % "it,test",
-          Libraries.weaverCats   % "it,test"
-        )
+      CompilerPlugins.betterMonadicFor,
+      CompilerPlugins.kindProjector,
+      Libraries.avro4s       % Test,
+      Libraries.circeCore    % Test,
+      Libraries.circeGeneric % Test,
+      Libraries.circeParser  % Test,
+      Libraries.weaverCats   % Test
+    )
   )
   .dependsOn(`neutron-circe`)
-
-lazy val docs = (project in file("docs"))
-  .dependsOn(`neutron-circe`)
-  .enablePlugins(ParadoxSitePlugin)
-  .enablePlugins(ParadoxMaterialThemePlugin)
-  .enablePlugins(GhpagesPlugin)
-  .enablePlugins(MdocPlugin)
-  .settings(
-    noPublish,
-    libraryDependencies ++= List(
-          Libraries.avro4s,
-          Libraries.circeGeneric
-        ),
-    scalacOptions -= "-Xfatal-warnings",
-    scmInfo := Some(
-          ScmInfo(
-            url("https://github.com/cr-org/neutron"),
-            "scm:git:git@github.com:cr-org/neutron.git"
-          )
-        ),
-    git.remoteRepo := scmInfo.value.get.connection.replace("scm:git:", ""),
-    ghpagesNoJekyll := true,
-    version := version.value.takeWhile(_ != '+'),
-    paradoxProperties ++= Map(
-          "scala-versions" -> (`neutron-core` / crossScalaVersions).value
-                .map(CrossVersion.partialVersion)
-                .flatten
-                .map(_._2)
-                .mkString("2.", "/", ""),
-          "org" -> organization.value,
-          "scala.binary.version" -> s"2.${CrossVersion.partialVersion(scalaVersion.value).get._2}",
-          "neutron-core" -> s"${(`neutron-core` / name).value}_2.${CrossVersion.partialVersion(scalaVersion.value).get._2}",
-          "neutron-circe" -> s"${(`neutron-circe` / name).value}_2.${CrossVersion.partialVersion(scalaVersion.value).get._2}",
-          "neutron-function" -> s"${(`neutron-function` / name).value}_2.${CrossVersion.partialVersion(scalaVersion.value).get._2}",
-          "version" -> version.value
-        ),
-    mdocIn := (Paradox / sourceDirectory).value,
-    mdocExtraArguments ++= Seq("--no-link-hygiene"),
-    makeSite := makeSite.dependsOn(mdoc.toTask("")).value,
-    ParadoxMaterialThemePlugin.paradoxMaterialThemeSettings(Paradox),
-    Paradox / paradoxMaterialTheme := {
-      ParadoxMaterialTheme()
-        .withColor("red", "orange")
-        .withLogoIcon("flash_on")
-        .withCopyright("Copyright © Chatroulette")
-        .withRepository(uri("https://github.com/cr-org/neutron"))
-    }
-  )
 
 lazy val root = (project in file("."))
   .settings(name := "neutron")
-  .settings(noPublish)
+  .settings(noPublish, publish / skip := true)
   .aggregate(
     `neutron-function`,
     `neutron-circe`,
     `neutron-core`,
-    docs,
     tests
   )
