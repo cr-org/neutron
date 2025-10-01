@@ -16,9 +16,8 @@ object Dependencies {
     val pulsar  = "4.0.3"
     val weaver  = "0.8.4"
 
-
     val betterMonadicFor = "0.3.1"
-    val kindProjector    = "0.13.3"
+    val kindProjector    = "0.13.4"
     val macroParadise    = "2.1.1"
   }
 
