@@ -17,7 +17,7 @@ object Dependencies {
     val weaver  = "0.13.0"
 
     val betterMonadicFor = "0.3.1"
-    val kindProjector    = "0.13.3"
+    val kindProjector    = "0.13.4"
     val macroParadise    = "2.1.1"
   }
 
