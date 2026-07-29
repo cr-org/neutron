@@ -59,7 +59,7 @@ object DelayedDeliverySuite extends NeutronSuite {
           }
 
       result <- ref.get
-    } yield assert(
+    } yield expect(
       result.exists(r => Duration.between(start, r.ts).toMillis >= delay.toMillis)
     )
   }
