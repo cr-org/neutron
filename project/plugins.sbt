@@ -1,7 +1,7 @@
 addSbtPlugin("com.github.sbt"    % "sbt-ci-release" % "1.12.0")
 addSbtPlugin("de.heikoseeberger" % "sbt-header"     % "5.10.0")
 addSbtPlugin("io.spray"          % "sbt-revolver"   % "0.10.0")
-addSbtPlugin("org.scalameta"     % "sbt-scalafmt"   % "2.5.6")
+addSbtPlugin("org.scalameta"     % "sbt-scalafmt"   % "2.6.2")
 addSbtPlugin("org.typelevel"     % "sbt-tpolecat"   % "0.5.6")
 addSbtPlugin("org.scalameta"     % "sbt-scalafmt"   % "2.5.2")
 addSbtPlugin("org.typelevel"     % "sbt-tpolecat"   % "0.5.7")
