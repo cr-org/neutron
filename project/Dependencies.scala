@@ -14,7 +14,7 @@ object Dependencies {
 
     val newtype = "0.4.4"
     val pulsar  = "4.0.3"
-    val weaver  = "0.13.0"
+    val weaver  = "0.13.1"
 
     val betterMonadicFor = "0.3.1"
     val kindProjector    = "0.13.4"
